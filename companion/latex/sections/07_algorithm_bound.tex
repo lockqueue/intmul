@@ -1,0 +1,164 @@
+\section{The algorithm and the \texorpdfstring{$O(n \log n)$}{O(n log n)} bound}\label{sec:main-proof}
+
+\subsection{Algorithm specification}\label{sec:alg-spec}
+
+Listing~\ref{lst:multiply} gives the top-level specification of \texttt{Multiply} and \texttt{FastDFT}; the corresponding Turing-machine subroutines are defined in Section~\ref{sec:prelim} (shared tables and breadth-first tape sweeps), Section~\ref{sec:bridge} (polynomial-transform reduction and fractional-shift bridge), Section~\ref{sec:deconv} (\texttt{CyclicSolve} and \texttt{NyquistSolve}), and Section~\ref{sec:spread-and-error} (overlap-add Kronecker spreading and the additive schedule \eqref{eq:cert-sched}). Inputs of bit-length $2 \le n \le 64$ are multiplied directly by schoolbook multiplication in $O(1)$ Turing machine steps.
+
+\begin{lstlisting}[language=Python,caption={Two-call normalized \texttt{Multiply} and recursive \texttt{FastDFT} specification.},label={lst:multiply}]
+def Multiply(A: int, B: int, n: int) -> int:
+    """
+    Multiply two n-bit non-negative integers A, B in O(n log n) steps.
+    Uses two-call complex forward packing and root precision p0 = 2b + 2K0 + 6.
+    """
+    if n <= 64:
+        return A * B
+    b = max(4, n.bit_length() - 1)                # Chunk size b = floor(log_2 n)
+    N = (n + b - 1) // b                          # Number of chunks
+    K0 = (2 * N - 1).bit_length()
+    R0 = 1 << K0                                  # Smallest power of 2 >= 2N
+    p0 = 2 * b + 2 * K0 + 6                       # Root precision p0 = Theta(log n)
+
+    # 1. Normalize chunks by 2^{-b} into [0, 1) and pack A + i*B into one complex vector
+    x_AB = PackNormalizedComplex(A, B, b, R0, p0)
+
+    # 2. Build shared per-level tables once, then make two top-level calls to FastDFT
+    tables = BuildSharedLevelTables(R0, p0)
+    y_AB = FastDFT(x_AB, R0, p0, tables)
+    y_sq_conj = [FixedPointSquare(y_AB[u], p0 + 2).conjugate() for u in range(R0)]
+    z_out = FastDFT(y_sq_conj, R0, p0, tables)
+
+    # 3. Scale imaginary part by -2^{2b - 1} * R0^2, round to nearest integers, propagate carries
+    c_chunks = [RoundToNearestInt(-(1 << (2 * b - 1)) * (R0 * R0) * z.imag, p0 + 2) for z in z_out]
+    return PropagateCarries(c_chunks, b)
+
+
+def FastDFT(x: list, R: int, p_bits: int, tables: dict) -> list:
+    """
+    Recursive 1D power-of-two DFT F_R(x) returning accuracy 2^{-p_bits} * max(1, ||x||_inf).
+    Uses windowed sinc-Gaussian spreading and the additive precision schedule.
+    """
+    if R <= 4 * p_bits * p_bits:
+        return BaseRadix2FFT(x, R, p_bits, tables)
+
+    K = R.bit_length() - 1
+    t1 = 1 << (K // 2)                            # t1 = 2^{floor(K/2)}
+    r  = 1 << ((K + 1) // 2)                      # r  = 2^{ceil(K/2)}, t1 | r, R = t1 * r
+
+    # Additive precision schedule: p_child = p_bits + 2*K + 12
+    p_work  = p_bits + K + 6
+    p_child = p_work + K + 6
+    q_child = p_child + 2
+
+    # Save exact Nyquist spatial alternating sum A_N before modifying input layout
+    A_N = ExactNyquistAlternatingSum(x, t1, r, q_child)
+
+    # Step 1 (row spreading): sinc-Gaussian fractional shift via overlap-add and signed Kronecker packing
+    x_tilde = OverlapAddSignedKroneckerRowSpread(x, t1, r, p_work, p_child, tables)
+
+    # Step 2 (polynomial-transform 2D DFT over C[y]/(y^r + 1), Steps 2a--2d):
+    # Step 2a (pre-twist)
+    U_pre  = PreTwist(x_tilde, t1, r, q_child, tables)
+    # Step 2b (polynomial transform)
+    Q      = PolyTransform_Radix2_Mod_YrPlus1(U_pre, t1, r, q_child)
+    # Step 2c (post-twist)
+    Q_post = PostTwist(Q, t1, r, q_child, tables)
+    # Step 2d (recursive DFTs and odd-stride permutation)
+    C_child = [FastDFT(Q_post[v1], r, p_child, tables) for v1 in range(t1)]
+    Y = OddStrideColumnRoute(C_child, t1, r)
+
+    # Step 3 (column deconvolution): two-term cyclic and Nyquist solvers + output transpose
+    Z_cols = SolveTwoTermBidiagonalOutput(Y, A_N, t1, r, p_work, p_child, p_bits, tables)
+    return TransposeColumnMajorToRowMajor(Z_cols, t1, r)
+\end{lstlisting}
+
+\subsection{Cost of the algorithm}\label{sec:cost-proof}
+
+We now restate and prove Theorem~\ref{thm:main}, establishing the explicit two-term complexity bound
+\begin{equation}\label{eq:main-bound}
+  \mathcal{C}_{\mathrm{mul}}(n) = O(n \log n) + O\bigl(n (\log \log n)^2\bigr) = O(n \log n)
+\end{equation}
+via a three-stage non-circular bootstrap on a constant-tape deterministic Turing machine.
+
+\begin{thmmainrestated}
+There is a deterministic multitape Turing machine and a constant $C > 0$ such that, for every $n \ge 2$ and any two $n$-bit integers $A$ and $B$, given the binary representations of $A$ and $B$ on the input tape, the machine writes the $2n$-bit binary product on the output tape in at most $C n \log_2 n$ steps.
+\end{thmmainrestated}
+
+Its structural properties are listed after Theorem~\ref{thm:main} in Section~\ref{sec:intro-results}.
+
+\begin{proof}
+For $2 \le n \le 64$, schoolbook multiplication computes $A \cdot B$ in $O(1)$ Turing machine steps; assume henceforth $n > 64$ (so $b \ge 6$, $K_0 \ge 5$, and $p_0 \ge 28$).
+
+\textbf{1. Additive precision schedule and exact root integer recovery.}
+At the root ($\ell = 0$), $b = \lfloor \log_2 n \rfloor = \Theta(\log n)$, $N = \lceil n / b \rceil$, $R_0 = 2^{K_0} = \Theta(n / \log n)$ with $2N \le R_0 < 4N$, and $p_0 = 2b + 2K_0 + 6 = \Theta(\log n)$. At recursion depth $\ell$, $K_{\ell+1} = \lceil K_\ell / 2 \rceil$, so $K_\ell = \lceil K_0 / 2^\ell \rceil \le K_0 / 2^\ell + 1$ and the recursion reaches a leaf $R_L \le 4 p_L^2$ at depth $L = O(\log K_0) = O(\log \log n)$. Summing the additive increments \eqref{eq:cert-sched} gives
+\[
+  p_\ell = p_0 + \sum_{j=0}^{\ell-1} (2 K_j + 12) \le p_0 + 4 K_0 + 14 \ell = \Theta(\log n), \qquad R_0 \, p_\ell = \Theta(n),
+\]
+uniformly across all levels $\ell \in \{0, \dots, L\}$.
+
+At the root, the normalized chunks $\tilde{a}_j = a_j 2^{-b}, \tilde{b}_j = b_j 2^{-b} \in [0, 1)$ ($0 \le j < N$, padded with zeros for $N \le j < R_0$) are represented exactly on $\Cg_{p_0+2}$ since $b < p_0 + 2$. Their packed vector $\tilde{x}_{AB} = \tilde{a} + i \tilde{b}$ satisfies $\|\tilde{x}_{AB}\|_\infty < \sqrt{2}$, and because at least half of the $R_0 \ge 2N$ entries are zero,
+\[
+  \|F_{R_0} \tilde{x}_{AB}\|_\infty \le \frac{1}{R_0} \sum_{j=0}^{N-1} |\tilde{x}_{AB, j}| < \frac{N}{R_0} \sqrt{2} \le \frac{1}{\sqrt{2}}.
+\]
+Let $\epsilon := 2^{-p_0}$. By Lemma~\ref{lem:forward}, the first call $\hat{y}_{AB} = \texttt{FastDFT}(\tilde{x}_{AB}, R_0, p_0)$ satisfies $\|\hat{y}_{AB} - F_{R_0}\tilde{x}_{AB}\|_\infty \le \sqrt{2}\epsilon$. Pointwise squaring and conjugating on $\Cg_{p_0+2}$, $\widehat{w}_u := \overline{\RM_{p_0+2}(\hat{y}_{AB, u}, \hat{y}_{AB, u})}$, incurs error
+\[
+  \bigl|\widehat{w}_u - \overline{(F_{R_0}\tilde{x}_{AB})_u^2}\bigr| \le 2 \|F_{R_0}\tilde{x}_{AB}\|_\infty (\sqrt{2}\epsilon) + (\sqrt{2}\epsilon)^2 + \frac{\sqrt{2}}{8}\epsilon < \left(2 + 2\epsilon + \frac{\sqrt{2}}{8}\right)\epsilon < 2.19\epsilon,
+\]
+and $\|\widehat{w}\|_\infty < (1/\sqrt{2})^2 + 2.19\epsilon < 1$, so $\max(1, \|\widehat{w}\|_\infty) = 1$. The second call $\hat{z}_{\mathrm{out}} = \texttt{FastDFT}(\widehat{w}, R_0, p_0)$ therefore adds at most $1 \cdot \epsilon$, giving
+\[
+  \bigl\|\hat{z}_{\mathrm{out}} - F_{R_0}\bigl(\overline{(F_{R_0}\tilde{x}_{AB})^2}\bigr)\bigr\|_\infty < 3.19\epsilon.
+\]
+By Lemma~\ref{lem:two-call}, the exact integer chunk convolution $c = a \circledast b$ equals $-2^{2b-1} R_0^2 \operatorname{Im}\bigl(F_{R_0}(\overline{(F_{R_0}\tilde{x}_{AB})^2})\bigr)$. Multiplying $-\operatorname{Im}(\hat{z}_{\mathrm{out}})$ by $2^{2b-1} R_0^2 = 2^{2b + 2K_0 - 1}$ produces each integer convolution coefficient $c_j$ with pre-rounding error strictly less than
+\[
+  3.19 \cdot 2^{2b + 2K_0 - 1} \cdot 2^{-p_0} = 3.19 \cdot 2^{-7} = \frac{3.19}{128} = 0.024921875 < \frac{1}{2},
+\]
+guaranteeing exact recovery of every integer $c_j \in \Z$ upon rounding to the nearest integer, after which linear carry propagation in radix $2^b$ outputs $A \cdot B$ in $O(n)$ bit operations.
+
+\textbf{2. $(1/2)^\ell$ geometric contraction of polynomial-transform and tape-routing work ($O(n \log n)$).}
+At depth $\ell \in \{0, \dots, L-1\}$, there are $\frac{R_0}{R_\ell}$ subproblems of length $R_\ell = t_{1,\ell} r_\ell$, so the total number of active complex entries at depth $\ell$ is $\frac{R_0}{R_\ell} \cdot R_\ell = R_0$ (no grid expansion). By \eqref{eq:height-bound}, every scalar record at depth $\ell$ has $O(p_{\ell+1} + H_\ell) = O(p_{\ell+1}) = O(\log n)$ bits. By Lemma~\ref{lem:routing} and Lemma~\ref{lem:syn-fft}, the $\log_2 t_{1,\ell}$-stage radix-2 polynomial transform $G_{t_{1,\ell}}$, the multitape input row de-interleaving, the odd-stride merge-sort column routing, and the final column-to-row output transpose all take $O\bigl(R_\ell p_{\ell+1} (1 + \log_2 t_{1,\ell})\bigr)$ bit operations per node. Since $\log_2 t_{1,\ell} = \lfloor K_\ell / 2 \rfloor \le K_0 / 2^{\ell+1} + 1$ and $R_0 p_{\ell+1} = \Theta(n)$ uniformly across all $\ell$, summing over all $\frac{R_0}{R_\ell}$ nodes at depth $\ell$ yields the geometric work envelope
+\[
+  \mathcal{C}_{\mathrm{syn+route}}(\ell) = \frac{R_0}{R_\ell} \cdot O\bigl(R_\ell p_{\ell+1}(1 + \log_2 t_{1,\ell})\bigr) = O\!\left(n \left(\frac{K_0}{2^{\ell+1}} + 1\right)\right).
+\]
+Using the telescoping sum
+\[
+  \sum_{\ell=0}^{L-1} \log_2 t_{1,\ell} = K_0 - K_L \le K_0 = \log_2 R_0 = O(\log n),
+\]
+summing over $\ell = 0, \dots, L-1$ gives
+\begin{equation}\label{eq:syn-route-total}
+  \mathcal{C}_{\mathrm{syn+route}} = \sum_{\ell=0}^{L-1} \mathcal{C}_{\mathrm{syn+route}}(\ell) = O(n K_0 + n L) = O(n \log n).
+\end{equation}
+
+\textbf{3. $O\bigl(n (\log \log n)^2\bigr)$ secondary work and constant-tape discipline via three-stage bootstrap.}
+By \eqref{eq:table-precomp} and Appendix~\ref{app:tape-schedule}, shared per-level table generation for the outer call takes $o(n)$ Turing machine steps and sequential level-table replay (including per-stage leaf twiddle list replay) takes $O(n \log \log n)$ steps. Every non-table integer multiplication inside the root pointwise squaring, Steps~1, 2a, 2c, 3, and the leaf \texttt{BaseRadix2FFT} at depth $\ell$ has operand bit-length at most
+\[
+  N_\ell = O(\tilde{W}_\ell p_{\ell+1}) = O(p_L^2) = O((\log n)^2) \ll n.
+\]
+To establish \eqref{eq:main-bound} without circularity in the asymptotic constant and with a fixed constant number of tapes, we define a three-stage hierarchy of multiplier procedures ($\texttt{Multiply}_2 \to \texttt{Multiply}_1 \to \texttt{BasicMul}$), allocating a separate constant bank of work tapes to each stage ($3 \times O(1) = O(1)$ tapes in total). Whenever an outer sweep invokes an inner $N$-bit multiplier, it copies the two $N$-bit operands onto the callee stage's input tape, runs the callee on its dedicated tape bank, copies the $2N$-bit product back, and erases and rewinds the callee's tapes in $O(\text{space}) \le O(\mathcal{C}_{\mathrm{callee}}(N))$ steps:
+\begin{itemize}[leftmargin=*]
+  \item \emph{Bottom stage (\texttt{BasicMul}):} Multiplies two $N$-bit integers using the two-call root reduction directly to \texttt{BaseRadix2FFT} of length $R_0 = \Theta(N / \log(2N))$ at precision $q_b = \Theta(\log(2N))$ (its accuracy is the \texttt{BaseRadix2FFT} clause of Lemma~\ref{lem:forward}(2), valid for every length $2^{K}$ with $K \ge 2$; for $N \le 64$, \texttt{BasicMul} multiplies by schoolbook as in Listing~\ref{lst:multiply}). All butterfly twiddle products, root pointwise squarings, and root table evaluations are performed by schoolbook multiplication and division. By Lemma~\ref{lem:elementary}, evaluating the $R_0 - 1 < R_0$ stage twiddles at $D = \Theta(\log(2N))$ in $O(D^3)$ steps each costs $O\bigl(R_0 (\log(2N))^3\bigr) = O\bigl(N (\log(2N))^2\bigr)$ steps. By Appendix~\ref{app:tape-schedule}, executing $\log_2 R_0$ breadth-first \texttt{BaseRadix2FFT} stages of $R_0 / 2$ schoolbook $O(q_b)$-bit butterfly products and $O(R_0 q_b)$-bit scans costs $O\bigl(R_0 (\log R_0) q_b^2\bigr) = O\bigl(N (\log(2N))^2\bigr)$ steps, so its total step count satisfies
+  \[
+    M_0(N) = O\bigl(N (\log(2N))^2\bigr).
+  \]
+  \item \emph{Middle stage ($\texttt{Multiply}_1$):} Runs the recursive algorithm of Listing~\ref{lst:multiply} on its dedicated tape bank, invoking \texttt{BasicMul} ($M_0$) for all inner integer products at the root, in Steps~1--3, and at the leaves. By \eqref{eq:table-precomp}, building $\texttt{Multiply}_1$'s internal shared tables for an $N$-bit input takes $O\bigl(\sqrt{N}(\log(2N))^{7/2}\allowbreak\log\log(4N)\bigr) = o(N)$ steps, while root chunk packing and final scaling, rounding, and carry propagation take $O(N)$ steps. Moreover, the $R_0(N) = \Theta(N / \log(2N))$ root pointwise squarings and conjugations via $M_0$ take $R_0(N) \cdot O\bigl(M_0(p_0(N))\bigr) = O\bigl(N (\log \log(4N))^2\bigr)$ steps. At each level $\ell < L(N)$ of an $N$-bit call to $\texttt{Multiply}_1$, the inner products have bit-length $O((\log(2N))^2)$, so $M_0\bigl(O(\tilde{W}_\ell p_{\ell+1})\bigr) = O\bigl(\tilde{W}_\ell p_{\ell+1} (\log \log(4N))^2\bigr)$. By Theorem~\ref{thm:spread} and \eqref{eq:syn-route-total}, summing over $L(N) = O(\log \log(4N))$ levels plus the root and leaf levels gives
+  \[
+    \mathcal{C}_1(N) = O(N \log(2N)) + O\bigl(N (\log \log(4N))^3\bigr) = O\bigl(N \log(2N)\bigr).
+  \]
+  \item \emph{Top stage ($\texttt{Multiply} := \texttt{Multiply}_2$):} Runs the recursive algorithm on the $n$-bit input $(A, B)$, invoking the already-proved $\texttt{Multiply}_1$ ($\mathcal{C}_1(N) = O(N \log(2N))$, which includes $\texttt{Multiply}_1$'s internal table-building and tape-reset work) for all inner integer products:
+  \begin{enumerate}[label=(\alph*)]
+    \item \emph{Root packing, pointwise squaring, and carry propagation:} \texttt{PackNormalizedComplex} and \texttt{PropagateCarries} take $O(R_0 p_0 + n) = O(n)$ steps, and the $R_0 = \Theta(n / \log n)$ root pointwise squarings and conjugations on $\Cg_{p_0+2}$ via $\texttt{Multiply}_1$ cost $R_0 \cdot O\bigl(\mathcal{C}_1(p_0)\bigr) = O(R_0 p_0 \log p_0) = O(n \log \log n)$ steps.
+    \item \emph{Per-level multiplications ($\ell = 0, \dots, L-1$):} At level $\ell$, the $O(R_\ell p_{\ell+1}\log_2 t_{1,\ell})$ row de-interleaving scan is already counted in $\mathcal{C}_{\mathrm{syn+route}}$ in Part~2. By Theorem~\ref{thm:spread} with $\mathsf{M} = \mathcal{C}_1$, the packing, Kronecker multiplication, and overlap-add work in Step~1 across all $\frac{R_0}{R_\ell}$ nodes costs
+    \[
+      \frac{R_0}{R_\ell} \cdot O\!\left(\frac{R_\ell}{\tilde{W}_\ell} \cdot \tilde{W}_\ell p_{\ell+1} \log(\tilde{W}_\ell p_{\ell+1})\right) = O(R_0 p_{\ell+1} \log p_{\ell+1}) = O(n \log \log n)
+    \]
+    steps. Likewise, the $2 R_\ell$ pre/post-twists and the $\le 3 R_\ell$ real-by-complex solver products per node each multiply $O(p_{\ell+1})$-bit integers via $\texttt{Multiply}_1$ in $O(p_{\ell+1} \log p_{\ell+1})$ steps, costing $O(R_0 p_{\ell+1} \log p_{\ell+1}) = O(n \log \log n)$ per level. Summing over all $L = O(\log \log n)$ levels gives $\mathcal{C}_{\mathrm{ovh}} = O\bigl(n (\log \log n)^2\bigr)$.
+    \item \emph{Leaf base-case FFTs ($\ell = L$, $R_L \le 4 p_L^2$):} At depth $L$, we have
+    \[
+      1 + K_L = 1 + \log_2 R_L = O(\log p_L) = O(\log \log n), \qquad q_b = \Theta(\log n).
+    \]
+    Executing \texttt{BaseRadix2FFT} across all $\frac{R_0}{R_L}$ leaves costs
+    \[
+      \mathcal{C}_{\mathrm{base}} = \frac{R_0}{R_L} \cdot O\bigl(R_L (1 + K_L) \, \mathcal{C}_1(q_b)\bigr) = O\bigl(R_0 (\log \log n) \, p_L \log p_L\bigr) = O\bigl(n (\log \log n)^2\bigr).
+    \]
+  \end{enumerate}
+\end{itemize}
+Combining $\mathcal{C}_{\mathrm{syn+route}} + \mathcal{C}_{\mathrm{ovh}} + \mathcal{C}_{\mathrm{base}} + \mathcal{C}_{\mathrm{tables}}$ proves \eqref{eq:main-bound} and Theorem~\ref{thm:main}.
+\end{proof}

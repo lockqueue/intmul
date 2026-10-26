@@ -1,0 +1,285 @@
+\section{Technical overview}\label{sec:overview}
+
+This section gives a self-contained overview of the algorithm and its analysis, with forward pointers to the formal statements in Sections~\ref{sec:prelim}--\ref{sec:lean}.
+
+\subsection{The algorithm in one box}\label{sec:overview-box}
+
+At the top level, two $n$-bit integers $A$ and $B$ are split into $N = \lceil n / b \rceil$ radix-$2^b$ digits $a_j, b_j \in [0, 2^b)$ with $b = \max(4, \lfloor \log_2 n \rfloor)$, zero-padded to a power of two $R_0 = 2^{K_0} \ge 2N$, and packed into one normalized complex vector $\tilde{x}_j = 2^{-b}(a_j + i b_j)$ at root precision $p_0 = 2b + 2K_0 + 6$. Two calls to the recursive transform \texttt{FastDFT} evaluate the cyclic digit convolution via the classical two-call real convolution identity (Lemma~\ref{lem:two-call}), after which nearest-integer rounding and radix-$2^b$ carry propagation recover $A \cdot B$. Algorithm~\ref{alg:main} summarizes the pipeline.
+
+\newcounter{algbox}
+\renewcommand{\thealgbox}{\arabic{algbox}}
+\medskip
+{\refstepcounter{algbox}\label{alg:main}%
+\setlength{\fboxsep}{6pt}%
+\noindent\fbox{\parbox{\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax}{%
+\small
+\textbf{Algorithm~\thealgbox\ (at a glance).}\enspace
+\emph{Input:} $n$-bit integers $A, B$ (if $n \le 64$, return $A \cdot B$ by schoolbook multiplication). Set $b = \max(4, \lfloor \log_2 n \rfloor)$, $N = \lceil n / b \rceil$, least power of two $R_0 = 2^{K_0} \ge 2N$, and $p_0 = 2b + 2K_0 + 6$. Pack $\tilde{x}_j = 2^{-b}(a_j + i b_j)$ ($0 \le j < N$, zero-padded to $R_0$), compute $\hat{y} = \texttt{FastDFT}(\tilde{x}, R_0, p_0)$, set $\hat{w} = \overline{\RM_{p_0+2}(\hat{y}, \hat{y})}$, compute $\hat{z} = \texttt{FastDFT}(\hat{w}, R_0, p_0)$, round $-2^{2b-1} R_0^2 \operatorname{Im}(\hat{z}_j)$ to integers, and propagate radix-$2^b$ carries.
+
+\smallskip
+\noindent\emph{Recursive \texttt{FastDFT}$(x, R_\ell, p_\ell)$ at $R_\ell = 2^{K_\ell}$:} If $R_\ell \le 4 p_\ell^2$, run a radix-2 FFT at precision $q_b = p_\ell + K_\ell + 4$. Otherwise factor $R_\ell = t_1 r$ with $t_1 = 2^{\lfloor K_\ell / 2 \rfloor}$, $r = 2^{\lceil K_\ell / 2 \rceil}$, and set $p_{\mathrm{work},\ell} = p_\ell + K_\ell + 6$, $p_{\ell+1} = p_\ell + 2K_\ell + 12$, $q_{\mathrm{child}} = p_{\ell+1} + 2$:
+\begin{enumerate}[label=(\arabic*),itemsep=1.5pt,parsep=0pt,leftmargin=1.9em,topsep=3pt]
+  \item \emph{Spread rows:} Accumulate the Nyquist alternating sum $A_{\mathrm{N}}$ from row $t_1 / 2$~\eqref{eq:nyquist-id}, de-interleave $x$ into $t_1$ rows of length $r$, and spread row $j_1$ by the windowed sinc-Gaussian kernel at offset $j_1 / t_1$ via overlap-add and signed Kronecker substitution (Theorem~\ref{thm:spread}).
+  \item \emph{Polynomial-transform 2-D DFT:} (2a)~Pre-twist column $k_2$ by $\zeta^{k_2}$ ($\zeta = e^{\pi i / r}$). (2b)~Apply the multiplication-free polynomial transform $G_{t_1}$ over $\C[y]/(y^r + 1)$ (Lemma~\ref{lem:syn-fft}). (2c)~Post-twist by $\zeta^{-k_2}$ (Proposition~\ref{thm:twisted}). (2d)~Run $t_1$ recursive calls to \texttt{FastDFT} of length $r$ at precision $p_{\ell+1}$ and route their outputs by the odd-stride permutation $u_1 = (2u_2 - 1) v_1 \bmod t_1$ into column-major order (Lemma~\ref{lem:routing}).
+  \item \emph{Deconvolve columns:} Solve $c_0(u_2) Z_{u_1} + c_1(u_2) Z_{(u_1 - 1)\bmod t_1} = Y_{u_1}$ on each column $u_2 \ne r/2$, solve $u_2 = r/2$ using $A_{\mathrm{N}}$, quantize to $\Cg_{p_\ell+2}$, and transpose to $u = u_2 + r u_1$ (Theorem~\ref{thm:deconv}, Lemma~\ref{lem:solver-err}).
+\end{enumerate}
+\vspace{2pt}
+\emph{Inner products:} $O((\log n)^2)$-bit integer products, delegated to the same algorithm one level down, backed at the bottom stage by a one-dimensional radix-2 Fourier multiplier using schoolbook arithmetic (Section~\ref{sec:main-proof}).%
+}}}
+\medskip
+
+\subsection{Why one grid suffices}\label{sec:overview-grid}
+
+Consider a power-of-two transform length $R = t_1 r$ with $t_1 \mid r$ and $t_1 \in \{r, r/2\}$. Write the input index in strided form $j = j_1 + t_1 j_2$ and the output frequency in mixed-radix form $u = u_2 + r u_1$, where $0 \le j_1, u_1 < t_1$ and $0 \le j_2, u_2 < r$. Expanding our normalized one-dimensional DFT $(F_R x)_u = \frac{1}{R}\sum_{j=0}^{R-1} x_j e^{2\pi i j u / R}$ gives the Cooley--Tukey decomposition
+\begin{equation}\label{eq:overview-ct}
+  (F_R x)_{u_2 + r u_1}
+  = \frac{1}{t_1}\sum_{j_1=0}^{t_1-1} e^{2\pi i j_1 u_1 / t_1}
+    \left(\frac{1}{r}\sum_{j_2=0}^{r-1} x(j_1 + t_1 j_2)\, e^{2\pi i (j_2 + j_1 / t_1) u_2 / r}\right).
+\end{equation}
+Without the fractional offset $j_1 / t_1$ in the inner exponential, the right-hand side of~\eqref{eq:overview-ct} would be the two-dimensional DFT $(F_{t_1, r} U)_{u_1, u_2}$ of the array $U_{j_1, j_2} = x(j_1 + t_1 j_2)$. With that offset present, the inner sum is still a one-dimensional Fourier sum of length $r$ along row $j_1$, except that every sample in row $j_1$ is shifted in position by the same fractional amount $j_1 / t_1 \in [0, 1)$.
+
+To transfer those fractional shifts onto the regular $t_1 \times r$ grid without changing its size, we convolve each row $j_1$ cyclically modulo $r$ with a smooth, rapidly decaying kernel $g$ evaluated at offset $j_1 / t_1$:
+\[
+  U^\circ_{j_1, k_2} := \sum_{j_2=0}^{r-1} x(j_1 + t_1 j_2) \sum_{a \in \Z} g\!\left(j_2 + \frac{j_1}{t_1} - k_2 - a r\right).
+\]
+Applying the one-dimensional Poisson summation formula along the row coordinate $k_2$ turns the periodic kernel convolution into a sum over integer frequency aliases $m \in \Z$. Because $(j_1 / t_1)(u_2 / r - m)$ supplies both the Cooley--Tukey twiddle $e^{2\pi i j_1 u_2 / R}$ and the row-frequency shift $-m$ modulo $t_1$, the two-dimensional DFT of $U^\circ$ satisfies the exact identity (Theorem~\ref{thm:poisson})
+\begin{equation}\label{eq:overview-poisson}
+  \bigl(F_{t_1, r} U^\circ\bigr)_{u_1, u_2}
+  = \sum_{m \in \Z} \hat{g}\!\left(\frac{u_2}{r} - m\right) \bigl(F_R x\bigr)_{u_2 + r ((u_1 - m)\bmod t_1)}.
+\end{equation}
+For $y = u_2 / r \in [0, 1)$, the arguments $y - m$ for $m \in \{0, 1\}$ lie in $[-1, 1)$, whereas all other aliases $m \notin \{0, 1\}$ satisfy $|y - m| \ge 1$. Whenever $\hat{g}$ is concentrated on $[-1, 1]$ up to exponentially small tails, each column $u_2$ of $F_{t_1, r} U^\circ$ reduces to a two-alias cyclic combination $c_0(u_2) Z_{u_1} + c_1(u_2) Z_{(u_1 - 1)\bmod t_1}$ of the target values $Z_{u_1} = (F_R x)_{u_2 + r u_1}$ on the same $t_1 \times r$ grid.
+
+\begin{figure}[t]
+\centering
+\resizebox{0.98\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >=Latex,
+  box/.style={draw=black!75, fill=blue!5!white, thick, rounded corners=2.5pt, minimum height=1.12cm, align=center, inner sep=3.2pt},
+  iobox/.style={draw=black!70, fill=black!5, rounded corners=2pt, minimum height=1.12cm, align=center, inner sep=3.2pt},
+  arr/.style={->, thick, draw=black!80}
+]
+  % Top row: left to right
+  \node[iobox, text width=1.80cm] (in) at (0.95, 1.35)
+    {1-D input $x$\\length $R{=}t_1 r$};
+  \node[box, text width=2.35cm] (grid) at (3.62, 1.35)
+    {\textbf{De-interleave}\\$t_1 \times r$ grid\\$j = j_1 + t_1 j_2$};
+  \node[box, text width=2.85cm] (spread) at (6.82, 1.35)
+    {\textbf{Spread rows}\\kernel $g(\cdot + j_1/t_1)$\\Kronecker + OLA};
+  \node[box, text width=2.15cm] (pre) at (9.92, 1.35)
+    {\textbf{Pre-twist}\\$\times\,\zeta^{k_2}$\\($\zeta = e^{\pi i/r}$)};
+  \node[box, text width=3.15cm] (poly) at (13.18, 1.35)
+    {\textbf{Polynomial transform}\\$G_{t_1}$ over $\C[y]/(y^r{+}1)$\\(signed shifts only)};
+
+  \draw[arr] (in) -- (grid);
+  \draw[arr] (grid) -- (spread);
+  \draw[arr] (spread) -- (pre);
+  \draw[arr] (pre) -- (poly);
+
+  % Bottom row: shifted right of x = 0.96 so the Nyquist corridor at x = 0.50 clears every box
+  \node[box, text width=2.05cm] (post) at (2.10, -0.90)
+    {\textbf{Post-twist}\\$\times\,\zeta^{-k_2}$};
+  \node[box, text width=2.55cm] (rec) at (5.02, -0.90)
+    {\textbf{Recursive DFTs}\\$t_1$ calls to $F_r$\\at precision $p_{\ell+1}$};
+  \node[box, text width=2.80cm] (route) at (8.32, -0.90)
+    {\textbf{Odd-stride route}\\$u_1 \equiv (2u_2{-}1)v_1$\\$\pmod{t_1}$};
+  \node[box, text width=2.90cm] (deconv) at (11.80, -0.90)
+    {\textbf{Column solve}\\2-term cyclic sweep\\Nyquist via $A_{\mathrm{N}}$};
+  \node[iobox, text width=1.70cm] (out) at (14.70, -0.90)
+    {Transpose\\to $F_R x$};
+
+  % Connecting arrow from top-right to bottom-left via clean middle corridor
+  \draw[arr, rounded corners=4pt] (poly.south) -- (13.18, 0.20) -- (2.10, 0.20) -- (post.north);
+
+  \draw[arr] (post) -- (rec);
+  \draw[arr] (rec) -- (route);
+  \draw[arr] (route) -- (deconv);
+  \draw[arr] (deconv) -- (out);
+
+  % Nyquist side path from bottom border of 1-D input along open left/bottom corridor to Column solve
+  \draw[->, thick, dashed, teal!70!black, rounded corners=4pt]
+    ([xshift=-0.45cm]in.south) |- (6.15, -1.96) -| (deconv.south);
+  \node[fill=white, inner sep=1.8pt, font=\scriptsize, text=teal!70!black] at (6.15, -1.96)
+    {exact Nyquist alternating sum $A_{\mathrm{N}}$ from row $j_1 = t_1/2$ (zero multiplications)};
+\end{tikzpicture}%
+}
+\caption{One recursive level of \texttt{FastDFT} on a single $t_1 \times r$ power-of-two grid ($R = t_1 r$). Row spreading turns Cooley--Tukey twiddles into a two-alias column mixture. The Nussbaumer--Quandalle polynomial transform over $\C[y]/(y^r + 1)$ and $t_1$ recursive length-$r$ transforms evaluate $F_{t_1, r}$ without butterfly multiplications, and per-column two-term and Nyquist solvers recover $F_R x$.}
+\label{fig:pipeline}
+\end{figure}
+
+Figure~\ref{fig:pipeline} shows the resulting single-level pipeline. Unlike~\cite{HvdH21}, which embeds into pairwise coprime lengths by Chinese remaindering and resamples between grids of different sizes, the input, spread array, and output here occupy one $t_1 \times r$ power-of-two grid with no prime lengths and no grid expansion. Unlike general NUFFT gridding~\cite{DR93,PST01,GL04,BMK19}, where arbitrary sample nodes require point-by-point interpolation onto an oversampled grid followed by diagonal division by $\hat{g}$, the shift $j_1 / t_1$ here is constant along each row, so spreading is a shift-invariant cyclic convolution of length $r$ and oversampling is replaced by a two-term cyclic solve per column.
+
+\subsection{Computing \texorpdfstring{$F_{t_1, r}$}{F\_\{t1, r\}} without multiplications}\label{sec:overview-poly}
+
+Evaluating $F_{t_1, r} U$ directly by row and column FFTs would still perform $\Theta(R \log t_1)$ complex butterfly multiplications along the first axis. Instead, we use the polynomial-transform reduction of Nussbaumer and Quandalle~\cite{NQ79,Nussbaumer80,Nussbaumer82} with negacyclic weighting~\cite{SS71,CF94} (Proposition~\ref{thm:twisted}). Because $r$ is a power of two, the quotient ring $\Rr_r = \C[y]/(y^r + 1)$ contains the synthetic root $y$ of order $2r$ ($y^r \equiv -1$). Since $t_1 \mid r$ with $\nu = r / t_1 \in \{1, 2\}$, the monomial $\omega_{t_1} := y^{2\nu}$ satisfies $\omega_{t_1}^{t_1/2} = y^r \equiv -1$ and has exact order $t_1$ in $\Rr_r$. The length-$t_1$ polynomial transform
+\[
+  (G_{t_1} P)_{v_1}(y) := \frac{1}{t_1}\sum_{j_1=0}^{t_1-1} P_{j_1}(y)\, y^{2\nu j_1 v_1} \pmod{y^r + 1}
+\]
+can therefore be computed by $\log_2 t_1$ radix-2 butterfly stages over $\Rr_r$ using only additions, halvings, and signed cyclic shifts of $r$-coefficient polynomials, with zero scalar multiplications (Lemma~\ref{lem:syn-fft}).
+
+To connect $\Rr_r$ to the column transforms of $F_{t_1, r}$, let $\zeta = e^{\pi i / r}$ ($\zeta^r = -1$). The $r$ roots of $y^r + 1 = 0$ are the odd powers $\zeta^{2u_2 - 1}$ for $u_2 \in \{0, \dots, r-1\}$, giving $r$ ring homomorphisms $\phi_{u_2}\colon \Rr_r \to \C$, $y \mapsto \zeta^{2u_2 - 1}$. Pre-twisting column $k_2$ of row $j_1$ by $\zeta^{k_2}$ forms $P_{j_1}(y) = \sum_{k_2=0}^{r-1} \zeta^{k_2} U_{j_1, k_2} y^{k_2}$, whose image $\phi_{u_2}(P_{j_1}) = \sum_{k_2=0}^{r-1} U_{j_1, k_2} e^{2\pi i k_2 u_2 / r}$ is the unnormalized length-$r$ DFT along row $j_1$. Conversely, for each output polynomial $Q_{v_1} = (G_{t_1} P)_{v_1}$, post-twisting coefficient $k_2$ by $\zeta^{-k_2}$ and applying a recursive length-$r$ transform $F_r$ evaluates $\frac{1}{r}\phi_{u_2}(Q_{v_1})$ across all $u_2$ simultaneously. Finally, $\phi_{u_2}(y^{2\nu j_1 v_1}) = e^{2\pi i j_1 (2u_2 - 1) v_1 / t_1}$, and because $2u_2 - 1$ is odd while $t_1$ is a power of two, $v_1 \mapsto u_1 := (2u_2 - 1) v_1 \bmod t_1$ permutes $\{0, \dots, t_1 - 1\}$ bijectively in every column $u_2$. This multiplication-free polynomial transform, together with the per-level tape transposes and odd-stride routing, is the only $\Theta(n \log n)$ work term in the entire algorithm.
+
+\subsection{The kernel and two-term deconvolution}\label{sec:overview-kernel}
+
+The choice of spreading kernel $g$ governs how precision grows with recursion depth. Suppose first that one spreads with a plain Gaussian $g_{\mathrm{plain}}(t) = e^{-\pi t^2 / \alpha_{\mathrm{plain}}^2}$ scaled by $\pi \alpha_{\mathrm{plain}}^2 = p_{\mathrm{work},\ell} \ln 2$ so that excluded aliases decay to $O(2^{-p_{\mathrm{work},\ell}})$. Its Fourier transform $\widehat{g_{\mathrm{plain}}}(\xi) = \alpha_{\mathrm{plain}} 2^{-p_{\mathrm{work},\ell} \xi^2}$ peaks at $\xi = 0$ but falls at the Nyquist boundary $\xi = 1/2$ ($u_2 = r/2$) to $\alpha_{\mathrm{plain}} 2^{-p_{\mathrm{work},\ell}/4}$ (Figure~\ref{fig:kernel}(a)). Inverting the column system at $u_2 \approx r/2$ then divides by $O(2^{-p_{\mathrm{work},\ell}/4})$; in the natural analysis (a heuristic estimate, not used elsewhere) this loses about $\tfrac{1}{4} p_{\mathrm{work},\ell}$ bits of accuracy at every level and leads to a multiplicative precision schedule ($p_{\ell+1} \gtrsim \tfrac{5}{4} p_{\mathrm{work},\ell}$) instead of an additive one.
+
+We eliminate this Nyquist attenuation by multiplying the Gaussian by $\sinc(t) = \frac{\sin(\pi t)}{\pi t}$, obtaining the windowed sinc-Gaussian kernel (Theorem~\ref{thm:poisson})
+\begin{equation}\label{eq:overview-kernel}
+  g(t) := \sinc(t)\, e^{-\pi t^2 / \alpha^2}, \qquad \alpha := 2\sqrt{\frac{p_{\mathrm{work},\ell}\ln 2}{\pi}}.
+\end{equation}
+In frequency space, multiplying by $\sinc(t)$ convolves the Gaussian $\alpha e^{-\pi \alpha^2 \xi^2}$ with the unit box $\mathbf{1}_{[-1/2, 1/2]}$, yielding the erf-smoothed boxcar
+\[
+  \hat{g}(\xi) = \frac{1}{2}\left[\erf\!\left(\sqrt{\pi}\alpha\!\left(\xi + \frac{1}{2}\right)\right) - \erf\!\left(\sqrt{\pi}\alpha\!\left(\xi - \frac{1}{2}\right)\right)\right].
+\]
+Because the shifted intervals $[y - m - 1/2, y - m + 1/2]$ tile $\R$, the weights satisfy the exact partition of unity $\sum_{m \in \Z} \hat{g}(y - m) = 1$. For every $y = u_2 / r \in [0, 1)$, the two retained weights $c_0(u_2) = \hat{g}(y)$ and $c_1(u_2) = \hat{g}(y - 1) = \hat{g}(1 - y)$ satisfy $\max(c_0, c_1) \ge \hat{g}(1/2) = \frac{1}{2}\erf(\sqrt{\pi}\alpha) > 0.49999999$ (for $p_{\mathrm{work},\ell} \ge 8$), while all omitted aliases $m \notin \{0, 1\}$ telescope in closed form to $1 - c_0(u_2) - c_1(u_2) < 0.120 \cdot 2^{-p_{\mathrm{work},\ell}}$ (Theorem~\ref{thm:deconv}(1)).
+
+\begin{figure}[t]
+\centering
+\resizebox{0.98\textwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize, >=Latex]
+  % ---------------- Panel (a): Passband comparison ----------------
+  \begin{scope}[xshift=0cm]
+    \node[anchor=west, font=\footnotesize\bfseries] at (-3.45, 3.48)
+      {(a) Frequency response ($p_{\mathrm{work}} = 16$):};
+
+    % Axes: x from -0.95 to 0.95 scaled by 3.3 -> [-3.135, 3.135]; y scaled by 2.6
+    \fill[black!5] (-1.65, 0) rectangle (1.65, 2.68);
+    \draw[->, thick, black!80] (-3.20, 0) -- (3.30, 0) node[right] {$\xi$};
+    \draw[->, thick, black!80] (0, -0.08) -- (0, 2.86);
+    \draw[dotted, black!45] (-1.65, 2.60) -- (1.65, 2.60);
+    \draw[dotted, black!45] (-1.65, 1.30) -- (1.65, 1.30);
+    \draw[dashed, black!45] (-1.65, 0) -- (-1.65, 2.68);
+    \draw[dashed, black!45] (1.65, 0) -- (1.65, 2.68);
+
+    \node[above left=1pt and 2pt, font=\scriptsize] at (0, 2.60) {$1$};
+    \node[above left=1pt and 2pt, font=\scriptsize] at (0, 1.30) {$\tfrac{1}{2}$};
+    \foreach \x/\xlab in {-2.97/-0.9, -1.65/-\tfrac{1}{2}, 0/0, 1.65/\tfrac{1}{2}, 2.97/0.9} {
+      \draw[thick, black!80] (\x, -0.06) -- (\x, 0.06);
+      \node[below=2pt, font=\scriptsize] at (\x, -0.04) {$\xlab$};
+    }
+
+    % Plain Gaussian normalized: 2^{-16 \xi^2} (x = 3.3*\xi, y = 2.6*val)
+    \draw[very thick, red!70!black, dashed] plot[smooth] coordinates {
+      (-2.970,0.0003) (-2.640,0.0021) (-2.310,0.0114) (-1.980,0.0481) (-1.650,0.1625)
+      (-1.320,0.4410) (-0.990,0.9584) (-0.825,1.3000) (-0.660,1.6684) (-0.495,2.0259)
+      (-0.330,2.3270) (-0.165,2.5290) (0.000,2.6000) (0.165,2.5290) (0.330,2.3270)
+      (0.495,2.0259) (0.660,1.6684) (0.825,1.3000) (0.990,0.9584) (1.320,0.4410)
+      (1.650,0.1625) (1.980,0.0481) (2.310,0.0114) (2.640,0.0021) (2.970,0.0003)
+    };
+
+    % Windowed sinc-Gaussian \hat{g}(\xi) at p_work = 16
+    \draw[very thick, blue!75!black] plot[smooth] coordinates {
+      (-2.970,0.0003) (-2.640,0.0062) (-2.475,0.0242) (-2.310,0.0775) (-2.145,0.2049)
+      (-1.980,0.4501) (-1.815,0.8289) (-1.650,1.3000) (-1.485,1.7711) (-1.320,2.1499)
+      (-1.155,2.3951) (-0.990,2.5225) (-0.825,2.5758) (-0.660,2.5938) (-0.330,2.6000)
+      (0.000,2.6000) (0.330,2.6000) (0.660,2.5938) (0.825,2.5758) (0.990,2.5225)
+      (1.155,2.3951) (1.320,2.1499) (1.485,1.7711) (1.650,1.3000) (1.815,0.8289)
+      (1.980,0.4501) (2.145,0.2049) (2.310,0.0775) (2.475,0.0242) (2.640,0.0062)
+      (2.970,0.0003)
+    };
+
+    \fill[blue!75!black] (1.650, 1.3000) circle (2.0pt);
+    \fill[red!70!black] (1.650, 0.1625) circle (2.0pt);
+
+    % Left callout in open region x < -1.78, y in [1.75, 2.40]
+    \node[blue!75!black, font=\scriptsize\bfseries, align=right, anchor=east] at (-1.78, 2.08)
+      {sinc-Gaussian\\$\hat{g}(\xi)$};
+    \draw[->, thin, blue!75!black] (-2.05, 1.72) -- (-1.74, 1.15);
+
+    % Right callout/legend in open region x > 1.80, y in [1.55, 2.40]
+    \draw[very thick, red!70!black, dashed] (1.82, 2.22) -- (2.28, 2.22);
+    \node[red!70!black, font=\scriptsize, align=left, anchor=west] at (2.32, 2.22)
+      {plain Gaussian};
+    \node[red!70!black, font=\scriptsize, align=left, anchor=west] at (1.82, 1.78)
+      {$\alpha_{\mathrm{plain}}^{-1}\widehat{g_{\mathrm{plain}}}(\pm\tfrac{1}{2}){=}2^{-p_{\mathrm{work}}/4}$};
+  \end{scope}
+
+  % ---------------- Panel (b): Column weights c_0(y), c_1(y) ----------------
+  \begin{scope}[xshift=6.05cm]
+    \node[anchor=west, font=\footnotesize\bfseries] at (-0.30, 3.48)
+      {(b) Retained column weights on $y = u_2 / r \in [0, 1)$:};
+
+    % Axes: y in [0, 1] scaled by 5.4 -> [0, 5.4]; vertical scaled by 2.6
+    \draw[->, thick, black!80] (-0.20, 0) -- (5.80, 0) node[right] {$y$};
+    \draw[->, thick, black!80] (0, -0.08) -- (0, 2.82);
+    \draw[dotted, black!45] (0, 2.60) -- (5.40, 2.60);
+    \draw[dotted, black!45] (0, 1.30) -- (5.40, 1.30);
+    \draw[dashed, teal!75!black, thick] (2.70, 0) -- (2.70, 2.82);
+
+    \node[left=2pt, font=\scriptsize] at (0, 2.60) {$1$};
+    \node[left=2pt, font=\scriptsize] at (0, 1.30) {$\tfrac{1}{2}$};
+    \foreach \x/\xlab in {0/0, 1.35/\tfrac{1}{4}, 2.70/\tfrac{1}{2}, 4.05/\tfrac{3}{4}, 5.40/1} {
+      \draw[thick, black!80] (\x, -0.06) -- (\x, 0.06);
+      \node[below=2pt, font=\scriptsize] at (\x, -0.04) {$\xlab$};
+    }
+
+    % c_0(y) = \hat{g}(y) (x = 5.4*y, y_coord = 2.6*val)
+    \draw[very thick, blue!75!black] plot[smooth] coordinates {
+      (0.000,2.6000) (0.540,2.5997) (1.080,2.5938) (1.350,2.5758) (1.620,2.5225)
+      (1.890,2.3951) (2.160,2.1499) (2.430,1.7711) (2.700,1.3000) (2.970,0.8289)
+      (3.240,0.4501) (3.510,0.2049) (3.780,0.0775) (4.050,0.0242) (4.320,0.0062)
+      (4.860,0.0003) (5.400,0.0000)
+    };
+
+    % c_1(y) = \hat{g}(1 - y)
+    \draw[very thick, orange!80!black, dashed] plot[smooth] coordinates {
+      (0.000,0.0000) (0.540,0.0003) (1.080,0.0062) (1.350,0.0242) (1.620,0.0775)
+      (1.890,0.2049) (2.160,0.4501) (2.430,0.8289) (2.700,1.3000) (2.970,1.7711)
+      (3.240,2.1499) (3.510,2.3951) (3.780,2.5225) (4.050,2.5758) (4.320,2.5938)
+      (4.860,2.5997) (5.400,2.6000)
+    };
+
+    \fill[teal!75!black] (2.700, 1.3000) circle (2.3pt);
+
+    \node[blue!75!black, font=\scriptsize\bfseries] at (0.92, 1.95) {$c_0(y) = \hat{g}(y)$};
+    \node[orange!80!black, font=\scriptsize\bfseries] at (4.55, 1.95) {$c_1(y) = \hat{g}(1{-}y)$};
+    \node[font=\scriptsize, text=black!75, align=center] at (1.05, 0.80)
+      {forward sweep\\($c_0 > c_1$)};
+    \node[font=\scriptsize, text=black!75, align=center] at (4.35, 0.80)
+      {backward sweep\\($c_1 > c_0$)};
+    \node[teal!75!black, font=\scriptsize\bfseries] at (2.88, 3.04)
+      {Nyquist $y=\tfrac{1}{2}$: $c_0{=}c_1$ (solved via $A_{\mathrm{N}}$)};
+  \end{scope}
+\end{tikzpicture}%
+}
+\caption{Passband behavior and two-term deconvolution weights. (a)~At $\xi = \pm 1/2$, the normalized plain Gaussian drops to $2^{-p_{\mathrm{work}}/4}$, whereas the windowed sinc-Gaussian kernel maintains $\hat{g}(\pm 1/2) \approx 1/2$. (b)~Along each column $y = u_2 / r \in [0, 1)$, the retained weights $c_0(y)$ and $c_1(y)$ cross only at the Nyquist column $y = 1/2$; non-Nyquist columns have $\|B^{-1}\|_{\infty \to \infty} = 1/|c_0 - c_1| < 2.36\, t_1$, and $y = 1/2$ is closed by the exact input alternating sum $A_{\mathrm{N}}$.}
+\label{fig:kernel}
+\end{figure}
+
+Figure~\ref{fig:kernel}(b) illustrates how each column $u_2 \in \{0, \dots, r-1\}$ is deconvolved to recover $Z_{u_1} = (F_R x)_{u_2 + r u_1}$ from $Y_{u_1} \approx c_0(u_2) Z_{u_1} + c_1(u_2) Z_{(u_1 - 1)\bmod t_1}$. Whenever $u_2 \ne r/2$, $|1/2 - y| \ge 1/r \ge 1/(2 t_1)$ separates $c_0$ and $c_1$ enough that the damping power $a^{t_1} = (\min(c_0, c_1)/\max(c_0, c_1))^{t_1}$ is strictly below $0.14$ (Theorem~\ref{thm:deconv}(2)). Sweeping forward when $u_2 < r/2$ ($c_0 > c_1$) or backward when $u_2 > r/2$ ($c_1 > c_0$) inverts the cyclic bidiagonal operator $B$ in $O(t_1)$ scalar operations with $\ell_\infty$ inverse norm $1 / |c_0(u_2) - c_1(u_2)| < 2.36\, t_1$.
+
+At the single Nyquist column $u_2 = r/2$ ($y = 1/2$), symmetry gives $c_0(r/2) = c_1(r/2) = c \approx 1/2$. Because $t_1 \ge 2$ is even, the cyclic equations $c(Z_{u_1} + Z_{(u_1 - 1)\bmod t_1}) = Y_{u_1}$ sum with alternating signs $(-1)^{u_1}$ to zero and leave the alternating mode $\sum_{u_1=0}^{t_1-1} (-1)^{u_1} Z_{u_1}$ undetermined. By character orthogonality on $\Z_{t_1}$, however, that alternating sum collapses directly in the spatial domain to a single row of the input vector (Theorem~\ref{thm:deconv}(3), equation~\eqref{eq:nyquist-id}):
+\[
+  A_{\mathrm{N}} := \sum_{u_1=0}^{t_1-1} (-1)^{u_1} Z_{u_1}
+  = \frac{i}{r}\sum_{j_2=0}^{r-1} (-1)^{j_2} x\!\left(\frac{t_1}{2} + t_1 j_2\right).
+\]
+Accumulating $A_{\mathrm{N}}$ from row $j_1 = t_1 / 2$ before spreading uses only additions, subtractions, and a power-of-two shift by $r^{-1}$, with zero scalar multiplications, and closes the open bidiagonal chain at $u_2 = r/2$ with inverse norm below $1.0000001\, t_1 < 2.36\, t_1$.
+
+\subsection{Additive precision schedule}\label{sec:overview-precision}
+
+Uniform $O(t_1)$ conditioning across all $r$ columns yields a purely additive precision recurrence along the recursion tree (Lemma~\ref{lem:forward}). At depth $\ell$, a node of length $R_\ell = 2^{K_\ell} = t_{1,\ell} r_\ell$ receives an input $x \in \Cg_{p_\ell+2}^{R_\ell}$ and must approximate $F_{R_\ell} x$ within $\ell_\infty$ error $2^{-p_\ell} \max(1, \|x\|_\infty)$. Two error groups enter before final quantization to $\Cg_{p_\ell+2}$:
+\begin{enumerate}[label=(\arabic*),leftmargin=*,nosep,topsep=3pt]
+  \item \emph{Excluded Poisson aliases:} Dropping modes $m \notin \{0, 1\}$ perturbs the ideal column right-hand side by at most $0.120 \cdot 2^{-p_{\mathrm{work},\ell}} \max(1, \|x\|_\infty)$, which multiplication by $B^{-1}$ ($\|B^{-1}\|_{\infty \to \infty} < 2.36\, t_{1,\ell}$) amplifies to at most $\frac{1}{2} t_{1,\ell} 2^{-p_{\mathrm{work},\ell}} \max(1, \|x\|_\infty)$.
+  \item \emph{Spreading, polynomial transform, recursive calls, and column solvers.} Spatial window truncation and tap quantization in Step~1, rounding in the twists and $\log_2 t_{1,\ell}$ polynomial-transform stages of Steps~2a--2c, and the inductive error $2^{-p_{\ell+1}}$ of the $t_{1,\ell}$ child calls in Step~2d (on inputs of norm $O(r_\ell \max(1, \|x\|_\infty))$) perturb the column right-hand sides by $O(r_\ell 2^{-p_{\ell+1}} \max(1, \|x\|_\infty))$. Together with fixed-point rounding across the $O(t_{1,\ell})$-step column sweeps of Step~3, these terms sum after deconvolution to at most $200 R_\ell 2^{-p_{\ell+1}} \max(1, \|x\|_\infty)$.
+\end{enumerate}
+Choosing the additive precision schedule~\eqref{eq:cert-sched},
+\[
+  p_{\mathrm{work},\ell} := p_\ell + K_\ell + 6, \qquad
+  p_{\ell+1} := p_{\mathrm{work},\ell} + K_\ell + 6 = p_\ell + 2 K_\ell + 12,
+\]
+makes $\frac{1}{2} t_{1,\ell} 2^{-p_{\mathrm{work},\ell}} \le 2^{-p_\ell - 7}$ and $200 R_\ell 2^{-p_{\ell+1}} \le \frac{25}{2048} 2^{-p_\ell}$. Adding the final $\Cg_{p_\ell+2}$ rounding error $\frac{\sqrt{2}}{8} 2^{-p_\ell}$ gives a total error below $0.197 \cdot 2^{-p_\ell} \max(1, \|x\|_\infty) < \frac{1}{4} 2^{-p_\ell} \max(1, \|x\|_\infty)$, closing the induction at every non-leaf node (and leaves $R_L \le 4 p_L^2$ close at precision $q_b = p_L + K_L + 4$).
+
+Because $K_{\ell+1} = \lceil K_\ell / 2 \rceil$, the log-length halves at each level and hits the leaf threshold $R_L \le 4 p_L^2$ in $L = O(\log K_0) = O(\log \log n)$ levels. Summing $2 K_j + 12$ from $0$ to $\ell - 1$ bounds the precision at every level by $p_\ell \le p_0 + 4 K_0 + 14 \ell = \Theta(\log n)$, while the integer scalar height $H_\ell$ satisfies $H_\ell \le 1 + K_0 + 2\ell = O(\log n)$ (Section~\ref{sec:prelim}). Every level therefore stores $R_0$ fixed-width complex records of $w_\ell = \Theta(\log n)$ bits, maintaining the invariant bit volume $R_0 p_\ell = \Theta(n)$ throughout the recursion.
+
+\subsection{Cost on a multitape Turing machine}\label{sec:overview-cost}
+
+With $R_0$ active entries of $\Theta(\log n)$ bits at every depth $\ell < L$, the multitape Turing machine cost breaks cleanly into one $\Theta(n \log n)$ movement-and-shift term and $o(n \log n)$ arithmetic and table work (Section~\ref{sec:main-proof}):
+\begin{itemize}[leftmargin=*,nosep,topsep=3pt]
+  \item \emph{Polynomial transform and tape routing:} At depth $\ell$, each of the $R_0 / R_\ell$ nodes performs $\log_2 t_{1,\ell} = \lfloor K_\ell / 2 \rfloor$ radix-2 polynomial-transform stages over $\Rr_{r_\ell}$ (Lemma~\ref{lem:syn-fft}), two matrix transposes, and one odd-stride merge-sort column permutation $u_1 = (2u_2 - 1) v_1 \bmod t_{1,\ell}$ (Lemma~\ref{lem:routing}), costing $O\bigl(R_\ell p_{\ell+1}(1 + \log_2 t_{1,\ell})\bigr)$ steps per node. Across all $R_0 / R_\ell$ nodes, this is $O\bigl(n(1 + K_0 / 2^{\ell+1})\bigr)$ steps at depth $\ell$, which sums geometrically over $\ell = 0, \dots, L - 1$ to $O(n K_0 + n L) = O(n \log n)$.
+  \item \emph{Kronecker spreading and window cancellation:} Truncating $g(d + j_1 / t_{1,\ell})$ at radius $m_{1,\ell} = \Theta(p_{\ell+1})$ and folding modulo $r_\ell$ gives a filter of effective length $\tilde{W}_\ell = \min(2m_{1,\ell} + 1, r_\ell)$. Using overlap-add of block size $\tilde{W}_\ell$ and signed two's-complement Kronecker substitution~\cite{Schonhage82,Harvey09} at slot width $B_{\mathrm{slot}} = \Theta(p_{\ell+1})$ reduces row spreading across a node to $O(R_\ell / \tilde{W}_\ell)$ integer products of bit-length $\Theta(\tilde{W}_\ell p_{\ell+1}) = O((\log n)^2)$ (Theorem~\ref{thm:spread}). The window length $\tilde{W}_\ell$ cancels between the block count and the packed bit-length, so all multiplications in spreading, scalar twists, column sweeps, and leaf FFTs ($R_L \le 4 p_L^2$) operate on $O((\log n)^2)$-bit integers, of total bit volume $O(n)$ per level for $\ell < L$ and $O(n \log\log n)$ at the leaf level (its $K_L = O(\log\log n)$ butterfly stages; Part~3(c) of the proof of Theorem~\ref{thm:main}).
+  \item \emph{Tables and non-circular bootstrap:} All shared per-level filter, twist, solver, and leaf-twiddle tables are evaluated from truncated Taylor and Machin series at guard precision in time $O(\sqrt{n}(\log n)^{7/2}\allowbreak\log\log n) = o(n)$ (equation~\eqref{eq:table-precomp}), and a breadth-first ping-pong schedule executes the recursion on $O(1)$ tapes (Appendix~\ref{app:elementary}). To avoid circularity in the asymptotic constant when multiplying $O((\log n)^2)$-bit integers on $O(1)$ tapes, the proof in Section~\ref{sec:main-proof} uses a fixed three-stage bootstrap. A base radix-2 FFT multiplier with schoolbook twiddles running in $O(N(\log 2N)^2)$ steps feeds a first recursive multiplier running in $O(N \log 2N)$ steps, which in turn multiplies all inner operands of the outer call in $O\bigl(n(\log\log n)^2\bigr)$ total steps.
+\end{itemize}
+
+\subsection{What is verified and what is executed}\label{sec:overview-verified}
+
+Section~\ref{sec:lean} describes the Lean~4 formalization~\cite{LeanMS26} of Theorem~\ref{thm:lean}, which constructs a single parameter-free eight-stack binary machine \texttt{tmIntMul} (which an eight-tape Turing machine simulates with constant-factor slowdown, one tape per stack; this standard simulation is not part of the formal development). From Lean's three standard logical axioms, it proves that \texttt{tmIntMul} halts with the exact $2n$-bit product within $C \cdot n \lfloor \log_2 n \rfloor$ steps and $O(n \log n)$ elementary stack operations for all $n \ge 2$. The analytic and fixed-point bounds on which the formal proof rests are proved inside the same library (Table~\ref{tab:lean-map}). Section~\ref{sec:empirical} reports the C/GMP measurements~\cite{CGMP26}: bit-exact agreement with GMP at every tested size up to $10^9$ bits, at $153$--$323$ times the single-threaded running time of \texttt{mpz\_mul}.

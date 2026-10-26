@@ -1,0 +1,34 @@
+\section{Multitape routing proofs}\label{app:routing}
+
+\begin{proof}[Proof of Lemma~\ref{lem:routing}]
+We first record the amortized cost of binary record counters and then prove parts (i) and (ii) in turn.
+
+\paragraph{Counter amortization.}
+Incrementing or decrementing a binary counter on a dedicated counter tape $N$ times in succession flips bit $b$ at most $\lceil N / 2^b \rceil$ times. Across all $N$ operations, this costs $O(N + \log N)$ total head steps, or amortized $O(1)$ steps per increment.
+
+\paragraph{(i) Matrix transposition.}
+A $t_1 \times r$ array of fixed-width $w$-bit records occupies
+\[
+  t_1 r w = \Theta(t_1 r q)
+\]
+tape cells. Here row-major order $(j_1, j_2)$ consists of $t_1 = 2^{k_1}$ contiguous rows of length $r$, and column-major order $(j_2, j_1)$ consists of $r$ contiguous columns of length $t_1$ (cf.\ \cite[Section~2.1]{HvdH21}). To transpose from row-major order $(j_1, j_2)$ to column-major order $(j_2, j_1)$, execute $k_1 = \log_2 t_1$ sequential passes $s = 1, \dots, k_1$. At the start of pass $s$, the tape holds $t_1 / 2^{s-1}$ blocks, each consisting of $r$ contiguous sub-columns of $2^{s-1}$ records. In a single scan over the tape, copy even-indexed blocks to auxiliary tape $T_1$ and odd-indexed blocks to auxiliary tape $T_2$. A $(k_2 + s - 1)$-bit record counter tracks the block boundaries during this scan. Next, rewind $T_1$ and $T_2$, and scan $T_1$ and $T_2$ in lockstep to interleave each pair of $2^{s-1}$-record sub-columns into a $2^s$-record sub-column, producing $t_1 / 2^s$ blocks of $r$ sub-columns of length $2^s$. After $k_1$ passes, the single block holds $r$ contiguous columns of length $t_1$.
+
+Reversing the $k_1$ passes transposes column-major order $(j_2, j_1)$, indexed by $j = j_1 + t_1 j_2$, back into row-major order $(j_1, j_2)$. Specifically, each reversed pass splits every length-$2^s$ sub-column into its first and second halves of length $2^{s-1}$ on $T_1, T_2$ and concatenates them block-wise. Each pass scans $O(t_1 r w)$ cells, totaling
+\[
+  O\bigl(t_1 r q (1 + \log_2 t_1)\bigr)
+\]
+Turing machine steps.
+
+\paragraph{(ii) Odd-stride column routing.}
+First transpose $(\widehat{C}_{v_1, u_2})$ from row-major order $(v_1, u_2)$ to column-major order $(u_2, v_1)$ by (i) in $O\bigl(t_1 r q (1 + \log_2 t_1)\bigr)$ steps. For each column $u_2 \in \{0, \dots, r-1\}$, its $t_1$ records now occupy a contiguous block in natural order $v_1 = 0, \dots, t_1 - 1$. In one sequential scan over all columns $u_2 = 0, \dots, r-1$, maintain the column stride and destination tag
+\[
+  s(u_2) := (2u_2 - 1) \bmod t_1, \qquad u_1 = (2u_2 - 1) v_1 \bmod t_1.
+\]
+A $k_1$-bit accumulator is initialized to $0$ at the start of each column and adds $s(u_2)$ modulo $t_1$ as $v_1$ increments from $0$ to $t_1 - 1$. Prepending the $k_1$-bit destination tag $u_1$ to each record takes $O(k_1) \le O(q)$ steps per record.
+
+Since each tagged record has fixed width $w + k_1 = \Theta(q)$, execute $k_1 = \log_2 t_1$ passes of standard bottom-up merge sort within all $r$ columns simultaneously. In pass $s \in \{0, \dots, k_1 - 1\}$, bit $s$ of a $k_1$-bit record counter detects alternating sorted runs of length $2^s$ within each column and distributes them to $T_1$ and $T_2$. Merging each pair of length-$2^s$ runs on $T_1$ and $T_2$ by comparing their $k_1$-bit tags produces a sorted run of length $2^{s+1}$. Each of the $k_1$ passes scans $O(t_1 r q)$ tape cells, taking
+\[
+  O\bigl(t_1 r q (1 + \log_2 t_1)\bigr)
+\]
+steps in total.
+\end{proof}

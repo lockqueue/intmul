@@ -1,0 +1,6 @@
+===== command =====
+lake build --no-build AxiomCheck Contracts IntMul IntMulTM LevelSync WP SubNLogN
+(exit 0)
+
+===== output: last lines (1135 cached build diagnostics re-printed by lake omitted; the full output contains 4962 warning lines and 0 error lines) =====
+All targets up-to-date (10723 jobs).

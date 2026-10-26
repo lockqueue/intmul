@@ -1,0 +1,87 @@
+=== date ===
+2026-10-24T10:29:29-07:00
+=== hostname ===
+<epyc-vm> (64-vCPU AMD EPYC 7B13 VM)
+=== kernel / os ===
+Linux 7.1.6 x86_64 (Debian-based)
+=== lscpu ===
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           48 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  64
+On-line CPU(s) list:                     0-63
+Vendor ID:                               AuthenticAMD
+Model name:                              AMD EPYC 7B13
+CPU family:                              25
+Model:                                   1
+Thread(s) per core:                      2
+Core(s) per socket:                      32
+Socket(s):                               1
+Stepping:                                0
+Microcode version:                       0xffffffff
+BogoMIPS:                                4899.99
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext ssbd ibrs ibpb stibp vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 clzero xsaveerptr arat umip vaes vpclmulqdq rdpid fsrm
+Hypervisor vendor:                       KVM
+Virtualization type:                     full
+L1d cache:                               1 MiB (32 instances)
+L1i cache:                               1 MiB (32 instances)
+L2 cache:                                16 MiB (32 instances)
+L3 cache:                                128 MiB (4 instances)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-63
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Ghostwrite:                Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Old microcode:             Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Mitigation; Safe RET
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP conditional; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Mitigation; Clear CPU buffers
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Not affected
+=== free -g ===
+               total        used        free      shared  buff/cache   available
+Mem:             117          35           4           3          83          82
+Swap:            114           4         110
+=== gcc --version ===
+gcc (Debian 15.2.0-14) 15.2.0
+Copyright (C) 2025 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+=== dpkg libgmp10 libmpfr6 libgomp1 ===
+┌── Desired=Unknown/Install/Remove/Purge/Hold
+│┌─ Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend
+││┌ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)
+│││ Name           Version        Architecture Description
+├┼┼─══════════════─══════════════─════════════─═════════════════════════════════════════════
+ii  libgmp10:amd64 2:6.3.0+dfsg-5 amd64        Multiprecision arithmetic library
+ii  libgomp1:amd64 16.1.0-2       amd64        GCC OpenMP (GOMP) support library
+ii  libmpfr6:amd64 4.2.2-3        amd64        multiple precision floating-point computation
+=== runtime libs ===
+lrwxrwxrwx 1 root root     16 Sep  4  2025 /usr/lib/x86_64-linux-gnu/libgmp.so.10 -> libgmp.so.10.5.0
+-rw-r--r-- 1 root root 566080 Sep  4  2025 /usr/lib/x86_64-linux-gnu/libgmp.so.10.5.0
+lrwxrwxrwx 1 root root     16 Mar 27  2026 /usr/lib/x86_64-linux-gnu/libmpfr.so.6 -> libmpfr.so.6.2.2
+-rw-r--r-- 1 root root 790896 Mar 27  2026 /usr/lib/x86_64-linux-gnu/libmpfr.so.6.2.2
+=== source ===
+measured:  4d0040f4a8c1da7010ae33aee9b74112f893821c3e6aca8821322a139ed44de2  ./intmul_fastdft.c (1704 lines)
+published: ff1600721b583ab2597645c4e20c7147a65f46d82c6a1fd8dfaeca63822de8c0  ./intmul_fastdft.c (1710 lines)
+(the published file in this directory (companion/impl/ of the repository) differs from the measured file only in the header comment, the removal of an unused internal build `#ifdef` include branch, and the `#if defined(_OPENMP) && !defined(INTMUL_NO_OPENMP)` single-thread fallback guard; apart from those two `#ifdef`/`#if` guard blocks, the comment-stripped C source is byte-identical, and under `-fopenmp` all executable code is byte-identical)
+=== build command ===
+gcc -O2 -march=native -fopenmp -DNDEBUG intmul_fastdft.c -o intmul_fastdft -l:libmpfr.so.6 -l:libgmp.so.10 -lm
+(libgmp-dev and libmpfr-dev were not installed on the measurement host, so the GMP 6.3.0 and MPFR 4.2.2 headers were generated/copied from the matching GMP 6.3.0 / MPFR 4.2.2 library sources into a local `-I` directory and linked directly against system `libgmp.so.10.5.0` and `libmpfr.so.6.2.2`; equivalent to the public `make` build `gcc -O2 -march=native -fopenmp -DNDEBUG intmul_fastdft.c -o intmul_fastdft -lmpfr -lgmp -lm` with identical header versions, shared libraries, and flags `-O2 -march=native -fopenmp -DNDEBUG`)
+=== cpu governor / smt ===
+1
+no cpufreq governor exposed
+=== uptime at setup ===
+ 10:29:29 up 11 days, 11:55,  2 users,  load average: 3.88, 2.85, 2.13

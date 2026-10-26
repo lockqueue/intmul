@@ -1,0 +1,46 @@
+===== run metadata (R3_P1_Sorry) =====
+tag: R3_P1_Sorry
+cwd: <project-root>
+config: replay/configs/controls/P1_Sorry.json
+config contents:
+{
+    "challenge_module": "Replay.Challenge",
+    "solution_module": "Replay.Controls.P1_Sorry",
+    "theorem_names": [
+        "SubNLogN.Assembly.intMul_challenge"
+    ],
+    "permitted_axioms": [
+        "propext",
+        "Quot.sound",
+        "Classical.choice"
+    ],
+    "enable_nanoda": true
+}
+
+cpuset: 32-39
+comparator: <comparator> (git 3927ad383f208ae977c340a91c48ac9b497d2097, tag v4.33.0, built with leanprover/lean4:v4.33.1)
+lean4export: <lean4export> (git 15f6055e299ad5b89345e533cc2192f4cc00f659)
+landrun: <landrun> (git ec104f6edc1e14d7fec6d31146f1ec6f9c192c5a, landrun version 0.1.18)
+nanoda: <nanoda_bin> (git 37cb87b7e6cd6862ef2bd121faa9f4604f59fe96, crate version 0.4.29, rustc rustc 1.99.1 (58cf8f9c3 2026-10-13))
+lean (project): Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+command: systemd-run --user --wait --pipe --property=RestrictAddressFamilies=~AF_UNIX -E PATH -E HOME -E COMPARATOR_LANDRUN -E COMPARATOR_LEAN4EXPORT -E COMPARATOR_NANODA --working-directory <project-root> -- /bin/bash -c 'taskset -c 32-39 lake env <comparator> replay/configs/controls/P1_Sorry.json'
+start: 2026-10-26T04:57:39Z (1792990659)
+end: 2026-10-26T04:57:50Z (1792990670)
+exit (systemd-run): 1
+
+===== complete output (13 lines) (2 cached build diagnostics of already-built modules, re-printed by `lake build`, omitted) =====
+Running as unit: run-p187758-i42189246.service; invocation ID: 433b9b7b85f2486cb7b6cd35b4a61931
+Building Replay.Challenge
+Build completed successfully (1227 jobs).
+Exporting #[Nat, String, String.mk, Char, Quot, Quot.mk, Quot.lift, Quot.ind, SubNLogN.Assembly.intMul_challenge, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce] from Replay.Challenge
+Building Replay.Controls.P1_Sorry
+Build completed successfully (1227 jobs).
+Exporting #[Nat, String, String.mk, Char, Quot, Quot.mk, Quot.lift, Quot.ind, SubNLogN.Assembly.intMul_challenge, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce] from Replay.Controls.P1_Sorry
+uncaught exception: Illegal axiom detected: 'sorryAx'
+          Finished with result: exit-code
+Main processes terminated with: code=exited, status=1/FAILURE
+               Service runtime: 10.995s
+             CPU time consumed: 16.413s
+                   Memory peak: 673.5M (swap: 0B)
+
+(wall time and peak memory of the run are the "Service runtime" and "Memory peak" lines reported by systemd-run above; the exit status of the unit is the exit status of comparator)

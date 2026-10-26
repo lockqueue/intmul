@@ -1,0 +1,51 @@
+===== run metadata (R1c_Contracts) =====
+tag: R1c_Contracts
+cwd: <project-root>
+cpuset: 0-19
+LEAN_NUM_THREADS: 5
+command: lake env leanchecker -v Contracts
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+leanchecker: <elan>/toolchains/leanprover--lean4---v4.33.1/bin/leanchecker
+start: 2026-10-26T04:24:06Z (1792988646)
+stdbuf: -oL -eL
+end: 2026-10-26T04:24:57Z (1792988697)
+exit: 0
+
+===== complete output (29 lines) =====
+replaying Contracts.Top.Gate
+replaying Contracts.Top.W10
+replaying Contracts.Top.W12
+replaying Contracts.Top.W11
+replaying Contracts.W6
+replaying Contracts.AxiomCheck
+replaying Contracts.W7.Gate
+replaying Contracts.W7.Kernels
+replaying Contracts.W7.Schedule
+replaying Contracts.W7.Format
+replaying Contracts.W7.Shapes
+replaying Contracts.W7.Tables
+replaying Contracts.W9.Post
+replaying Contracts.W9.GateCheck
+replaying Contracts.W9.Levels
+replaying Contracts.W9.Root
+replaying Contracts.W9.Pipeline
+replaying Contracts.W9.Sweep
+replaying Contracts.W9.Ret
+replaying Contracts.W9.Pre
+replaying Contracts.W9.Leaf
+replaying Contracts.W9.Tables
+replaying Contracts.W9.Common
+replaying Contracts.Machine.W3
+replaying Contracts.Machine.W6a
+replaying Contracts.Machine.W4
+replaying Contracts.Machine.W5
+replaying Contracts.Machine.Common
+replaying Contracts.W8
+
+===== GNU time -v summary =====
+Command being timed: "taskset -c 0-19 stdbuf -oL -eL lake env leanchecker -v Contracts"
+Elapsed (wall clock) time (h:mm:ss or m:ss): 0:51.75
+User time (seconds): 51.05
+System time (seconds): 103.78
+Maximum resident set size (kbytes): 17692248
+Exit status: 0

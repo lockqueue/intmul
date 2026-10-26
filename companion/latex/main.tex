@@ -1,0 +1,148 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing,fit,backgrounds,shapes.geometric}
+\usepackage{microtype}
+\usepackage{listings}
+\usepackage{fancyvrb}
+\usepackage{hyperref}
+
+% Unicode symbols occurring in quoted Lean 4 statements (pdflatex + inputenc utf8).
+\DeclareUnicodeCharacter{2203}{\ensuremath{\exists}}
+\DeclareUnicodeCharacter{2200}{\ensuremath{\forall}}
+\DeclareUnicodeCharacter{2115}{\ensuremath{\mathbb{N}}}
+\DeclareUnicodeCharacter{00D7}{\ensuremath{\times}}
+\DeclareUnicodeCharacter{0393}{\ensuremath{\Gamma}}
+\DeclareUnicodeCharacter{039B}{\ensuremath{\Lambda}}
+\DeclareUnicodeCharacter{03C3}{\ensuremath{\sigma}}
+\DeclareUnicodeCharacter{2227}{\ensuremath{\wedge}}
+\DeclareUnicodeCharacter{2080}{\ensuremath{{}_0}}
+\DeclareUnicodeCharacter{2081}{\ensuremath{{}_1}}
+\DeclareUnicodeCharacter{2082}{\ensuremath{{}_2}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\ge}}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\le}}
+\DeclareUnicodeCharacter{2192}{\ensuremath{\to}}
+\DeclareUnicodeCharacter{00B7}{\ensuremath{\cdot}}
+\DeclareUnicodeCharacter{230A}{\ensuremath{\lfloor}}
+\DeclareUnicodeCharacter{230B}{\ensuremath{\rfloor}}
+\DeclareUnicodeCharacter{2212}{\ensuremath{-}}
+\DeclareUnicodeCharacter{2243}{\ensuremath{\simeq}}
+
+\emergencystretch=1.5em
+
+\hypersetup{
+  pdftitle={Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof},
+  pdfauthor={Piaoyang Cui, Yiming Liu, David P. Woodruff},
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black
+}
+
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  columns=fullflexible,
+  keepspaces=true,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{black!25},
+  backgroundcolor=\color{black!3},
+  keywordstyle=\bfseries,
+  commentstyle=\itshape\color{black!65},
+  showstringspaces=false
+}
+
+\newtheorem{maintheorem}{Theorem}
+\newtheorem*{thmmainrestated}{Theorem~\ref{thm:main} \normalfont(restated)}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{fact}[theorem]{Fact}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% Mathematical macros
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Cg}{\widetilde{\mathbb{C}}}
+\newcommand{\Rg}{\widetilde{\mathbb{R}}}
+\newcommand{\Rr}{\mathcal{R}}
+\newcommand{\cA}{\mathcal{A}}
+\newcommand{\cB}{\mathcal{B}}
+\newcommand{\cO}{\mathcal{O}}
+\newcommand{\sinc}{\operatorname{sinc}}
+\newcommand{\erf}{\operatorname{erf}}
+\newcommand{\erfc}{\operatorname{erfc}}
+\newcommand{\RM}{\operatorname{RM}}
+\newcommand{\RD}{\operatorname{RD}}
+\newcommand{\Pack}{\operatorname{Pack}}
+\newcommand{\Quant}{\mathcal{Q}}
+\newcommand{\ord}{\operatorname{ord}}
+\newcommand{\eps}{\varepsilon}
+
+\title{\textbf{Integer multiplication in $O(n\log n)$ time on a single two-dimensional grid,\\ with a machine-checked proof}\thanks{This work was carried out with substantial assistance from AI agents (Gemini~4 and other models), including proof development, auditing, and the Lean~4 formalization; see Section~\ref{sec:intro-verification}.}}
+\author{%
+  \begin{tabular}[t]{@{}c@{}}
+    Piaoyang Cui\thanks{Authors are listed in alphabetical order.}\\[0.4ex]
+    {\normalsize Google DeepMind}
+  \end{tabular}%
+  \hspace{2.6em}%
+  \begin{tabular}[t]{@{}c@{}}
+    Yiming Liu\textsuperscript{\normalfont$\dagger$}\\[0.4ex]
+    {\normalsize Google DeepMind}
+  \end{tabular}%
+  \hspace{2.6em}%
+  \begin{tabular}[t]{@{}c@{}}
+    David P. Woodruff\textsuperscript{\normalfont$\dagger$}\\[0.4ex]
+    {\normalsize Google Research}\\[-0.2ex]
+    {\normalsize Carnegie Mellon University}
+  \end{tabular}%
+}
+\date{30 September 2026}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+\maketitle
+\thispagestyle{empty}
+
+\input{sections/abstract}
+
+\newpage
+\hypersetup{pageanchor=true}
+\setcounter{page}{1}
+
+\input{sections/01_intro}
+\input{sections/02_overview}
+\input{sections/03_preliminaries}
+\input{sections/04_bridge}
+\input{sections/05_deconvolution}
+\input{sections/06_spreading_error}
+\input{sections/07_algorithm_bound}
+\input{sections/08_lean}
+\input{sections/09_implementation}
+\input{sections/10_discussion}
+
+\bibliographystyle{alphakey}
+\bibliography{refs}
+
+\appendix
+\input{sections/app_a_elementary}
+\input{sections/app_b_routing}
+\input{sections/app_c_deferred}
+
+\end{document}

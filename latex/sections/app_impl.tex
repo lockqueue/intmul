@@ -1,0 +1,84 @@
+\section{Reference implementation}\label{app:impl}\label{sec:impl}
+
+To complement the written proofs and the Lean~4 formalization of Section~\ref{sec:lean}, we wrote an executable
+Python~3.13 reference implementation of every algorithmic component in this paper. Its role is to make the data layouts,
+rounding rules, error budgets, and finite-network certificates concrete and testable at small sizes; it is not a fast
+multiplier and does not simulate multitape Turing-machine head steps; some address permutations inside the engines are realized as index maps, and built-in integer multiplication is used for inner products unless the hierarchy mode is selected.
+
+\paragraph{Exact-arithmetic design and implemented components.} No floating-point arithmetic occurs on any authoritative
+data path. Every intermediate and stored value is represented in exact integer or rational arithmetic, and every
+rounding step is an explicit integer operation. On the dyadic grids of the fractional-shift bridge
+(Section~\ref{sec:bridge}) this operation is rounding to nearest, whereas on the disk-valued records of the butterfly
+layers and middle transforms (Sections~\ref{sec:walsh}--\ref{sec:direct-fft} and Appendix~\ref{app:parameter-transfer})
+it is componentwise truncation toward zero. All transcendental tables (sinc-Gaussian spreading taps, cyclic
+deconvolution coefficients, and roots of unity) are computed from certified rational interval enclosures (with Ziv
+precision refinement), guaranteeing faithful rounding to the target grid.
+
+The package implements the complete pipeline in modular form:
+\begin{itemize}[leftmargin=*]
+\item The $d$-dimensional fractional-shift bridge with negative half-bin modulation, overlap-add spreading in axis order
+  $d,\dots,2$, chronological cyclic deconvolution $B_2^{-1},\dots,B_d^{-1}$, and two-call root packing and recovery.
+\item The direct complex tensor FFT of Section~\ref{sec:direct-fft}, including the three-layer selective $H_0$ gadget,
+  slice-batched $\CNOT$ flips, two-involution positional permutations (Section~\ref{sec:walsh}), and combined per-record
+  twiddles, as well as the Bluestein middle transform and normalized $\Rr_r$-convolution of
+  Appendix~\ref{app:bluestein}.
+\item The recursive power-width and arbitrary-width chunk interchanges, the packed selected-bit addition with its
+  eight-shift program and deterministic radix-sort repair on the exceptional set, and the recursive $C^{\otimes e}$
+  phase-frame engine of Appendix~\ref{app:parameter-transfer}.
+\item A non-recursive inner-multiplier hierarchy so that end-to-end runs can route every packed and word-scale integer
+  product above $64$ bits through the internal multiplier rather than built-in big-integer multiplication.
+\end{itemize}
+
+\paragraph{Test-scale execution and asymptotic caveat.} As noted in Section~\ref{sec:discussion}, the sub-$n\log n$
+regime activates only at astronomically large input lengths ($d\ge2$ already requires $k\ge2^{15}$ at $\eps=1/15$, and
+the guard allocation $\Delta=\lceil C_0d^{14}\rceil$ involves $C_0\approx2.27\times10^{139}$), while the $h=100$ triple
+networks have $m=10^6$ and $W_c\approx1.87\times10^{21}$ roles. Consequently, the unforced theorem schedule falls back
+to a two-dimensional $O(N\log N)$ fractional-shift multiplier with negative half-bin carrier (the $d=2$ specialization
+of Section~\ref{sec:bridge}; cf.~\cite{MS} for the real-kernel two-dimensional multiplier) at every feasible input
+size. To exercise the sub-$n\log n$ machinery end to end, test policies
+force small dimensions and transform shapes ($d\in\{2,\dots,10\}$, lengths up to $R=4096$, chunk widths $K\in\{1,2\}$).
+They then run the recursive interchange and butterfly-layer engines on small test-scale network fixtures ($W=3$,
+$m\in\{2,3\}$) with guards compiled from the active fixture's depth recurrence. These small fixtures satisfy all
+structural, scratch-restoration, frame, and endpoint identities of Definition~\ref{def:fixed-network-premises}, exercising
+every recursive, basis-change, and exceptional-repair path. They do, however, have $s>Wm$ and therefore no rank saving.
+
+\paragraph{What the test suites verify.}
+\begin{enumerate}[label=(\arabic*),leftmargin=*]
+\item \emph{Bit-exact products and component equivalence.} Across more than $2{,}000$ unit and integration tests
+  (and, separately, one full-cascade hierarchy run on each of the Walsh and Bluestein middle transforms), every integer product
+  returned by the multiplier is verified bit for bit against Python's independent integer product. Component suites
+  likewise verify bit-identical agreement between the network-driven interchange and butterfly-layer engines and direct
+  dense/reference operators, and check runtime invariants (exact zero-bit halvings, guarded-width bounds, disk
+  containment, scratch restoration, and hole-key bijection in the sorting repair).
+\item \emph{Measured errors against proved bounds.} Across $71$ transform configurations spanning dimensions
+  $d\in\{2,\dots,5\}$ and lengths up to $R=1024$, the measured final rounded error is at most $2^{-2.51}\cdot2^{-p}$
+  (within the final rounding term $(\sqrt2/8)\,2^{-p}$ of Theorem~\ref{thm:bridge-precision}). On the $15$ non-leaf runs
+  of the two-dimensional fallback path ($17$ configurations in total, including $2$ base-FFT leaves), pre-rounding
+  errors lie at least $12.9$ bits below the nominal node certificate. That certificate is nominal because the fallback
+  rounds twist roots and leaf twiddles to nearest rather than into the unit disk. Pre-rounding errors lie at least $21.5$ bits
+  below the proved analytic budget on the $d$-dimensional bridge with a direct reference middle transform ($24$
+  configurations), and at least $23.9$ bits below on the Walsh and Bluestein middle-transform routes ($30$
+  configurations). Direct tests of the Walsh middle transform against multiprecision reference DFTs also confirm its
+  $12\ell\cdot2^{-q}$ bound (Theorem~\ref{thm:direct-fft}).
+\item \emph{Exact symbolic network certificates.} For the $h=100$ triple networks of~\cite[\S3]{OAI26}, a symbolic
+  certifier exploits $(S_h)^3$ orbit symmetry and exact rational cell calculus in exact arithmetic without constructing
+  $10^6\times10^6$ matrices. In about two seconds per network, it verifies the closed-form role counts $W_b,W_c$, edge-rank sums
+  $s_b,s_c$, endpoint identities, guard constants ($\nu_{\mathrm{net}}=11$ and the $140$-digit integer $C_0$), and
+  relative deficits $\eta_b,\eta_c$. An exact rational interval series for $\ln m$ produces the width-$2^{-80}$ enclosure
+  rounding outward to $13.815510557964\le\ln10^6\le13.815510557965$ (Table~\ref{app:cert-closed} and
+  Remark~\ref{rem:deficit-margins}), independently confirming the certified exponents $\tau=1-2^{-40}$ and
+  $\sigma=1-2^{-42}$ of Proposition~\ref{prop:deficits}. (For the bit network's odd prime radix $q_{\mathrm{rad}}$,
+  whose existence follows by finite avoidance in Lemma~\ref{lem:transfer-shear}, a symbolic grammar
+  certificate and brute-force elimination over all $96{,}172$ ordered one-factor primitive matrices at
+  $h\in\{7,8,10,11,12\}$ find denominator and pivot-numerator prime support $\{2,3\}$. This provides computational
+  evidence for $q_{\mathrm{rad}}=5$; no theorem of this paper relies on this value.)
+\end{enumerate}
+
+\paragraph{Availability.} The exact rational parameter-verification script \texttt{tools/h5\_rows\_check.py} is included
+in the source bundle of this paper. The companion software artifact~\cite{Code26} comprises the full Python~3.13
+exact-arithmetic reference package described in this appendix, while the separate directory~\cite{CGMP26}
+(\texttt{companion/impl/}) contains the standalone C/GMP/MPFR implementation (\texttt{intmul\_fastdft.c}), benchmark
+runner, and raw logs (\texttt{bench/\allowbreak BENCHMARK.md}, \texttt{bench/\allowbreak logs/}) of the two-dimensional
+$O(n\log n)$ multiplier of~\cite{MS} (Sections~\ref{sec:intro-verification} and~\ref{sec:disc-limitations}). Together
+with the Lean~4 formalization~\cite{Lean26} (Section~\ref{sec:lean}), both software directories are available in our
+\href{https://github.com/lockqueue/intmul}{github repository}.

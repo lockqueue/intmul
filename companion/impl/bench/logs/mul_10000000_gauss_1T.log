@@ -1,0 +1,37 @@
+### cmd: OMP_NUM_THREADS=1 /usr/bin/time -v ./intmul_fastdft mul 10000000 0 7 0
+### start: 2026-10-24T10:31:57-07:00
+### uptime before:  10:31:57 up 11 days, 11:57,  2 users,  load average: 13.41, 5.38, 3.10
+  [cfg] algo=gauss n=10000000 b=23 N=434783 R0=2^20 p0=148 bt=21904
+  [chain] R=2^20 p=148 (t1=1024 r=1024 W=93 slot=512)
+  [chain] R=1024 p=242 BASE
+  [cfg] tables built in 1.42s
+  [phase R=2^20] spread 2.2s twist1 0.1s synfft 0.9s twist2 0.2s children 1.9s deconv 0.8s
+  [phase R=2^20] spread 2.0s twist1 0.1s synfft 0.9s twist2 0.2s children 1.9s deconv 0.8s
+  [phase R=2^20] spread 2.1s twist1 0.2s synfft 0.9s twist2 0.2s children 2.0s deconv 0.6s
+algo=gauss n=10000000 bits | FastDFT core:    17.94 s | e2e:    18.52 s | GMP mpz_mul:   0.0470 s | ratio(core)  381.7x | ratio(e2e)  394.1x | max coeff residue 1.11e-16 | EXACT MATCH
+	Command being timed: "./intmul_fastdft mul 10000000 0 7 0"
+	User time (seconds): 19.14
+	System time (seconds): 1.18
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:20.32
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 2131944
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 485774
+	Voluntary context switches: 1
+	Involuntary context switches: 78
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 0
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+### end: 2026-10-24T10:32:17-07:00
+### uptime after:  10:32:17 up 11 days, 11:57,  2 users,  load average: 11.17, 5.39, 3.15
+### exit=0

@@ -1,0 +1,83 @@
+\section{Deferred error and filter calculations}\label{app:deferred}
+
+\subsection{Proof of Lemma~\ref{lem:solver-err}}\label{app:solver-err-proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:solver-err}]
+By \eqref{eq:faithful-table}, on $\Cg_{q_{\mathrm{child}}}$ each real table entry has error $\le \frac{1}{4} u = 0.25 u$, while each complex rounded product $\RM_{q_{\mathrm{child}}}$ has error $\le \frac{\sqrt{2}}{8} u < 0.177 u$.
+For $u_2 \ne r/2$, by reflection symmetry between $u_2 < r/2$ and $u_2 > r/2$, it suffices to consider $u_2 < r/2$. Then $M(u_2) > 0.49999999$ implies $M(u_2)^{-1} < 2.0000001$ and $|\mu| \le 2.0001$. Setting $B^\dagger_i := M(u_2)^{-1} \widehat{Y}_i$, we have $|B^\dagger_i| \le 2.0001 \mathcal{M}_Y$ and
+\[
+  e_i^{(B)} := |\tilde{B}_i - B^\dagger_i| \le |\mu - M(u_2)^{-1}| \, |\widehat{Y}_i| + \frac{\sqrt{2}}{8} u \le \left(\frac{1}{4} + \frac{\sqrt{2}}{8}\right) u \mathcal{M}_Y < 0.427 u \mathcal{M}_Y.
+\]
+In the prefix sweep, $P^\dagger_0 = B^\dagger_0$ and $P^\dagger_i = B^\dagger_i + \rho P^\dagger_{i-1}$ with $|\rho| = a < 1$, so $|P^\dagger_i| \le 2.0001(i + 1)\mathcal{M}_Y$. Since $|\hat{\rho}| \le 1 + \frac{1}{4}u$, the prefix error $e_i^{(P)} := |\tilde{P}_i - P^\dagger_i|$ satisfies $e_0^{(P)} = e_0^{(B)} \le 0.427 u \mathcal{M}_Y$ and, for $1 \le i \le t_1 - 1$,
+\[
+  e_i^{(P)} \le |\hat{\rho}| e_{i-1}^{(P)} + |\hat{\rho} - \rho|\,|P^\dagger_{i-1}| + e_i^{(B)} + \frac{\sqrt{2}}{8} u \le \left(1 + \frac{1}{4}u\right) e_{i-1}^{(P)} + \bigl(0.604 + 0.501 i\bigr) u \mathcal{M}_Y.
+\]
+Unrolling this linear recurrence from $i = 0$ to $t_1 - 1$, using $(1 + \frac{1}{4}u)^{t_1} \le e^{t_1 u / 4} < 1.0001$ since $t_1 u \le 2^{-20}$ and the triangular sum $\sum_{i=1}^{t_1-1} i = \frac{t_1(t_1-1)}{2} < \frac{1}{2} t_1^2$, gives for $t_1 \ge 2$:
+\[
+  e_{t_1-1}^{(P)} \le 1.0001\left(0.604 t_1 + 0.501 \frac{t_1(t_1-1)}{2}\right) u \mathcal{M}_Y < \bigl(0.605 t_1 + 0.251 t_1^2\bigr) u \mathcal{M}_Y < 0.56 t_1^2 u \mathcal{M}_Y.
+\]
+Next, in the wrap-around closure $Z^{\mathrm{comp}}_{t_1-1} = \RM_{q_{\mathrm{child}}}(\hat{\theta}, \tilde{P}_{t_1-1})$ versus $Z^\dagger_{t_1-1} = \theta P^\dagger_{t_1-1}$, where $\theta := (1 - \rho^{t_1})^{-1} < 1.163$, $|\hat{\theta}| < 1.164$, and $|P^\dagger_{t_1-1}| \le 2.0001 t_1 \mathcal{M}_Y$, we have
+\[
+  \begin{aligned}
+    e_{t_1-1}^{(Z)} := |Z^{\mathrm{comp}}_{t_1-1} - Z^\dagger_{t_1-1}|
+    &\le |\hat{\theta}| e_{t_1-1}^{(P)} + |\hat{\theta} - \theta|\,|P^\dagger_{t_1-1}| + \frac{\sqrt{2}}{8} u \\
+    &< \bigl(0.652 t_1^2 + 0.501 t_1 + 0.177\bigr) u \mathcal{M}_Y < 0.95 t_1^2 u \mathcal{M}_Y.
+  \end{aligned}
+\]
+Finally, in the second recurrence pass $Z^{\mathrm{comp}}_i = \tilde{B}_i + \RM_{q_{\mathrm{child}}}(\hat{\rho}, Z^{\mathrm{comp}}_{(i-1)\bmod t_1})$ versus $Z^\dagger_i = B^\dagger_i + \rho Z^\dagger_{(i-1)\bmod t_1}$ for $i = 0, \dots, t_1 - 2$, Theorem~\ref{thm:deconv}(2) bounds the exact solution uniformly by $\|Z^\dagger\|_\infty \le \|B^{-1}\|_{\infty \to \infty}\|\widehat{Y}\|_\infty < 2.36 t_1 \mathcal{M}_Y$. Hence at every step of the second pass, $|\hat{\rho} - \rho|\,|Z^\dagger_{(i-1)\bmod t_1}| \le \frac{1}{4} u (2.36 t_1 \mathcal{M}_Y) = 0.590 t_1 u \mathcal{M}_Y$, so each of the $t_1 - 1$ steps adds local error at most $(0.427 + 0.177 + 0.590 t_1) u \mathcal{M}_Y = (0.604 + 0.590 t_1) u \mathcal{M}_Y$. Across at most $t_1 - 1$ steps with amplification $(1 + \frac{1}{4}u)^{t_1-1} < 1.0001$, we obtain
+\[
+  \|Z^{\mathrm{comp}} - Z^\dagger\|_\infty \le 1.0001\Bigl(e_{t_1-1}^{(Z)} + (t_1 - 1)(0.604 + 0.590 t_1) u \mathcal{M}_Y\Bigr) < 1.85 \, t_1^2 \, u \, \mathcal{M}_Y \le 80 \, t_1^2 \, u \, \mathcal{M}_Y.
+\]
+
+For $u_2 = r/2$, $|\mu_{\mathrm{N}}| \le 2.0001$, $\|\tilde{D}_i - c^{-1}\widehat{Y}_i\|_\infty \le 0.427 u \mathcal{M}_Y$, and the alternating prefix sum $\tilde{P}_i = \tilde{D}_i - \tilde{P}_{i-1}$ is exact on $\Cg_{q_{\mathrm{child}}}$, so $\|\tilde{P}_i - P^\dagger_i\|_\infty \le 0.427 i u \mathcal{M}_Y < 0.427 t_1 u \mathcal{M}_Y$. The alternating sum $\tilde{S}$ is exact on $\Cg_{q_{\mathrm{child}}}$, and the single rounding of $(A_{\mathrm{N}} - \tilde{S})/t_1$ adds $\le 0.177 u$, yielding
+\[
+  \|Z^{\mathrm{comp}} - Z^\dagger\|_\infty \le (0.854 t_1 + 0.177) u \mathcal{M}_Y \le 5 t_1 u \mathcal{M}_Y \le 80 t_1^2 u \mathcal{M}_Y.
+\]
+Since $5t_1 \le 2.5\,t_1^2$ for $t_1 \ge 2$, both cases are below $2.5\,t_1^2\,u\,\mathcal{M}_Y$. We state the generous constant $80$, which is the value used in Lemma~\ref{lem:forward}.
+\end{proof}
+
+\subsection{Proof of Lemma~\ref{lem:filter-norms}}\label{app:filter-norms-proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:filter-norms}]
+\textbf{Part 1.} For $j_1 = 0$, $\kappa^{(0)}_0 = 1$ and $\kappa^{(0)}_d = 0$ for all $d \ne 0$, so $\|\kappa^{(0)}\|_1 = 1$. For $1 \le j_1 < t_{1,\ell}$, let $\delta := j_1 / t_{1,\ell} \in (0, 1)$. For $d \in \{0, -1\}$, $|\kappa^{(j_1)}_0| + |\kappa^{(j_1)}_{-1}| \le \sinc(\delta) + \sinc(1 - \delta) = \frac{\sin(\pi\delta)}{\pi\delta(1-\delta)}$. On $[0, 1]$, let $h(\delta) := \sin(\pi\delta) - 4\delta(1-\delta)$. By symmetry $h(\delta) = h(1-\delta)$, it suffices to consider $\delta \in [0, 1/2]$, where $h(0) = h(1/2) = 0$, $h'(0) = \pi - 4 < 0$, $h'(1/2) = 0$, and $h''(\delta) = -\pi^2\sin(\pi\delta) + 8$ decreases from $8 > 0$ at $\delta = 0$ to $8 - \pi^2 < 0$ at $\delta = 1/2$, vanishing at a unique $\delta_* \in (0, 1/2)$. On $[\delta_*, 1/2]$, $h$ is concave with $h(1/2) = h'(1/2) = 0$, so $h(\delta) \le h(1/2) + h'(1/2)(\delta - 1/2) = 0$, and in particular $h(\delta_*) \le 0$. On $[0, \delta_*]$, $h$ is convex, so $h(\delta) \le \max(h(0), h(\delta_*)) \le 0$. Hence $\sin(\pi\delta) \le 4\delta(1-\delta)$ on $[0, 1]$ and the two central terms sum to at most $4/\pi$. For $d \ge 1$ and $d \le -2$, pairing $d = k \ge 1$ with $d = -1-k$ gives $|\kappa^{(j_1)}_k| + |\kappa^{(j_1)}_{-1-k}| \le \frac{2}{\pi k} e^{-\pi k^2 / \alpha_\ell^2}$. Since $k \mapsto \frac{1}{k} e^{-\pi k^2 / \alpha_\ell^2}$ is decreasing on $[1, \infty)$,
+\[
+  \sum_{k=1}^\infty \frac{2}{\pi k} e^{-\pi k^2 / \alpha_\ell^2} \le \frac{2}{\pi} e^{-\pi/\alpha_\ell^2} + \frac{2}{\pi} \int_1^\infty \frac{e^{-\pi t^2 / \alpha_\ell^2}}{t}\,dt = \frac{2}{\pi} e^{-\pi/\alpha_\ell^2} + \frac{1}{\pi} \int_{\pi/\alpha_\ell^2}^\infty \frac{e^{-u}}{u}\,du.
+\]
+For the integral over $[\pi/\alpha_\ell^2, 1]$ and $x = \pi/\alpha_\ell^2 \in (0, 0.445)$, we have
+\begin{align*}
+  \int_{\pi/\alpha_\ell^2}^1 \frac{e^{-u}}{u}\,du &\le \int_{\pi/\alpha_\ell^2}^1 \frac{1 - u + u^2/2}{u}\,du = \ln(\alpha_\ell^2/\pi) - (1 - \pi/\alpha_\ell^2) + \frac{1}{4}(1 - \pi^2/\alpha_\ell^4), \\
+  2e^{-x} + x - 1 + \frac{1}{4}(1 - x^2) &\le 2(1 - x + x^2/2) + x - 1 + \frac{1}{4}(1 - x^2) = \frac{5}{4} - x\left(1 - \frac{3}{4}x\right) < \frac{5}{4} = 1.25.
+\end{align*}
+Combining these bounds gives $\sum_{k=1}^\infty \frac{2}{\pi k} e^{-\pi k^2 / \alpha_\ell^2} \le \frac{2}{\pi}\ln\alpha_\ell + \frac{1.25 - \ln\pi + E_1(1)}{\pi}$. Since $(1+v)(1 - v/2 + v^2/3) = 1 + \frac{v}{6}(3 - v + 2v^2) \ge 1$ for all $v \ge 0$, we have $\frac{1}{1+v} \le 1 - \frac{v}{2} + \frac{v^2}{3}$ and hence
+\[
+  E_1(1) = \int_1^\infty \frac{e^{-u}}{u}\,du = e^{-1} \int_0^\infty \frac{e^{-v}}{1 + v}\,dv \le e^{-1} \int_0^\infty e^{-v}\!\left(1 - \frac{v}{2} + \frac{v^2}{3}\right)dv = \frac{7}{6 e} < 0.42920.
+\]
+Using $\ln\pi > 1.14472$, the total constant is at most
+\[
+  \frac{4 + 1.25 - 1.14472 + 0.42920}{\pi} = \frac{4.53448}{\pi} < 1.444 < 1.62.
+\]
+
+\textbf{Part 2.} For $d \ge m_{1,\ell} + 1$, since $\delta \in [0, 1)$, we have $d + \delta \ge d \ge m_{1,\ell} + 1$, so $\sum_{d=m_{1,\ell}+1}^\infty |g(d+\delta)| \le \sum_{d=m_{1,\ell}+1}^\infty \frac{e^{-\pi d^2/\alpha_\ell^2}}{\pi d} \le \int_{m_{1,\ell}}^\infty \frac{e^{-\pi t^2/\alpha_\ell^2}}{\pi t}\,dt$. For $d \le -m_{1,\ell} - 1$, let $k := -d \ge m_{1,\ell} + 1$, so that
+\[
+  |d + \delta| = k - \delta > k - 1 \ge m_{1,\ell}.
+\]
+Separating the single negative boundary term $k = m_{1,\ell} + 1$, which satisfies $|g(-m_{1,\ell} - 1 + \delta)| < \frac{e^{-\pi m_{1,\ell}^2/\alpha_\ell^2}}{\pi m_{1,\ell}} \le \frac{2^{-p_{\ell+1}}}{\pi m_{1,\ell}}$, and bounding $\sum_{k=m_{1,\ell}+2}^\infty \frac{e^{-\pi(k-1)^2/\alpha_\ell^2}}{\pi(k-1)} \le \int_{m_{1,\ell}}^\infty \frac{e^{-\pi t^2/\alpha_\ell^2}}{\pi t}\,dt$ gives
+\[
+  \tau \le \frac{2^{-p_{\ell+1}}}{\pi m_{1,\ell}} + 2 \int_{m_{1,\ell}}^\infty \frac{e^{-\pi t^2 / \alpha_\ell^2}}{\pi t}\,dt \le \left(\frac{1}{\pi m_{1,\ell}} + \frac{1}{\pi p_{\ell+1} \ln 2}\right) 2^{-p_{\ell+1}},
+\]
+proving \eqref{eq:spatial-tail}. Since $p_{\mathrm{work},\ell} \ge 8$ and $p_{\ell+1} \ge 20$ imply $m_{1,\ell} \ge \lceil \frac{2\ln 2}{\pi}\sqrt{160}\rceil = 6$, we have
+\[
+  \frac{1}{\pi m_{1,\ell}} + \frac{1}{\pi p_{\ell+1} \ln 2} \le \frac{1}{6\pi} + \frac{1}{20\pi\ln 2} < 0.077 < 0.10.
+\]
+At all non-leaves, $m_{1,\ell} \ge 7$, giving $\frac{1}{\pi m_{1,\ell}} + \frac{1}{\pi p_{\ell+1} \ln 2} \le \frac{1}{7\pi} + \frac{1}{20\pi\ln 2} < 0.069$.
+
+\textbf{Part 3.} By Poisson summation, substituting $s = t + j_1/t_{1,\ell}$ in $\int_{-\infty}^\infty g(t + j_1/t_{1,\ell}) e^{2\pi i t(u_2/r_\ell - m)}\,dt$, the discrete Fourier coefficients of $h^{(j_1),\mathrm{per}} \in \C^{r_\ell}$ are
+\[
+  \widehat{h^{(j_1),\mathrm{per}}}_{u_2} = \frac{1}{r_\ell} \sum_{m \in \Z} \hat{g}\!\left(\frac{u_2}{r_\ell} - m\right) e^{-2\pi i (j_1/t_{1,\ell})(u_2/r_\ell - m)}.
+\]
+In contrast, $U^\circ$ in Theorem~\ref{thm:poisson} evaluates $h^{(j_1),\mathrm{per}}$ at reversed index $j_2 - k_2$, flipping the phase sign. Since $\hat{g} \ge 0$ and $\sum_{m \in \Z} \hat{g}(u_2/r_\ell - m) = 1$, we have $|\widehat{h^{(j_1),\mathrm{per}}}_{u_2}| \le \frac{1}{r_\ell}$ for all $u_2$. By Parseval's identity on $\Z_{r_\ell}$,
+\[
+  \|h^{(j_1),\mathrm{per}}\|_2^2 = r_\ell \sum_{u_2=0}^{r_\ell-1} \bigl|\widehat{h^{(j_1),\mathrm{per}}}_{u_2}\bigr|^2 \le r_\ell \cdot r_\ell \cdot \frac{1}{r_\ell^2} = 1,
+\]
+and Cauchy--Schwarz gives $\|h^{(j_1),\mathrm{per}}\|_1 \le \sqrt{r_\ell}\|h^{(j_1),\mathrm{per}}\|_2 \le \sqrt{r_\ell}$. By the triangle inequality, $\|h^{(j_1),\mathrm{tr}} - h^{(j_1),\mathrm{per}}\|_1 \le \sum_{|e| > m_{1,\ell}} |\kappa^{(j_1)}_e| = \tau$. Finally, at guard precision $v_{\mathrm{tap}}$, summing at most $\lceil W_\ell/r_\ell \rceil \le W_\ell$ terms per residue class incurs guard error $\le W_\ell 2^{-v_{\mathrm{tap}}} \le 2^{-p_{\ell+1}-10}$ before the final rounding to $\Rg_{q_{\mathrm{child}}}$, which adds at most $\frac{1}{2} 2^{-q_{\mathrm{child}}} = \frac{1}{8} 2^{-p_{\ell+1}}$. Thus for each $a \in \{0, \dots, \tilde{W}_\ell-1\}$, $|\bar{H}^{(j_1)}_a - h^{(j_1),\mathrm{tr}}_{(o-a)\bmod r_\ell}| \le (\frac{1}{8} + 2^{-10})2^{-p_{\ell+1}} < \frac{1}{2} 2^{-p_{\ell+1}}$. Since $h^{(j_1),\mathrm{tr}}_d = \bar{h}^{(j_1)}_d = 0$ outside the $\tilde{W}_\ell$ indices $d = (o - a) \bmod r_\ell$, $\|\bar{h}^{(j_1)} - h^{(j_1),\mathrm{tr}}\|_1 = \sum_{a=0}^{\tilde{W}_\ell-1} |\bar{H}^{(j_1)}_a - h^{(j_1),\mathrm{tr}}_{(o-a)\bmod r_\ell}| \le \tilde{W}_\ell 2^{-p_{\ell+1}-1}$.
+\end{proof}

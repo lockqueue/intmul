@@ -1,0 +1,128 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing,fit,backgrounds,shapes.geometric}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{fancyvrb}
+% Unicode symbols occurring in the quoted Lean statement (pdflatex + inputenc utf8).
+\DeclareUnicodeCharacter{2203}{\ensuremath{\exists}}
+\DeclareUnicodeCharacter{2200}{\ensuremath{\forall}}
+\DeclareUnicodeCharacter{2115}{\ensuremath{\mathbb{N}}}
+\DeclareUnicodeCharacter{00D7}{\ensuremath{\times}}
+\DeclareUnicodeCharacter{0393}{\ensuremath{\Gamma}}
+\DeclareUnicodeCharacter{2227}{\ensuremath{\wedge}}
+\DeclareUnicodeCharacter{2080}{\ensuremath{{}_0}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\ge}}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\le}}
+\emergencystretch=1.5em
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=green!50!black,
+  urlcolor=blue!70!black,
+  pdftitle={A simpler algorithm for integer multiplication below n log n, with a machine-checked proof},
+  pdfauthor={Piaoyang Cui, Yiming Liu, David P. Woodruff}
+}
+\AtBeginEnvironment{table}{\setlength{\belowcaptionskip}{6pt}}
+
+\newtheorem{maintheorem}{Theorem}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{fact}[theorem]{Fact}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ---------------------------------------------------------------------------
+% Mathematical macros (Section~\ref{sec:notation})
+% ---------------------------------------------------------------------------
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Cg}{\widetilde{\mathbb{C}}}
+\newcommand{\Rg}{\widetilde{\mathbb{R}}}
+\newcommand{\Rr}{\mathcal{R}}
+\newcommand{\cA}{\mathcal{A}}
+\newcommand{\cB}{\mathcal{B}}
+\newcommand{\cO}{\mathcal{O}}
+\newcommand{\sinc}{\operatorname{sinc}}
+\newcommand{\erf}{\operatorname{erf}}
+\newcommand{\erfc}{\operatorname{erfc}}
+\newcommand{\Quant}{\mathcal{Q}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\CNOT}{\mathrm{CNOT}}
+\newcommand{\CZ}{\mathrm{CZ}}
+\newcommand{\OAI}{\textup{[OAI26]}}
+\newcommand{\MS}{\textup{[MS]}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\tw}{\omega}
+\DeclareMathOperator{\Emid}{E_{mid}}
+
+\title{\textbf{A simpler algorithm for integer multiplication\\below $n\log n$, with a machine-checked proof}\thanks{This work was carried out with substantial assistance from Gemini~4 agents, including proof development, auditing, and the Lean~4 formalization; see Section~\ref{sec:intro-verification}.}}
+\author{%
+  \begin{tabular}[t]{@{}c@{}}
+    Piaoyang Cui\thanks{Authors are listed in alphabetical order.}\\[0.4ex]
+    {\normalsize Google DeepMind}
+  \end{tabular}%
+  \hspace{2.6em}%
+  \begin{tabular}[t]{@{}c@{}}
+    Yiming Liu\textsuperscript{\normalfont$\dagger$}\\[0.4ex]
+    {\normalsize Google DeepMind}
+  \end{tabular}%
+  \hspace{2.6em}%
+  \begin{tabular}[t]{@{}c@{}}
+    David P. Woodruff\textsuperscript{\normalfont$\dagger$}\\[0.4ex]
+    {\normalsize Google Research}\\[-0.2ex]
+    {\normalsize Carnegie Mellon University}
+  \end{tabular}%
+}
+\date{25 October 2026}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+\maketitle
+\thispagestyle{empty}
+
+\input{sections/abstract}
+
+\newpage
+\hypersetup{pageanchor=true}
+\setcounter{page}{1}
+
+\input{sections/intro}
+\input{sections/overview}
+\input{sections/prelim}
+\input{sections/bridge}
+\input{sections/walsh}
+\input{sections/direct_fft}
+\input{sections/main_theorem}
+\input{sections/lean}
+\input{sections/discussion}
+
+\bibliographystyle{alphakey}
+\bibliography{refs}
+
+\appendix
+\input{sections/app_transfer}
+\input{sections/app_deferred}
+\input{sections/app_bluestein}
+\input{sections/app_oai_map}
+\input{sections/app_impl}
+
+\end{document}

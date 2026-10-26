@@ -1,0 +1,23 @@
+===== run metadata (R1c_AxiomCheck) =====
+tag: R1c_AxiomCheck
+cwd: <project-root>
+cpuset: 0-19
+LEAN_NUM_THREADS: 5
+command: lake env leanchecker -v AxiomCheck
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+leanchecker: <elan>/toolchains/leanprover--lean4---v4.33.1/bin/leanchecker
+start: 2026-10-26T04:23:10Z (1792988590)
+stdbuf: -oL -eL
+end: 2026-10-26T04:23:32Z (1792988612)
+exit: 0
+
+===== complete output (1 lines) =====
+replaying AxiomCheck
+
+===== GNU time -v summary =====
+Command being timed: "taskset -c 0-19 stdbuf -oL -eL lake env leanchecker -v AxiomCheck"
+Elapsed (wall clock) time (h:mm:ss or m:ss): 0:21.30
+User time (seconds): 4.10
+System time (seconds): 17.22
+Maximum resident set size (kbytes): 3870544
+Exit status: 0

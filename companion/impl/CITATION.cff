@@ -1,0 +1,43 @@
+cff-version: 1.2.0
+message: "If you use this software or its benchmark results, please cite the accompanying papers below."
+title: "intmul-cgmp: C/GMP implementation and benchmark of the two-dimensional fractional-shift synthetic-FFT O(n log n) integer multiplier"
+type: software
+license: Apache-2.0
+authors:
+  - family-names: Cui
+    given-names: Piaoyang
+  - family-names: Liu
+    given-names: Yiming
+  - family-names: Woodruff
+    given-names: David P.
+keywords:
+  - integer multiplication
+  - fast Fourier transform
+  - fractional-shift synthetic FFT
+  - sinc-Gaussian kernel
+  - GMP
+  - MPFR
+preferred-citation:
+  type: unpublished
+  title: "Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof"
+  authors:
+    - family-names: Cui
+      given-names: Piaoyang
+    - family-names: Liu
+      given-names: Yiming
+    - family-names: Woodruff
+      given-names: David P.
+  year: 2026
+  notes: "companion manuscript ([MS]), whose algorithm this software implements"
+references:
+  - type: unpublished
+    title: "A simpler algorithm for integer multiplication below n log n, with a machine-checked proof"
+    authors:
+      - family-names: Cui
+        given-names: Piaoyang
+      - family-names: Liu
+        given-names: Yiming
+      - family-names: Woodruff
+        given-names: David P.
+    year: 2026
+    notes: "accompanying main paper"

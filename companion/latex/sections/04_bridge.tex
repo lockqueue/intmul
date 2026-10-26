@@ -1,0 +1,97 @@
+\section{The two-dimensional bridge on a power-of-two grid}\label{sec:bridge}
+
+We next combine two ingredients on the same $t_1 \times r$ grid: the classical polynomial-transform reduction of a two-dimensional power-of-two DFT $F_{t_1, r}$ to one polynomial transform $G_{t_1}$ and $t_1$ recursive one-dimensional DFTs $F_r$ (Section~\ref{sec:twisted}), and the fractional-shift Poisson identity connecting $F_{t_1, r}$ of a row-spread array directly to the one-dimensional DFT $F_{t_1 r}$ (Section~\ref{sec:poisson}).
+
+\subsection{Polynomial-transform reduction (\texorpdfstring{$F_{t_1, r} \to t_1 F_r$}{F(t1, r) to t1 F(r)})}\label{sec:twisted}
+
+Reducing a two-dimensional power-of-two DFT to a polynomial transform over $\C[y]/(y^r + 1)$ and $t_1$ one-dimensional transforms via an odd-stride index permutation is due to Nussbaumer and Quandalle~\cite{NQ79,Nussbaumer82}, using standard negacyclic-to-cyclic root weighting $y \mapsto \zeta^{2u_2 - 1}$ (cf.\ \cite{SS71,CF94}).
+
+\begin{proposition}[Polynomial-transform reduction; Nussbaumer--Quandalle~\cite{NQ79,Nussbaumer82}]\label{thm:twisted}
+Let $t_1 \mid r$ be powers of two, $\nu = r / t_1 \in \{1, 2\}$, $R = t_1 r$, and $\zeta := e^{\pi i / r}$ (so $\zeta^r = -1$). Given any $U \in \C^{t_1 \times r}$, perform the following five steps:
+\begin{enumerate}[label=\textbf{\arabic*.},leftmargin=*]
+  \item \textbf{Pre-twist:} For $(j_1, k_2) \in \{0, \dots, t_1-1\} \times \{0, \dots, r-1\}$, set $\tilde{U}_{j_1, k_2} := \zeta^{k_2} U_{j_1, k_2}$ and form $P_{j_1}(y) := \sum_{k_2=0}^{r-1} \tilde{U}_{j_1, k_2} y^{k_2} \in \Rr_r$.
+  \item \textbf{Polynomial transform:} Compute $Q = G_{t_1} P \in (\Rr_r)^{t_1}$ via \eqref{eq:syn-fft}, and write $Q_{v_1}(y) = \sum_{k_2=0}^{r-1} q_{v_1, k_2} y^{k_2}$ for its unique representative of degree $< r$.
+  \item \textbf{Post-twist:} For $(v_1, k_2) \in \{0, \dots, t_1-1\} \times \{0, \dots, r-1\}$, set $\tilde{q}_{v_1, k_2} := \zeta^{-k_2} q_{v_1, k_2}$.
+  \item \textbf{Recursive 1D DFTs:} For each $v_1 \in \{0, \dots, t_1-1\}$, compute the 1D DFT $\hat{q}_{v_1} := F_r(\tilde{q}_{v_1, \cdot}) \in \C^r$.
+  \item \textbf{Odd-stride permutation:} For each $v_1 \in \{0, \dots, t_1-1\}$ and $u_2 \in \{0, \dots, r-1\}$, set
+  \begin{equation}\label{eq:odd-perm}
+    u_1 := (2u_2 - 1) v_1 \bmod t_1, \qquad Y_{u_1, u_2} := (\hat{q}_{v_1})_{u_2}.
+  \end{equation}
+\end{enumerate}
+Then $Y_{u_1, u_2} = (F_{t_1, r} U)_{u_1, u_2}$ for all $(u_1, u_2) \in \{0, \dots, t_1-1\} \times \{0, \dots, r-1\}$.
+\end{proposition}
+
+\begin{proof}
+We include the short proof in our normalization. Fix any $u_2 \in \{0, \dots, r-1\}$. Because $2u_2 - 1$ is odd and $\zeta^r = e^{\pi i} = -1$, the complex number $\xi_{u_2} := \zeta^{2u_2 - 1}$ satisfies
+\[
+  \xi_{u_2}^r = (\zeta^r)^{2u_2 - 1} = (-1)^{2u_2 - 1} = -1, \quad \text{so} \quad \xi_{u_2}^r + 1 = 0.
+\]
+Therefore, the polynomial evaluation map
+\[
+  \phi_{u_2}\colon \C[y]/(y^r + 1) \longrightarrow \C, \qquad H(y) \bmod (y^r + 1) \longmapsto H(\xi_{u_2})
+\]
+is a well-defined ring homomorphism.
+
+Fix $v_1 \in \{0, \dots, t_1-1\}$ and $u_2 \in \{0, \dots, r-1\}$. Since $\zeta^{-k_2} e^{2\pi i k_2 u_2 / r} = e^{-\pi i k_2 / r} e^{2\pi i k_2 u_2 / r} = \zeta^{(2u_2 - 1)k_2} = \xi_{u_2}^{k_2}$, Step~4 evaluates to
+\[
+  (\hat{q}_{v_1})_{u_2} = \frac{1}{r} \sum_{k_2=0}^{r-1} \tilde{q}_{v_1, k_2} e^{2\pi i k_2 u_2 / r} = \frac{1}{r} \sum_{k_2=0}^{r-1} q_{v_1, k_2} \xi_{u_2}^{k_2} = \frac{1}{r} Q_{v_1}(\xi_{u_2}) = \frac{1}{r} \phi_{u_2}\bigl(Q_{v_1}(y)\bigr).
+\]
+Because $\phi_{u_2}$ is a ring homomorphism on $\Rr_r$, applying $\phi_{u_2}$ directly to the sum defining $Q_{v_1}(y)$ in Step~2 gives
+\[
+  (\hat{q}_{v_1})_{u_2} = \frac{1}{t_1 r} \sum_{j_1=0}^{t_1-1} \phi_{u_2}\bigl(P_{j_1}(y)\bigr) \, \phi_{u_2}\bigl(y^{2\nu j_1 v_1}\bigr) = \frac{1}{t_1 r} \sum_{j_1=0}^{t_1-1} \left(\sum_{k_2=0}^{r-1} \zeta^{k_2} U_{j_1, k_2} \, \zeta^{(2u_2 - 1)k_2}\right) \zeta^{2\nu (2u_2 - 1) j_1 v_1}.
+\]
+Noting that $\zeta^{k_2} \zeta^{(2u_2 - 1)k_2} = \zeta^{2 u_2 k_2} = e^{2\pi i k_2 u_2 / r}$ and $\zeta^{2\nu} = e^{2\pi i (r/t_1) / r} = e^{2\pi i / t_1}$, this becomes
+\[
+  (\hat{q}_{v_1})_{u_2} = \frac{1}{t_1 r} \sum_{j_1=0}^{t_1-1} \sum_{k_2=0}^{r-1} U_{j_1, k_2} \, e^{2\pi i k_2 u_2 / r} \, e^{2\pi i j_1 ((2u_2 - 1) v_1) / t_1}.
+\]
+Since $e^{2\pi i / t_1}$ is $t_1$-periodic in the exponent, setting $u_1 := (2u_2 - 1) v_1 \bmod t_1$ gives $(\hat{q}_{v_1})_{u_2} = (F_{t_1, r} U)_{u_1, u_2}$. Finally, since $2u_2 - 1$ is odd and $t_1$ is a power of two, $\gcd(2u_2 - 1, t_1) = 1$, so $v_1 \mapsto (2u_2 - 1) v_1 \bmod t_1$ is a bijection on $\{0, \dots, t_1-1\}$ for every $u_2$.
+\end{proof}
+
+\subsection{Fractional-shift Poisson identity (\texorpdfstring{$F_{t_1 r} \leftrightarrow F_{t_1, r}$}{F(t1 r) <-> F(t1, r)})}\label{sec:poisson}
+
+Approximating fractional shifts by convolving with a localized smooth kernel and analyzing the resulting alias series via Poisson summation is the standard gridding mechanism of the nonuniform discrete Fourier transform (NUFFT)~\cite{DR93,PST01,GL04,BMK19}, and is related to the Gaussian resampling step of~\cite{HvdH21}. Here, because $F_{t_1 r}$ and $F_{t_1, r}$ act on the same $t_1 \times r$ grid and the fractional shift $j_1 / t_1$ is constant across row $j_1$, row-wise spreading requires no grid oversampling and produces a cyclic alias mixture along each column $u_2$ that is inverted by a two-term recurrence.
+
+\begin{theorem}[Fractional-shift Poisson identity]\label{thm:poisson}
+Let $R = t_1 r$ with $t_1, r \in \Z_{\ge 1}$, and for $\alpha > 0$ define the windowed sinc-Gaussian kernel
+\begin{equation}\label{eq:sinc-gauss}
+  g(t) := \sinc(t) \, e^{-\frac{\pi}{\alpha^2} t^2} = \frac{\sin(\pi t)}{\pi t} \, e^{-\frac{\pi}{\alpha^2} t^2} \quad (g(0) := 1),
+\end{equation}
+whose continuous Fourier transform $\hat{g}(\xi) := \int_{-\infty}^\infty g(t) e^{-2\pi i \xi t}\,dt$ is
+\begin{equation}\label{eq:ghat}
+  \hat{g}(\xi) = \int_{-1/2}^{1/2} \alpha \, e^{-\pi \alpha^2 (\xi - \xi')^2} \, d\xi' = \frac{1}{2}\left[\erf\!\left(\sqrt{\pi}\alpha\!\left(\xi + \frac{1}{2}\right)\right) - \erf\!\left(\sqrt{\pi}\alpha\!\left(\xi - \frac{1}{2}\right)\right)\right].
+\end{equation}
+For any input vector $x \in \C^R$, define the ideal spread array $U^\circ \in \C^{t_1 \times r}$ by convolving each row $j_1 \in \{0, \dots, t_1-1\}$ cyclically along $j_2 \in \{0, \dots, r-1\}$ with the real $r$-periodic filter $h^{(j_1),\mathrm{per}}$:
+\begin{equation}\label{eq:u-ideal}
+  U^\circ_{j_1, k_2} := \sum_{j_2=0}^{r-1} x(j_1 + t_1 j_2) \, h^{(j_1),\mathrm{per}}_{(j_2 - k_2)\bmod r}, \qquad h^{(j_1),\mathrm{per}}_d := \sum_{a \in \Z} g\!\left(d + \frac{j_1}{t_1} - a r\right).
+\end{equation}
+Then for all $(u_1, u_2) \in \{0, \dots, t_1-1\} \times \{0, \dots, r-1\}$, the 2D DFT $F_{t_1, r} U^\circ$ and the 1D DFT $F_R x$ satisfy the exact identity
+\begin{equation}\label{eq:poisson-bridge}
+  \bigl(F_{t_1, r} U^\circ\bigr)_{u_1, u_2} = \sum_{m \in \Z} \hat{g}\!\left(\frac{u_2}{r} - m\right) \bigl(F_R x\bigr)_{u_2 + r ((u_1 - m)\bmod t_1)}.
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+Since $g \in \mathcal{S}(\R)$ is a Schwartz function ($\sinc$ is smooth with $\lvert\sinc^{(k)}\rvert \le \pi^k$ on $\R$ for every $k$, being the inverse Fourier transform of the bounded, compactly supported $\mathbf{1}_{[-1/2,1/2]}$, and the product of such a function with the Gaussian $e^{-\pi t^2/\alpha^2}$ is a Schwartz function), the periodized sum defining $h^{(j_1),\mathrm{per}}_d$ converges absolutely. Expanding $F_{t_1, r} U^\circ$ gives
+\[
+  \bigl(F_{t_1, r} U^\circ\bigr)_{u_1, u_2} = \frac{1}{t_1 r} \sum_{j_1=0}^{t_1-1} e^{2\pi i j_1 u_1 / t_1} \sum_{j_2=0}^{r-1} x(j_1 + t_1 j_2) \left(\sum_{k_2=0}^{r-1} \sum_{a \in \Z} g\!\left(j_2 + \frac{j_1}{t_1} - (k_2 + a r)\right) e^{2\pi i k_2 u_2 / r}\right).
+\]
+Because $e^{2\pi i (k_2 + a r) u_2 / r} = e^{2\pi i k_2 u_2 / r}$ for all $a \in \Z$, as $k_2$ ranges over $\{0, \dots, r-1\}$ and $a$ ranges over $\Z$, the integer $k := k_2 + a r$ ranges over $\Z$ bijectively. Hence the inner parenthesized sum equals
+\[
+  S(j_1, j_2, u_2) := \sum_{k \in \Z} g(z - k) e^{2\pi i k u_2 / r}, \qquad \text{where } z := j_2 + \frac{j_1}{t_1}.
+\]
+Because $\mathcal{F}\{\sinc\}(\xi) = \mathbf{1}_{[-1/2, 1/2]}(\xi)$ in $L^2(\R)$ and $\mathcal{F}\{e^{-\pi t^2 / \alpha^2}\}(\xi) = \alpha e^{-\pi\alpha^2\xi^2}$, the convolution theorem gives \eqref{eq:ghat} ($\sinc$ is in $L^2$ but not $L^1$; the identity $\mathcal{F}(\sinc\cdot\phi) = \mathcal{F}(\sinc) * \mathcal{F}(\phi)$ holds for Schwartz $\phi$, and both sides of~\eqref{eq:ghat} are continuous, so it holds pointwise). Fix $z \in \R$ and $\xi := u_2 / r$, and define $f(t) := g(z - t) e^{2\pi i \xi t} \in \mathcal{S}(\R)$. Substituting $s = z - t$ gives the continuous Fourier transform of $f$ at frequency $m \in \Z$:
+\[
+  \hat{f}(m) = \int_{-\infty}^\infty g(z - t) e^{2\pi i (\xi - m) t} \, dt = e^{2\pi i (\xi - m) z} \int_{-\infty}^\infty g(s) e^{-2\pi i (\xi - m) s} \, ds = \hat{g}(\xi - m) e^{2\pi i (\xi - m) z}.
+\]
+By the one-dimensional Poisson summation formula $\sum_{k \in \Z} f(k) = \sum_{m \in \Z} \hat{f}(m)$, we obtain
+\[
+  S(j_1, j_2, u_2) = \sum_{m \in \Z} \hat{g}\!\left(\frac{u_2}{r} - m\right) e^{2\pi i \left(j_2 + \frac{j_1}{t_1}\right)\left(\frac{u_2}{r} - m\right)}.
+\]
+Since $j_2, m \in \Z$, $e^{-2\pi i j_2 m} = 1$. For each $m \in \Z$, let $\tilde{u}_1 := (u_1 - m) \bmod t_1 \in \{0, \dots, t_1-1\}$ so that $u_1 - m \equiv \tilde{u}_1 \pmod{t_1}$ and $e^{2\pi i j_1 (u_1 - m) / t_1} = e^{2\pi i j_1 \tilde{u}_1 / t_1}$. Then
+\[
+  \frac{j_1 \tilde{u}_1}{t_1} + \frac{\left(j_2 + \frac{j_1}{t_1}\right) u_2}{r} = \frac{j_1 r \tilde{u}_1 + (j_1 + t_1 j_2) u_2}{t_1 r} \equiv \frac{(j_1 + t_1 j_2)(u_2 + r \tilde{u}_1)}{R} \pmod{1},
+\]
+because $t_1 j_2 r \tilde{u}_1 / (t_1 r) = j_2 \tilde{u}_1 \in \Z$. As $(j_1, j_2)$ ranges over $\{0, \dots, t_1-1\} \times \{0, \dots, r-1\}$, $j := j_1 + t_1 j_2$ ranges over $\{0, \dots, R-1\}$, so the sum over $(j_1, j_2)$ equals $(F_R x)_{u_2 + r \tilde{u}_1}$, proving \eqref{eq:poisson-bridge}.
+\end{proof}
+
+Theorem~\ref{thm:poisson} holds for arbitrary positive integers $t_1, r \ge 1$; for the remainder of the paper, $t_1 \mid r$ are powers of two with $t_1 \ge 2$.

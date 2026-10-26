@@ -1,0 +1,6 @@
+# Full-file SHA-256 (verify with: sha256sum -c SPEC_LOCK.sha256)
+2b77af19156ec36a003947643a1dbc5e1bb00a7ae580033cf8acff43caaae9d4  SubNLogN/Spec.lean
+7aa50930921c494e50803b037c4cc6ed9be880c3f795e4b171e16ab59cf61fb5  SubNLogN/Challenge.lean
+# Comment-stripped semantic SHA-256 (checked against commit 3480d37 by comparison mode; standalone mode python3 -B tools/check_semantic_freeze.py verifies against these recorded digests)
+# 324b29341221201376e88bc1a0262f7a8f30f1dc6f410dcd8a7da8950c0ac093  SubNLogN/Spec.lean (comment-stripped)
+# fdb4cb09ce1ab32e2f25078348787e103c40fd812f9d1a303eb0134a37593dcb  SubNLogN/Challenge.lean (comment-stripped)

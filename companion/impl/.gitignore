@@ -1,0 +1,3 @@
+intmul_fastdft
+*.o
+bench/logs/*.tmp

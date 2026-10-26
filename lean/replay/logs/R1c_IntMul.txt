@@ -1,0 +1,52 @@
+===== run metadata (R1c_IntMul) =====
+tag: R1c_IntMul
+cwd: <project-root>
+cpuset: 0-19
+LEAN_NUM_THREADS: 5
+command: lake env leanchecker -v IntMul
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+leanchecker: <elan>/toolchains/leanprover--lean4---v4.33.1/bin/leanchecker
+start: 2026-10-26T04:26:12Z (1792988772)
+stdbuf: -oL -eL
+end: 2026-10-26T04:27:18Z (1792988838)
+exit: 0
+
+===== complete output (30 lines) =====
+replaying IntMul
+replaying IntMul.Theorem2PoissonIdentity
+replaying IntMul.Theorem3BidiagonalAndSchedule
+replaying IntMul.Theorem5ComplexityAndCorrectness
+replaying IntMul.Preliminaries
+replaying IntMul.MaterializedAndComputable
+replaying IntMul.ExecutableAlgorithm.UnconditionalComplexity
+replaying IntMul.ExecutableAlgorithm.QuantizedSubstepBridges
+replaying IntMul.ExecutableAlgorithm.IdealizedFastDFT
+replaying IntMul.ExecutableAlgorithm.QuantizedFastDFT
+replaying IntMul.ExecutableAlgorithm.ChunkingAndSyntheticFFT
+replaying IntMul.ExecutableAlgorithm.IntrinsicScheduleAndCost
+replaying IntMul.ExecutableAlgorithm
+replaying IntMul.Theorem4KroneckerSpread
+replaying IntMul.Theorem1TwistedDuality
+replaying IntMul.Theorem6And7Barriers
+replaying IntMul.MaterializedAndComputable.PaperStopAndRadix2Leaf
+replaying IntMul.MaterializedAndComputable.ProgramCostPrimitives
+replaying IntMul.MaterializedAndComputable.ComputableExactPipeline
+replaying IntMul.MaterializedAndComputable.FaithfulTablesPerturbation
+replaying IntMul.MaterializedAndComputable.ComputableExactSolvers
+replaying IntMul.MaterializedAndComputable.ComputableTranscendentals
+replaying IntMul.MaterializedAndComputable.MaterializedArrays
+replaying IntMul.MaterializedAndComputable.ComputableTableBuilder
+replaying IntMul.MaterializedAndComputable.MaterializedPipeline
+replaying IntMul.MaterializedAndComputable.PaperHeadlinePipeline
+replaying IntMul.MaterializedAndComputable.ComputablePrimitives
+replaying IntMul.MaterializedAndComputable.SequentialTransducers
+replaying IntMul.MaterializedAndComputable.WordWidthBounds
+replaying IntMul.MaterializedAndComputable.CallSiteWidthSoundness
+
+===== GNU time -v summary =====
+Command being timed: "taskset -c 0-19 stdbuf -oL -eL lake env leanchecker -v IntMul"
+Elapsed (wall clock) time (h:mm:ss or m:ss): 1:05.97
+User time (seconds): 99.77
+System time (seconds): 121.67
+Maximum resident set size (kbytes): 20410236
+Exit status: 0

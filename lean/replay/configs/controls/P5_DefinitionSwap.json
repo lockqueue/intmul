@@ -1,0 +1,13 @@
+{
+    "challenge_module": "Replay.Challenge",
+    "solution_module": "Replay.Controls.P5_DefinitionSwap",
+    "theorem_names": [
+        "SubNLogN.Assembly.intMul_challenge"
+    ],
+    "permitted_axioms": [
+        "propext",
+        "Quot.sound",
+        "Classical.choice"
+    ],
+    "enable_nanoda": true
+}

@@ -1,0 +1,7 @@
+'SubNLogN.Assembly.intMul_challenge' depends on axioms: [propext, Classical.choice, Quot.sound]
+'IntMulTM.intMul_TM2_nlogn' depends on axioms: [propext, Classical.choice, Quot.sound]
+SubNLogN.Assembly.intMul_challenge : SubNLogN.Challenge.IntMulSubNLogN
+def SubNLogN.Challenge.IntMulSubNLogN : Prop :=
+∃ M,
+  (∀ (k : M.tm.K), Finite (M.tm.Γ k)) ∧
+    ∃ C N₀, 0 < C ∧ ∀ L ≥ N₀, M.time L ^ 2 ^ 46 ≤ (C * L) ^ 2 ^ 46 * L.log2 ^ (2 ^ 46 - 1)

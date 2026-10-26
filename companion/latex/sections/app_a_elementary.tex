@@ -1,0 +1,319 @@
+\section{Elementary functions, shared tables, and tape schedule}\label{app:elementary}
+
+\subsection{Proof of Lemma~\ref{lem:elementary}}\label{app:elem-proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:elementary}]
+We establish the bit-width, accuracy, and time bounds for primitives (i)--(v) in turn, and then verify the composite table-evaluation contract~\eqref{eq:faithful-table}.
+
+\paragraph{(i) Series for $\pi$ and $\ln 2$.}
+This block bounds the truncation tails, loop-termination rule, integer divisors, and $\Rg_S$-summation error for the approximations $\tilde{\pi}$, $\tilde{\ell}_2$, and $\tilde{h}$.
+Recall $S = s + 15D + 64$ and $N_{\mathrm{terms}} = 2S + 36D$ with $D = \max(s, K_0) \ge 8$. The denominator base power satisfies
+\[
+  5^{2N_{\mathrm{terms}}+1} > 3^{2N_{\mathrm{terms}}} = 9^{N_{\mathrm{terms}}} > 8^{2S+36D} = 2^{6S+108D} \gg 20 \cdot 2^{S+16}.
+\]
+Consequently, the combined alternating series tails for $\pi$ from both $\arctan(1/5)$ and $\arctan(1/239)$ and the geometric series tail for $\ln 2$ satisfy, respectively,
+\begin{align*}
+  \left|\pi - 4\sum_{k=0}^{N_{\mathrm{terms}}-1} (-1)^k \frac{4 \cdot 5^{-2k-1} - 239^{-2k-1}}{2k+1}\right|
+    &\le 20(2N_{\mathrm{terms}}+1)^{-1} 5^{-(2N_{\mathrm{terms}}+1)} < 2^{-S-16}, \\
+  2\sum_{k=N_{\mathrm{terms}}}^{\infty} \frac{1}{(2k+1)3^{2k+1}}
+    &\le \frac{3}{4(2N_{\mathrm{terms}}+1)} 3^{-2N_{\mathrm{terms}}} < 2^{-S-16}.
+\end{align*}
+
+In each series loop for $b \in \{3, 5, 239\}$, the machine stops incrementing $b^{2k+1}$ as soon as $b^{2k+1} > 32 \cdot 2^S$. Every subsequent term with $k < N_{\mathrm{terms}}$ has exact magnitude below $\frac{16}{32 \cdot 2^S} = \frac{1}{2} 2^{-S}$ and therefore rounds via $\Quant_S$ to $0$ on $\Rg_S$ identically. For all $D \ge 8$, every integer divisor formed before termination satisfies
+\[
+  (2k+1)b^{2k+1} \le (2N_{\mathrm{terms}}+1)\cdot 239^2 \cdot 32 \cdot 2^S < 2^{S + 23 + \lceil\log_2(169 D)\rceil} \ll 2^{2S + 4D + 16}.
+\]
+Summing the non-zero rounded terms on $\Rg_S$ incurs rounding error at most $4 N_{\mathrm{terms}} 2^{-S} < 2^{-s-D-32}$, defining the approximations and error bounds
+\begin{align*}
+  \tilde{\pi},\, \tilde{\ell}_2 &\in \Rg_S, & \tilde{h} &:= \Quant_S(\tilde{\pi}/2), \\
+  |\tilde{\pi} - \pi|,\, |\tilde{\ell}_2 - \ln 2| &\le (4N_{\mathrm{terms}} + 1)2^{-S}, & |\tilde{h} - \pi/2| &\le (2N_{\mathrm{terms}} + 1)2^{-S}.
+\end{align*}
+
+\paragraph{(ii) Square root.}
+This block defines the scaled integer radicand $N_{\tilde{x}}$ and its integer square root $m$ and bounds the fixed-point and input-perturbation errors on $[2^{-D}, 2^{2D}]$.
+Since both $x$ and $\tilde{x}$ lie in $[2^{-D}, 2^{2D}]$, define
+\[
+  N_{\tilde{x}} := 2^{2S} \tilde{x} \in \Z_{\ge 1}, \qquad m := \bigl\lfloor \sqrt{N_{\tilde{x}}} \bigr\rfloor.
+\]
+The integer $N_{\tilde{x}}$ has bit-length at most $2S + 2D + 1 = O(D)$. Computing $m$ via digit-by-digit binary integer square root takes $O(D^2)$ steps and satisfies $|2^{-S} m - \sqrt{\tilde{x}}| < 2^{-S} < 2^{-s-D-32}$. On $[2^{-D}, 2^{2D}]$, the input perturbation satisfies
+\[
+  \bigl|\sqrt{\tilde{x}} - \sqrt{x}\bigr| \le \frac{1}{2\sqrt{2^{-D}}}\delta_{\mathrm{in}} = 2^{D/2-1}\delta_{\mathrm{in}}.
+\]
+
+\paragraph{(iii) Exponential.}
+This block verifies the underflow cutoff, defines the quotient-aligned range-reduction variables $m, \tilde{r}, r_m$ and Taylor terms $\tilde{T}_k$, and bounds $\exp$ on $[-\pi(D+2)^2, 0]$.
+Whenever the exact $\Rg_S$ cutoff $\tilde{x} < -(S + 16)\tilde{\ell}_2$ holds, the bound $|\tilde{\ell}_2 - \ln 2| \le (4N_{\mathrm{terms}} + 1)2^{-S}$ implies $\tilde{x} < -(S + 16)\ln 2 + 2^{-100}$ and $e^{\tilde{x}} < 2^{-S-15} < 2^{-s-D-32}$, so returning $0$ is valid.
+
+Otherwise $-(S + 16)\tilde{\ell}_2 \le \tilde{x} \le 0$, and integer division of $2^S(-\tilde{x})$ by $2^S\tilde{\ell}_2$ defines
+\begin{align*}
+  m &:= \bigl\lfloor (-\tilde{x})/\tilde{\ell}_2 \bigr\rfloor \in \{0, \dots, S + 16\}, \\
+  \tilde{r} &:= -\tilde{x} - m\tilde{\ell}_2 \in \Rg_S \cap [0, \tilde{\ell}_2), \qquad r_m := -\tilde{x} - m\ln 2.
+\end{align*}
+Because $r_m$ is defined with that same integer $m$, we have $e^{\tilde{x}} = 2^{-m} e^{-r_m}$ identically, and comparing $\tilde{r}$ to $r_m$ incurs no quotient-boundary jump. Their difference satisfies
+\[
+  |\tilde{r} - r_m| = m|\tilde{\ell}_2 - \ln 2| \le (S + 16)(4N_{\mathrm{terms}} + 1)2^{-S} < 2^{-100},
+\]
+with $r_m \in [-2^{-100}, \ln 2 + 2^{-100}]$ and $|(e^{-t})'| \le e^{2^{-100}} < 1 + 2^{-99}$ between $\tilde{r}$ and $r_m$.
+
+The $N_{\mathrm{terms}}$ Taylor terms for $\exp(-\tilde{r})$ are generated on $\Rg_S$ by the recurrence
+\[
+  \tilde{T}_0 := 1, \qquad \tilde{T}_k := \RD_S\bigl(\RM_S(\tilde{T}_{k-1}, -\tilde{r}),\, k\bigr) \quad (1 \le k < N_{\mathrm{terms}}).
+\]
+Since $\tilde{r}/k < 0.70$, each term satisfies $|\tilde{T}_k - T_k| < 3.34 \cdot 2^{-S}$, and every intermediate integer stays within $2S + 4D + 16$ bits. Moreover, the truncation tail satisfies
+\[
+  \frac{|\tilde{r}|^{N_{\mathrm{terms}}}}{N_{\mathrm{terms}}!} \le \left(\frac{e}{N_{\mathrm{terms}}}\right)^{N_{\mathrm{terms}}} < 2^{-4S} < 2^{-S-16}.
+\]
+After summing the $N_{\mathrm{terms}}$ terms on $\Rg_S$, the machine applies a rounded $m$-bit right shift $\Quant_S(2^{-m}\cdot)$ onto $\Rg_S$ for $2^{-m}$, adding at most $\frac{1}{2} 2^{-S}$. For all $D \ge 8$, the total error relative to $e^{\tilde{x}}$ is at most
+\[
+  \bigl((S + 18)(4 N_{\mathrm{terms}} + 1) + 1\bigr) 2^{-S} < 2^{14} D^2 2^{-S} < 2^{-s-D-32}.
+\]
+
+\paragraph{(iv) Sine and cosine.}
+This block defines the $\pi/2$ range-reduction quantities $m, \tilde{r}, r_m$ and recurrence terms $\tilde{T}_k$ on $|x| \le \pi(D+2)$, followed by the direct $\sinc$ series on $[-1/2, 1/2]$.
+Using $\tilde{h} = \Quant_S(\tilde{\pi}/2)$ with $|\tilde{h} - \pi/2| \le (2N_{\mathrm{terms}} + 1)2^{-S}$, define
+\[
+  m := \bigl\lfloor \tilde{x}/\tilde{h} + 1/2 \bigr\rfloor \in \Z, \qquad \tilde{r} := \tilde{x} - m\tilde{h} \in \Rg_S, \qquad r_m := \tilde{x} - m(\pi/2).
+\]
+Here $|m| \le 2(D+2) + 1 < S + 16$, and the reduced remainder satisfies
+\begin{align*}
+  |\tilde{r}| &\le \frac{\tilde{h}}{2} < 0.79 < 1, \\
+  |\tilde{r} - r_m| &= |m|\,|\tilde{h} - \pi/2| \le (S + 16)(4N_{\mathrm{terms}} + 1)2^{-S} < 2^{-100}.
+\end{align*}
+Using that same integer $m$ in $r_m$ avoids any quotient-boundary jump and gives $\sin\tilde{x} = \sin(m\frac{\pi}{2} + r_m)$ and $\cos\tilde{x} = \cos(m\frac{\pi}{2} + r_m)$ identically via $m \bmod 4$, while $|(\sin t)'|, |(\cos t)'| \le 1$.
+
+For $\cos\tilde{r}$ and $\sin\tilde{r}$, the $N_{\mathrm{terms}}$ Taylor terms are generated on $\Rg_S$ by
+\begin{align*}
+  \tilde{T}_0 &:= 1 \quad (\text{for }\cos\tilde{r},\text{ divisor }2k(2k-1)), \qquad
+  \tilde{T}_0 := \tilde{r} \quad (\text{for }\sin\tilde{r},\text{ divisor }2k(2k+1)), \\
+  \tilde{T}_k &:= \RD_S\Bigl(\RM_S\bigl(\tilde{T}_{k-1}, -\RM_S(\tilde{r}, \tilde{r})\bigr),\, 2k(2k \mp 1)\Bigr) \quad (1 \le k < N_{\mathrm{terms}}).
+\end{align*}
+Because $\tilde{r}^2 / 2 < 0.32$, each term satisfies $|\tilde{T}_k - T_k| < 1.48 \cdot 2^{-S}$, and all intermediate integers stay within $2S + 4D + 16$ bits. For all $D \ge 8$, the alternating tail bound of Lemma~\ref{lem:elementary}(iv) and the total error $|\tilde{y} - f(\tilde{x})|$ for $f \in \{\sin, \cos\}$ satisfy
+\begin{align*}
+  \frac{|\tilde{r}|^{2N_{\mathrm{terms}}}}{(2N_{\mathrm{terms}})!} &\le \frac{|\tilde{r}|^{N_{\mathrm{terms}}}}{N_{\mathrm{terms}}!} < 2^{-S-16}, \\
+  |\tilde{y} - f(\tilde{x})| &\le \bigl((S + 18)(4 N_{\mathrm{terms}} + 1) + 1\bigr) 2^{-S} < 2^{14} D^2 2^{-S} < 2^{-s-D-32}.
+\end{align*}
+
+\textbf{Claim: Direct $\sinc$ series on $[-1/2, 1/2]$.}
+For $|t| \le 1/2$, define the scaled argument $\tilde{u}$ and Taylor terms $\tilde{T}_k$ on $\Rg_S$ by
+\begin{align*}
+  \tilde{u} &:= \RM_S(\tilde{\pi}, \tilde{t}), \qquad \tilde{T}_0 := 1, \\
+  \tilde{T}_k &:= \RD_S\Bigl(\RM_S\bigl(\tilde{T}_{k-1}, -\RM_S(\tilde{u}, \tilde{u})\bigr),\, 2k(2k+1)\Bigr) \quad (1 \le k < N_{\mathrm{terms}}).
+\end{align*}
+Then $|\tilde{u} - \pi\tilde{t}| \le (2N_{\mathrm{terms}} + 1)2^{-S}$ and $|\tilde{u}| < 1.58$. Every step ratio satisfies $\tilde{u}^2 / (2k(2k+1)) < 0.42 < 1/2$, and every term satisfies $|\tilde{T}_k| \le 1$. The alternating tail bound of Lemma~\ref{lem:elementary}(iv) and the derivative on $|u| \le \pi/2$ satisfy
+\begin{align*}
+  \frac{(\pi/2)^{2N_{\mathrm{terms}}}}{(2N_{\mathrm{terms}}+1)!} &\le \left(\frac{\pi e}{4N_{\mathrm{terms}}}\right)^{2N_{\mathrm{terms}}} < 2^{-4S} < 2^{-S-16}, \\
+  \left|\frac{d}{du}\!\left(\frac{\sin u}{u}\right)\right| &\le \frac{4}{\pi^2} < 0.41 \le 1 \quad (|u| \le \pi/2),
+\end{align*}
+with $|\sinc'(t)| \le \frac{4}{\pi} < 1.28$ on $[-1/2, 1/2]$. Summing $\tilde{T}_0, \dots, \tilde{T}_{N_{\mathrm{terms}}-1}$ on $\Rg_S$ therefore gives
+\[
+  |\tilde{y} - \sinc(\tilde{t})| \le (6 N_{\mathrm{terms}} + 2) 2^{-S} + 2^{-S-16} < 2^{-s-D-32}.
+\]
+
+\paragraph{(v) Error function $\erf$.}
+This block analyzes the early-exit cutoff, the power-series recurrence $\tilde{T}_n$ with auxiliary quantities $\Sigma(\tilde{z}), w_{\mathrm{sq}}, V, T_n, \delta_k$, and the Gaussian prefactor multiplication on $[0, 3\sqrt{D}]$.
+
+\textbf{Claim: Early-exit branch of $\erf$.}
+Comparing $\RM_S(\tilde{z}, \tilde{z})$ against $(s + D + 24)\tilde{\ell}_2$ on $\Rg_S$ tests the cutoff within $O(D^2 2^{-S})$. Whenever $\RM_S(\tilde{z}, \tilde{z}) > (s + D + 24)\tilde{\ell}_2$, we have $\tilde{z}^2 > (s + D + 24)\ln 2 - 2^{-100}$, and $s + D + 24 \ge 40$ gives $\tilde{z} > 5.26$. Hence returning $1$ incurs error
+\[
+  \erfc(\tilde{z}) \le \frac{e^{-\tilde{z}^2}}{\sqrt{\pi}\tilde{z}} < 2^{-s-D-26} < 2^{-s-D-23}.
+\]
+
+\textbf{Claim: Series branch and recurrence rounding for $\erf$.}
+On the series branch, $\tilde{z} \in \Rg_S \cap [0, 3\sqrt{D}]$ satisfies $\tilde{z}^2 \le (s + D + 24)\ln 2 + 2^{-100}$, so $\tilde{z}^2 \le 9D$ and $e^{\tilde{z}^2} < 1.01 \cdot 2^{s+D+24} \le 1.01 \cdot 2^{2D+24}$. Define the positive series
+\[
+  \Sigma(\tilde{z}) := \tilde{z} \sum_{n=0}^\infty \frac{(2\tilde{z}^2)^n}{(2n+1)!!} = \frac{\sqrt{\pi}}{2} e^{\tilde{z}^2}\erf(\tilde{z}).
+\]
+Since $e^9 < 8104 < 2^{13}$, $\Sigma(\tilde{z})$ satisfies $\Sigma(\tilde{z}) < 2^{s+D+24} \le 2^{2D+24}$ and $\Sigma(\tilde{z}) \le 3\sqrt{D}\,e^{9D} < 2^{14D}$. Using $(2n+1)!! \ge 2^n n! \ge 2^n (n/e)^n$, for every index $n$ in the tail we have
+\[
+  n \ge N_{\mathrm{terms}} = 2S + 36D > 66D, \qquad \frac{\tilde{z}^2 e}{n} < \frac{9eD}{66D} < 0.371 < 2^{-1.43},
+\]
+so the series tail for $n \ge N_{\mathrm{terms}}$ is bounded by $6\sqrt{D} \cdot 2^{-1.43 N_{\mathrm{terms}}} < 2^{-S-16}$.
+
+To bound the fixed-point rounding error on $\Rg_S$, define
+\[
+  w_{\mathrm{sq}} := \RM_S(2\tilde{z}, \tilde{z}), \qquad V := \max(2\tilde{z}^2, w_{\mathrm{sq}}) \le 2\tilde{z}^2 + 1,
+\]
+so $|w_{\mathrm{sq}} - 2\tilde{z}^2| \le \frac{1}{2}2^{-S}$, and compute the recurrence
+\[
+  \tilde{T}_0 := \tilde{z}, \qquad \tilde{T}_n := \RD_S\bigl(\RM_S(\tilde{T}_{n-1}, w_{\mathrm{sq}}),\, 2n+1\bigr) \quad (1 \le n < N_{\mathrm{terms}}).
+\]
+Define the exact $n$-th term $T_n$ and the step residual $\delta_k$ by
+\begin{align*}
+  T_n &:= \frac{(2\tilde{z}^2)^n \tilde{z}}{(2n+1)!!}, \qquad |\delta_0| = |\tilde{T}_0 - T_0| = 0, \\
+  \delta_k &:= (\tilde{T}_k - T_k) - \frac{w_{\mathrm{sq}}}{2k+1}(\tilde{T}_{k-1} - T_{k-1}) \\
+           &= \left(\tilde{T}_k - \frac{w_{\mathrm{sq}}}{2k+1}\tilde{T}_{k-1}\right) + \frac{w_{\mathrm{sq}} - 2\tilde{z}^2}{2k+1}T_{k-1} \quad (k \ge 1).
+\end{align*}
+Each residual satisfies
+\[
+  |\delta_k| \le \frac{T_{k-1}}{2k+1}|w_{\mathrm{sq}} - 2\tilde{z}^2| + \left(\frac{1}{2(2k+1)} + \frac{1}{2}\right)2^{-S} < \frac{T_{k-1}}{2(2k+1)} 2^{-S} + 2^{-S}.
+\]
+Unrolling the linear recurrence gives $\tilde{T}_n - T_n = \sum_{k=1}^n \delta_k \prod_{j=k+1}^n \frac{w_{\mathrm{sq}}}{2j+1}$. Using $(2k-1)!!(2k+1)\prod_{j=k+1}^n(2j+1) = (2n+1)!! \ge 3\cdot 2^{n-1}(n-1)!$ and $\prod_{j=k+1}^n(2j+1) \ge 2^{n-k}(n-k)!$, the propagation products satisfy
+\begin{align*}
+  \frac{T_{k-1}}{2k+1}\prod_{j=k+1}^n \frac{w_{\mathrm{sq}}}{2j+1} &\le \frac{\tilde{z} V^{n-1}}{(2n+1)!!} \le \sqrt{D}\,e^{V/2}, \\
+  \prod_{j=k+1}^n \frac{w_{\mathrm{sq}}}{2j+1} &\le \frac{(V/2)^{n-k}}{(n-k)!} \le e^{V/2} \le e^{9D + 1/2} = \sqrt{e}\,(e^9)^D < 2 \cdot (2^{13})^D = 2^{13D + 1}.
+\end{align*}
+Thus each step $k \le n$ contributes at most $(\sqrt{D} + 1)e^{V/2} 2^{-S} \le 8D \cdot 2^{13D + 1 - S}$ to $|\tilde{T}_n - T_n|$. For all $D = \max(s, K_0) \ge 8$, we have $S = s + 15D + 64 \le 24D$, $D^3 2^{-D} \le 8^3 2^{-8} = 2$, and
+\[
+  N_{\mathrm{terms}} = 2S + 36D \le 84D < 2^7 D, \qquad \frac{N_{\mathrm{terms}}(N_{\mathrm{terms}}+1)}{2} < 2^{12} D^2.
+\]
+Summing over all pairs $(k, n)$ with $1 \le k \le n$ and $n < N_{\mathrm{terms}}$ and adding the truncation tail $< 2^{-S-16}$ yields
+\begin{align*}
+  |\widetilde{\Sigma}(\tilde{z}) - \Sigma(\tilde{z})| &\le \frac{N_{\mathrm{terms}}(N_{\mathrm{terms}}+1)}{2} \cdot 8D \cdot 2^{13D + 1 - S} + 2^{-S-16} \\
+  &< 2^{16} D^3 2^{-2D} \cdot 2^{-s-64} + 2^{-S-16} \le 2^{-s-D-47} + 2^{-S-16} < 2^{-s-D-24}.
+\end{align*}
+
+\textbf{Claim: Prefactor multiplication and final $\erf$ error.}
+For $\tilde{z} \in [0, 3\sqrt{D}]$, forming $-\RM_S(\tilde{z}, \tilde{z})$ perturbs $-\tilde{z}^2$ by at most $\frac{1}{2} 2^{-S}$, so by (i)--(iii) the prefactor $\frac{2}{\sqrt{\pi}} e^{-\tilde{z}^2} \in (0, \frac{2}{\sqrt{\pi}}] \subset (0, 1.13]$ is computed on $\Rg_S$ with error $< 2^{15} D^2 2^{-S}$. Because $|\widetilde{\Sigma}(\tilde{z})| < 2^{2D+25}$, the scaled integer product between this prefactor and $\widetilde{\Sigma}(\tilde{z})$ has bit-length at most $2S + 2D + 27 < 2S + 4D + 16$. For all $D \ge 8$, multiplying by $\widetilde{\Sigma}(\tilde{z})$ amplifies the prefactor error by at most
+\[
+  2^{2D+25} \cdot 2^{15} D^2 2^{-S} = D^2 2^{-12D-24} \cdot 2^{-s-D} < 2^{-s-D-110}.
+\]
+Rounding the product onto $\Rg_S$ adds at most $\frac{1}{2} 2^{-S}$, which gives
+\[
+  |\tilde{y} - \erf(\tilde{z})| \le 1.13 \cdot 2^{-s-D-24} + 2^{-s-D-110} + \frac{1}{2} 2^{-S} < 2^{-s-D-23} < 2^{-s-30}
+\]
+together with the Lipschitz bound $|\erf(\tilde{z}) - \erf(z)| \le \frac{2}{\sqrt{\pi}}|\tilde{z} - z|$.
+
+\paragraph{Composite table expressions and faithful rounding.}
+This block verifies domain membership, derivative amplification, repeated-squaring stability for $\theta(u_2)$, the 1-ulp rounding bound~\eqref{eq:faithful-table}, and the $O(D^3)$ step count across all table expressions.
+The real constants and composite table expressions evaluated in our algorithm are as follows.
+\begin{itemize}[leftmargin=*,nosep]
+  \item First are the width parameter $\alpha_\ell = 2\sqrt{p_{\mathrm{work},\ell}\ln 2 / \pi}$, the window-radius expression $\alpha_\ell\sqrt{p_{\ell+1}\ln 2/\pi}$ (Appendix~\ref{app:tape-schedule}(a)), and the filter samples $g(t)$ at exact dyadic rational arguments $t = d + j_1/t_{1,\ell} \in \Rg_{K_0} \subseteq \Rg_S$ with $|d| \le m_{1,\ell} \le D$, using the direct $\sinc(t)$ series on $|t| \le 1/2$ and dividing by $\pi t$ on $|t| > 1/2$ where $|\pi t| > \pi/2 > 1.57$.
+  \item Second are the twist roots $e^{\pi i k_2 / r_\ell}$ and leaf butterfly roots $e^{2\pi i j \cdot 2^{K_L - s} / R_L}$.
+  \item Third are the passband coefficients $c_0(u_2), c_1(u_2) \in [0, 1]$, the Nyquist reciprocal $c(r_\ell/2)^{-1}$, and for $u_2 \ne r_\ell/2$ the non-Nyquist column solver scalars $M(u_2)^{-1}$, $\rho(u_2)$, and $\theta(u_2) = (1 - \rho(u_2)^{t_{1,\ell}})^{-1}$, where $M(u_2) > 0.499$ and $1 - \rho(u_2)^{t_{1,\ell}} > 0.86$ for all $u_2 \ne r_\ell/2$.
+\end{itemize}
+Each expression composes $O(1)$ evaluations of (i)--(v) on $\Rg_S$ with all divisions bounded away from zero by at least $0.42$, plus at most $\log_2 t_{1,\ell} \le D/2$ squarings on $\Rg_S$.
+
+\textbf{Claim: Call-site domain membership.}
+At every call site in the algorithm, both the exact argument and the computed $\Rg_S$-input lie inside the stated domain of Lemma~\ref{lem:elementary}. Every $\sqrt{x}$ evaluation, namely $\sqrt{\pi}$, $\alpha_\ell = 2\sqrt{p_{\mathrm{work},\ell}\ln 2 / \pi}$, and $\sqrt{p_{\ell+1}\ln 2 / \pi}$, satisfies
+\[
+  8 \le p_{\mathrm{work},\ell} \le p_{\ell+1} < s \le D, \qquad x, \tilde{x} \in [1, 2^{2D}].
+\]
+On $[1, 2^{2D}]$, $\sqrt{\cdot}$ has local Lipschitz constant at most $\frac{1}{2}$ rather than $2^{D/2-1}$, and its inputs from (i) have $\Rg_S$-error $O(D 2^{-S})$. Likewise, every negated-square $\exp$ evaluation has $x, \tilde{x} \in [-\pi(D+2)^2, 0]$, every $\sin, \cos$ evaluation has $|x|, |\tilde{x}| \le \pi(D+2)$, and every $\erf$ evaluation has $z, \tilde{z} \in [0, 3\sqrt{D}]$ by using $\erf(-z) = -\erf(z)$ on $y - 1/2 \le 0$ for $0 \le u_2 \le r_\ell / 2$.
+
+\textbf{Claim: Non-$\theta$ composite error bound.}
+From (i) and (ii) we have $|\tilde{\pi} - \pi|, |\tilde{\ell}_2 - \ln 2|, |\tilde{\alpha}_\ell - \alpha_\ell| \le O(D^2 2^{-S}) < 2^{-s-D-100}$. Across all non-$\theta$ composite expressions, the partial derivatives along the compositions satisfy the following five bounds.
+\begin{itemize}[leftmargin=*,nosep]
+  \item For $(\alpha_\ell, \pi) \mapsto -\pi t^2 / \alpha_\ell^2 \le 0$, the bound is $\frac{2\pi(D+1)^2}{\alpha_\ell^3} + \frac{(D+1)^2}{\alpha_\ell^2} < \frac{1}{2}(D+1)^2$, since $|t| < D + 1$ and $\alpha_\ell > 2.65$.
+  \item For the product $\alpha_\ell \cdot \sqrt{p_{\ell+1}\ln 2/\pi}$ of two factors in $[1, 2\sqrt{D}]$, the bound is $2\sqrt{D} < \frac{1}{2}(D+1)^2$.
+  \item For $\alpha_\ell \mapsto \erf\bigl(\sqrt{\pi}\alpha_\ell(y \pm \frac{1}{2})\bigr)$, the bound is $2|y \pm \frac{1}{2}| \le 3$.
+  \item For each reciprocal of a quantity $\ge 0.42$, the bound is $1/0.42^2 < 5.7$, and for $(c_{\min}, M) \mapsto -c_{\min}/M$ with $0 \le c_{\min} \le M$ and $M(u_2) > 0.499$, it is $2/M(u_2) < 4.1 < 5.7$.
+  \item For $\exp$ on $(-\infty, 0]$, $\sin$, $\cos$, and each factor of a product on $[-1, 1]^2$, the bound is at most $1$, while exact $t \in \Rg_S$ gives $|\widetilde{\sinc}(t) - \sinc(t)| < 2^{-s-D-23}$ directly.
+\end{itemize}
+With primitive errors $< 2^{-s-D-23}$ from (i)--(v) and $\Rg_S$ arithmetic rounding $O(D^2 2^{-S}) \ll 2^{-s-D-100}$, every non-$\theta$ table expression has error at most
+\[
+  5.7\bigl(\tfrac{1}{2}(D+1)^2 + 4\bigr) \cdot 2^{-s-D-23} < 2^{D+3} \cdot 2^{-s-D-23} = 2^{-s-20} \quad (D \ge 8).
+\]
+At $D = 8$, this inequality holds because
+\[
+  5.7 \times 44.5 = 253.65 < 2048 = 2^{11}.
+\]
+In particular, the passband coefficients and recurrence ratio satisfy
+\begin{align*}
+  |\tilde{c}_0(u_2) - c_0(u_2)|,\ |\tilde{c}_1(u_2) - c_1(u_2)| &< 2 \cdot 2^{-s-D-23} = 2^{-s-D-22}, \\
+  |\tilde{\rho}(u_2) - \rho(u_2)| &< 12 \cdot 2^{-s-D-23} < 2^{-s-D-19}.
+\end{align*}
+
+\textbf{Claim: Repeated squaring for $\theta(u_2)$ and 1-ulp rounding.}
+For $\theta(u_2) = (1 - \rho(u_2)^{t_{1,\ell}})^{-1}$ at $u_2 \ne r_\ell/2$, we have $M(u_2) > 0.499$, $t_{1,\ell} \le 2^{D/2}$, and
+\[
+  |c_0(u_2) - c_1(u_2)| > \frac{0.424}{t_{1,\ell}} \ge 0.424 \cdot 2^{-D/2} \gg 2^{-s-D-20}.
+\]
+Together with $|\tilde{c}_0(u_2) - c_0(u_2)|, |\tilde{c}_1(u_2) - c_1(u_2)| < 2^{-s-D-22}$, this ensures $|\tilde{\rho}(u_2) - \rho(u_2)| < 2^{-s-D-19}$ and $|\tilde{\rho}(u_2)| < 1$. Forming $\widetilde{(\rho^{t_{1,\ell}})}$ by $\log_2 t_{1,\ell} \le D/2$ repeated squarings on $\Rg_S$ therefore satisfies
+\begin{align*}
+  \bigl|\widetilde{(\rho^{t_{1,\ell}})} - \rho(u_2)^{t_{1,\ell}}\bigr|
+  &\le t_{1,\ell} 2^{-S} + t_{1,\ell}\max\bigl(|\tilde{\rho}(u_2)|, |\rho(u_2)|\bigr)^{t_{1,\ell}-1}\bigl|\tilde{\rho}(u_2) - \rho(u_2)\bigr| \\
+  &\le 2^{D/2 - S} + 2^{D/2} \cdot 2^{-s-D-19} < 2^{-s-22},
+\end{align*}
+and dividing $(1 - \widetilde{(\rho^{t_{1,\ell}})})^{-1}$ yields $|\tilde{\theta}(u_2) - \theta(u_2)| < 2^{-s-20}$ unconditionally for all $s \ge 8$ and $D = \max(s, K_0)$.
+
+At $s = q + 10$, every pre-rounded table value $\tilde{v} \in \Rg_S$ satisfies $|\tilde{v} - v| < 2^{-s-20} < 2^{-q-10}$, so rounding $\bar{v} := \Quant_q(\tilde{v})$ gives
+\[
+  |\bar{v} - v| \le |\Quant_q(\tilde{v}) - \tilde{v}| + |\tilde{v} - v| \le \left(\frac{1}{2} + 2^{-10}\right)2^{-q} < 2^{-q},
+\]
+proving~\eqref{eq:faithful-table}. The reused error-budget thresholds across (i)--(v) and the composite expressions are summarized below:
+
+\begin{center}
+\footnotesize
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.37\textwidth}ll@{}}
+\toprule
+Error component & Bound & Where used \\
+\midrule
+Series truncation tail ($N_{\mathrm{terms}}$ terms) & $< 2^{-S-16}$ & $\pi$, $\ln 2$, $\exp$, $\sin/\cos$, $\sinc$, $\erf$ \\
+Perturbation induced by $\tilde{\ell}_2, \tilde{h}$\newline (range reduction $|\tilde{r} - r_m|$, cutoff slack) & $< 2^{-100}$ & $\exp$, $\sin/\cos$, $\erf$ cutoff \\
+Primitive $\Rg_S$-evaluation error $|\tilde{y} - f(\tilde{x})|$ & $< 2^{-s-D-32}$ (and $< 2^{-s-D-23}$) & (i)--(iv) (and (v) $\erf$) \\
+Pre-rounded composite table error $|\tilde{v} - v|$ & $< 2^{-s-20} < 2^{-q-10}$ ($s = q + 10$) & all level and leaf tables \\
+Final $\Quant_q$ table entry error $|\bar{v} - v|$ & $< 2^{-q}$ (real), $< \sqrt{2}\cdot 2^{-q}$ (complex) & 1-ulp contract~\eqref{eq:faithful-table} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Finally, each primitive evaluates $N_{\mathrm{terms}} = \Theta(D)$ terms using $O(1)$ schoolbook multiplications and divisions of $O(S) = O(D)$-bit integers per term, taking $O(D^3)$ bit operations.
+\end{proof}
+
+\subsection{Register width inventory and breadth-first tape schedule}\label{app:tape-schedule}
+
+\paragraph{Scratch and accumulator register widths.}
+Complementing the uniform record width $w_\ell = 2 w_{\mathrm{coord},\ell}$ with $w_{\mathrm{coord},\ell} = q_{\mathrm{child}} + H_{\ell+1} + 3 = \Theta(\log n)$ in~\eqref{eq:record-width}, all intermediate scratch and accumulator registers across the algorithm have explicitly bounded widths:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \emph{Unrounded products and shifted dividends in $\RM_q, \RD_q$:} Multiplying two $w_{\mathrm{coord},\ell}$-bit signed integers in $\RM_q$ before rounding from fractional precision $2q$ to $q$, and shifting a stored numerator $N_z = 2^q z$ by $2^q$ in $\RD_q$, use scratch product and dividend registers of respective bit widths
+  \[
+    2 w_{\mathrm{coord},\ell} + 2 = \Theta(\log n), \qquad w_{\mathrm{coord},\ell} + q + 2 = \Theta(\log n).
+  \]
+  \item \emph{Nyquist spatial alternating sum $A_{\mathrm{N}}^{(\ell, i)}$ and \texttt{NyquistSolve} scratch sum $\tilde{S}$:} Accumulating the unscaled alternating sum $\sum_{j_2=0}^{r_\ell-1} (-1)^{j_2} x^{(\ell, i)}(t_{1,\ell}/2 + t_{1,\ell} j_2)$ uses a scratch accumulator before the exact $k_{2,\ell}$-bit shift $r_\ell^{-1}$ places $A_{\mathrm{N}}^{(\ell, i)}$ into a standard $w_\ell$-bit record on $T_{\mathrm{stack}}$. Similarly, accumulating $\tilde{S} = \sum_{i=0}^{t_{1,\ell}-1} (-1)^i \tilde{P}_i$ inside \texttt{NyquistSolve} before dividing by $t_{1,\ell} = 2^{k_{1,\ell}}$ and rounding to $\Cg_{q_{\mathrm{child}}}$ uses a second scratch accumulator, with respective bit widths
+  \[
+    w_{\mathrm{coord},\ell} + k_{2,\ell} + 1 = \Theta(\log n), \qquad w_{\mathrm{coord},\ell} + k_{1,\ell} + 1 = \Theta(\log n).
+  \]
+  \item \emph{Step~1 Kronecker integers and overlap-add accumulators:} Each packed block or filter integer in Theorem~\ref{thm:spread} has at most $\tilde{W}_\ell B_{\mathrm{slot}} + 1$ bits. Their integer product and each unpacked overlap-add slot accumulator at fractional precision $2 q_{\mathrm{child}}$ have respective bit widths at most
+  \[
+    2 \tilde{W}_\ell B_{\mathrm{slot}} + 2 = \Theta(\tilde{W}_\ell p_{\ell+1}), \qquad B_{\mathrm{slot}} + 1 = \Theta(p_{\ell+1}).
+  \]
+  \item \emph{Leaf \texttt{BaseRadix2FFT} records and root carry registers:} At depth $L$ with $q_b := p_L + K_L + 4$, leaf records on $\Cg_{q_b}$ and signed integer registers for root chunk extraction and radix-$2^b$ carry propagation have respective bit widths
+  \[
+    w_{\mathrm{leaf}} := 2(q_b + H_L + 3) = \Theta(\log n), \qquad 2b + K_0 + 3 = \Theta(\log n).
+  \]
+\end{itemize}
+
+\paragraph{Contents of the shared per-level table tape $T_{\mathrm{tab}}$.}
+Before starting the recursive transforms, the outer algorithm writes once per level $\ell \in \{0, \dots, L\}$ a sequential level-table segment onto $T_{\mathrm{tab}}$ containing four components.
+\begin{enumerate}[label=(\alph*),leftmargin=*]
+  \item For $\ell < L$, the machine first computes the Lemma~\ref{lem:elementary} approximation $\tilde{x} \in \Rg_S$ of $\alpha_\ell\sqrt{p_{\ell+1}\ln 2/\pi}$ at $s = q_{\mathrm{child}} + 10$ and sets the integer window radius
+  \[
+    m_{1,\ell} := \bigl\lceil \tilde{x} + 2^{-s-20} \bigr\rceil, \qquad \tilde{W}_\ell := \min(2m_{1,\ell}+1, r_\ell).
+  \]
+  Since $|\tilde{x} - \alpha_\ell\sqrt{p_{\ell+1}\ln 2/\pi}| < 2^{-s-20}$, this value equals $\lceil \alpha_\ell\sqrt{p_{\ell+1}\ln 2/\pi} \rceil$ or that integer plus one. It lies in the admissible interval of Lemma~\ref{lem:forward} because
+  \[
+    \alpha_\ell\sqrt{p_{\ell+1}\ln 2/\pi} \le \frac{2\ln 2}{\pi}p_{\ell+1} < 0.45\,p_{\ell+1}.
+  \]
+  The machine then writes the $t_{1,\ell}$ guarded modulo-$r_\ell$ folded filter tables $\bar{H}^{(j_1)} \in \Rg_{q_{\mathrm{child}}}^{\tilde{W}_\ell}$ of length $\tilde{W}_\ell$ and their Kronecker-packed integers $\Pack_{B_{\mathrm{slot}}}(2^{q_{\mathrm{child}}}\bar{H}^{(j_1)})$ of $O(\tilde{W}_\ell p_{\ell+1})$ bits each.
+  \item For $\ell < L$, it writes the $r_\ell$ 1-ulp faithful twist roots $\bar{\zeta}_{k_2} \in \Cg_{q_{\mathrm{child}}}$ approximating $e^{\pi i k_2 / r_\ell}$ in natural order $k_2 = 0, \dots, r_\ell - 1$. Each root is evaluated via Lemma~\ref{lem:elementary} at $s = q_{\mathrm{child}} + 10$ and rounded via $\Quant_{q_{\mathrm{child}}}$.
+  \item For $\ell < L$, it writes the $r_\ell$ 1-ulp faithful column solver tuples $(\mu(u_2),\allowbreak \hat{\rho}(u_2),\allowbreak \hat{\theta}(u_2)) \in \Rg_{q_{\mathrm{child}}}^3$ in natural order $u_2 = 0, \dots, r_\ell - 1$. For $0 \le u_2 < r_\ell / 2$, we have $c_0(u_2) > c_1(u_2)$, $M(u_2) = c_0(u_2) > 0.49999999$, $\rho(u_2) = -c_1(u_2)/c_0(u_2) \in (-1, 0)$, and $1 - \rho(u_2)^{t_{1,\ell}} > 0.86$. On this half, the pre-rounded approximations $\tilde{c}_0(u_2), \tilde{c}_1(u_2) \in \Rg_S$ are evaluated via Lemma~\ref{lem:elementary} at $s = q_{\mathrm{child}} + 10$ to form $(\mu(u_2),\allowbreak \hat{\rho}(u_2),\allowbreak \hat{\theta}(u_2))$ via $\Quant_{q_{\mathrm{child}}}$. These three rounded scalars approximate $(M(u_2)^{-1},\allowbreak \rho(u_2),\allowbreak \theta(u_2))$ within $\frac{1}{4}u$ each, and only those three rounded scalars are written to $T_{\mathrm{tab}}$. For $r_\ell / 2 < u_2 < r_\ell$, the tuple is set by reflection symmetry to
+  \[
+    \bigl(\mu(u_2),\, \hat{\rho}(u_2),\, \hat{\theta}(u_2)\bigr) := \bigl(\mu(r_\ell - u_2),\, \hat{\rho}(r_\ell - u_2),\, \hat{\theta}(r_\ell - u_2)\bigr).
+  \]
+  At the Nyquist column $u_2 = r_\ell / 2$, \texttt{NyquistSolve} reads only the Nyquist reciprocal $\mu_{\mathrm{N}} := \mu(r_\ell/2) \approx c^{-1}$, evaluated via Lemma~\ref{lem:elementary} at $s = q_{\mathrm{child}} + 10$ and rounded via $\Quant_{q_{\mathrm{child}}}$, with placeholder values $(\hat{\rho}(r_\ell/2), \hat{\theta}(r_\ell/2)) := (-1, 0)$.
+  \item At the leaf level $\ell = L$ with $R_L = 2^{K_L} \le 4 p_L^2$, for each butterfly stage $s \in \{1, \dots, K_L\}$ of \texttt{BaseRadix2FFT}, it writes the contiguous stage-$s$ 1-ulp faithful twiddle list $(\bar{\omega}_{s, j})_{j=0}^{2^{s-1}-1} \in \Cg_{q_b}^{2^{s-1}}$ approximating $e^{2\pi i j \cdot 2^{K_L - s} / R_L}$ at precision $q_b := p_L + K_L + 4$. Each twiddle entry is evaluated via Lemma~\ref{lem:elementary} at target precision $q_b + 10$ followed by $\Quant_{q_b}$, streaming
+  \[
+    \sum_{s=1}^{K_L} 2^{s-1} = R_L - 1 < R_L
+  \]
+  total twiddle records sequentially without strided rescans.
+\end{enumerate}
+
+\paragraph{Breadth-first downward, leaf, and upward tape sweeps.}
+To execute the recursion tree in $O(1)$ tapes without recursion-stack tape growth or head shuttling between parent and child regions, the machine uses, besides the input and output tapes, two alternating data tapes $T_{\mathrm{data}}^{(0)}, T_{\mathrm{data}}^{(1)}$, four scratch tapes $T_1, \dots, T_4$, the table tape $T_{\mathrm{tab}}$, and a level-segmented stack tape $T_{\mathrm{stack}}$. It also allocates $O(1)$ dedicated work tapes for the nested inner multiplier (Section~\ref{sec:cost-proof}):
+\begin{itemize}[leftmargin=*]
+  \item \emph{Downward sweep for $\ell = 0, \dots, L-1$:} At the start of level $\ell$, $T_{\mathrm{data}}^{(\ell \bmod 2)}$ holds the $R_0 / R_\ell$ node input vectors $x^{(\ell, i)} \in \Cg_{p_\ell+2}^{R_\ell}$ for $0 \le i < R_0 / R_\ell$ contiguously in natural node order as uniform fixed-width records of width $w_\ell$, occupying $R_0 w_\ell = \Theta(n)$ bits. Positioning $T_{\mathrm{tab}}$ at the level-$\ell$ table segment and $T_{\mathrm{data}}^{(\ell+1 \bmod 2)}$ at its start, the machine processes each node $i = 0, \dots, R_0 / R_\ell - 1$ sequentially in three steps.
+
+  First, it scans $x^{(\ell, i)}$ on $T_{\mathrm{data}}^{(\ell \bmod 2)}$ using a $\log_2 t_{1,\ell}$-bit counter to accumulate the exact Nyquist spatial alternating sum $A_{\mathrm{N}}^{(\ell, i)} \in \Cg_{q_{\mathrm{child}}}$ from the stride-$t_{1,\ell}$ offset-$t_{1,\ell}/2$ entries~\eqref{eq:nyquist-id}. Appending $A_{\mathrm{N}}^{(\ell, i)}$ to the level-$\ell$ segment of $T_{\mathrm{stack}}$ costs $O(R_\ell w_\ell)$ steps per node and writes $O((R_0/R_\ell) w_\ell) = O(n)$ stack bits per level.
+
+  Second, it de-interleaves $x^{(\ell, i)}$ into $t_{1,\ell}$ rows of length $r_\ell$ (Lemma~\ref{lem:routing}(i)) and runs Step~1 row spreading (Theorem~\ref{thm:spread}). Row $j_1$'s pre-packed filter integer of $O(\tilde{W}_\ell p_{\ell+1})$ bits is replayed from $T_{\mathrm{tab}}$ once for each of the $\lceil r_\ell / \tilde{W}_\ell \rceil$ blocks in row $j_1$, taking $O(r_\ell p_{\ell+1})$ table-replay steps per row and $O(R_\ell p_{\ell+1})$ per node.
+
+  Third, it runs Step~2a pre-twist by replaying the $r_\ell$ twist roots from $T_{\mathrm{tab}}$ once per row in $O(R_\ell p_{\ell+1})$ steps per node. It then runs the Step~2b polynomial transform $G_{t_{1,\ell}}$ (Lemma~\ref{lem:syn-fft}), whose output polynomials $\widehat{Q}_{v_1}$ arrive in natural order $v_1 = 0, \dots, t_{1,\ell}-1$, followed by Step~2c post-twist. The resulting $t_{1,\ell}$ child input vectors $\widehat{V}_{v_1, \cdot}$, padded to width $w_{\ell+1}$, are appended sequentially to $T_{\mathrm{data}}^{(\ell+1 \bmod 2)}$. At the end of level $\ell$, rewinding $T_{\mathrm{data}}^{(\ell+1 \bmod 2)}$ takes $O(R_0 w_{\ell+1}) = O(n)$ steps, and replaying the level-$\ell$ table across all $R_0 / R_\ell$ nodes takes $O(R_0 p_{\ell+1}) = O(n)$ steps.
+  \item \emph{Leaf evaluation at $\ell = L$:} The machine reads the $R_0 / R_L$ contiguous leaf vectors of length $R_L \le 4 p_L^2$ sequentially from $T_{\mathrm{data}}^{(L \bmod 2)}$, writes the evaluated leaf outputs sequentially back to $T_{\mathrm{data}}^{(L \bmod 2)}$, and rewinds at the end in $O(n)$ steps. On each leaf vector, \texttt{BaseRadix2FFT} first bit-reverses the $R_L$ records in $K_L = \log_2 R_L$ sequential even/odd split passes in $O(R_L (1 + K_L) q_b)$ steps. In each stage $s \in \{1, \dots, K_L\}$, it splits each block of $2^s$ records into its upper and lower halves of length $2^{s-1}$ on $T_1, T_2$ while replaying the $2^{s-1}$-entry stage-$s$ twiddle list from $T_{\mathrm{tab}}$ once per block. Across all $K_L$ stages and all $R_0 / R_L$ leaves, leaf table replay and tape movement take
+  \[
+    \frac{R_0}{R_L} \cdot O\bigl(R_L (1 + K_L) q_b\bigr) = O(n \log \log n)
+  \]
+  Turing machine steps.
+  \item \emph{Upward sweep for $\ell = L-1$ down to $0$:} At the start of level $\ell$, $T_{\mathrm{data}}^{(\ell+1 \bmod 2)}$ holds the $(R_0 / R_\ell) t_{1,\ell}$ child output vectors grouped into $R_0 / R_\ell$ contiguous node groups of $t_{1,\ell}$ rows of length $r_\ell$ in natural node order $i = 0, \dots, R_0 / R_\ell - 1$. The machine rewinds $T_{\mathrm{stack}}$ across the level-$\ell$ segment in $O(n)$ steps to its first entry $i = 0$ and rewinds $T_{\mathrm{data}}^{(\ell \bmod 2)}$ to its start. Processing the node groups sequentially in natural forward order $i = 0, \dots, R_0 / R_\ell - 1$, it first reads node $i$'s $t_{1,\ell} \times r_\ell$ child outputs from $T_{\mathrm{data}}^{(\ell+1 \bmod 2)}$ and routes them into column-major order $(u_2, u_1)$ via Lemma~\ref{lem:routing}(ii). Next, it reads $A_{\mathrm{N}}^{(\ell, i)}$ sequentially from the level-$\ell$ segment of $T_{\mathrm{stack}}$ and replays the $r_\ell$ solver tuples from $T_{\mathrm{tab}}$ sequentially as $u_2 = 0, \dots, r_\ell - 1$ in $O(r_\ell p_{\ell+1})$ table steps per node to run \texttt{CyclicSolve}/\texttt{NyquistSolve} and quantize to $\Cg_{p_\ell+2}$. Finally, it transposes $(\widehat{Z}_{u_1, u_2})$ from column-major order $(u_2, u_1)$ back to natural frequency order $u_2 + r_\ell u_1$ via Lemma~\ref{lem:routing}(i) and appends the solved parent vector, re-padded to width $w_\ell$, sequentially to $T_{\mathrm{data}}^{(\ell \bmod 2)}$. At the end of level $\ell$, it rewinds $T_{\mathrm{data}}^{(\ell \bmod 2)}$ and erases and rewinds the level-$\ell$ segment of $T_{\mathrm{stack}}$ in $O(n)$ steps.
+\end{itemize}
+Summing over all $L = O(\log \log n)$ levels, total table replay and level-sweep coordination take $O(n \log \log n) = o(n \log n)$ Turing machine steps.

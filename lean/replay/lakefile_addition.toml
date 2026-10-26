@@ -1,0 +1,5 @@
+# Append to lakefile.toml to make the Replay modules (challenge wrapper and controls) buildable:
+
+[[lean_lib]]
+name = "Replay"
+globs = ["Replay.+"]

@@ -1,0 +1,27 @@
+===== run metadata (R1c_LevelSync) =====
+tag: R1c_LevelSync
+cwd: <project-root>
+cpuset: 0-19
+LEAN_NUM_THREADS: 5
+command: lake env leanchecker -v LevelSync
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+leanchecker: <elan>/toolchains/leanprover--lean4---v4.33.1/bin/leanchecker
+start: 2026-10-26T04:23:34Z (1792988614)
+stdbuf: -oL -eL
+end: 2026-10-26T04:24:03Z (1792988643)
+exit: 0
+
+===== complete output (5 lines) =====
+replaying LevelSync.Factor
+replaying LevelSync.Pure
+replaying LevelSync.Sizes
+replaying LevelSync.Unroll
+replaying LevelSync.Iter
+
+===== GNU time -v summary =====
+Command being timed: "taskset -c 0-19 stdbuf -oL -eL lake env leanchecker -v LevelSync"
+Elapsed (wall clock) time (h:mm:ss or m:ss): 0:29.66
+User time (seconds): 12.24
+System time (seconds): 42.28
+Maximum resident set size (kbytes): 11232152
+Exit status: 0

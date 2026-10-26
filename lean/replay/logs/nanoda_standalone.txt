@@ -1,0 +1,24 @@
+===== run metadata (14_nanoda_standalone) =====
+start 2026-10-26T04:52:17Z
+command: ulimit -s 16777216; taskset -c 24-31 nanoda_bin nanoda_config_intMul_challenge.json
+end 2026-10-26T05:01:21Z exit=0
+export file: exports/intMul_challenge.ndjson (1,961,472,978 bytes, 36,388,950 lines), produced by
+  lake env lean4export SubNLogN.Assembly.ChallengeHeadline -- Nat String String.mk Char Quot Quot.mk Quot.lift Quot.ind SubNLogN.Assembly.intMul_challenge propext Quot.sound Classical.choice Nat.add Nat.sub Nat.mul Nat.pow Nat.gcd Nat.div Nat.mod Nat.beq Nat.ble Nat.land Nat.lor Nat.xor Nat.shiftLeft Nat.shiftRight String.ofList Char.ofNat List eagerReduce
+  (the exact constant list comparator v4.33.0 exports with enable_nanoda = true; lean4export 15f6055e built with Lean 4.33.1; export format 3.1.0)
+nanoda: nanoda_lib 0.4.29, git 37cb87b7e6cd6862ef2bd121faa9f4604f59fe96, cargo build --release with rustc 1.99.1
+result: exit 0, "Checked 124418 declarations with no typechecker errors" (the "1 pretty printer errors: Unable to print axioms" line concerns the optional pretty-printer output only; no declaration was requested for printing)
+wall: 9:03.83, user 540.75 s, max RSS 7.4 GB, stack limit 16 GiB (ulimit -s 16777216)
+
+===== complete output (4 lines) =====
+16777216
+Checked 124418 declarations with no typechecker errors, 1 pretty printer errors: [
+    "Unable to print axioms",
+]
+
+===== GNU time -v summary =====
+Command being timed: "taskset -c 24-31 <nanoda_bin> <exports>/nanoda_config_intMul_challenge.json"
+Elapsed (wall clock) time (h:mm:ss or m:ss): 9:03.83
+User time (seconds): 540.75
+System time (seconds): 2.86
+Maximum resident set size (kbytes): 7413420
+Exit status: 0

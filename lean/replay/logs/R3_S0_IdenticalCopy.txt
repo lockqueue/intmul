@@ -1,0 +1,48 @@
+===== run metadata (R3_S0_IdenticalCopy) =====
+tag: R3_S0_IdenticalCopy
+cwd: <project-root>
+config: replay/configs/controls/S0_IdenticalCopy.json
+config contents:
+{
+    "challenge_module": "Replay.Controls.S0_IdenticalCopy",
+    "solution_module": "SubNLogN.Assembly.ChallengeHeadline",
+    "theorem_names": [
+        "SubNLogN.Assembly.intMul_challenge"
+    ],
+    "permitted_axioms": [
+        "propext",
+        "Quot.sound",
+        "Classical.choice"
+    ],
+    "enable_nanoda": true
+}
+
+cpuset: 20-23
+comparator: <comparator> (git 3927ad383f208ae977c340a91c48ac9b497d2097, tag v4.33.0, built with leanprover/lean4:v4.33.1)
+lean4export: <lean4export> (git 15f6055e299ad5b89345e533cc2192f4cc00f659)
+landrun: <landrun> (git ec104f6edc1e14d7fec6d31146f1ec6f9c192c5a, landrun version 0.1.18)
+nanoda: <nanoda_bin> (git 37cb87b7e6cd6862ef2bd121faa9f4604f59fe96, crate version 0.4.29, rustc rustc 1.99.1 (58cf8f9c3 2026-10-13))
+lean (project): Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+command: systemd-run --user --wait --pipe --property=RestrictAddressFamilies=~AF_UNIX --property=LimitSTACK=16G -E PATH -E HOME -E COMPARATOR_LANDRUN -E COMPARATOR_LEAN4EXPORT -E COMPARATOR_NANODA --working-directory <project-root> -- /bin/bash -c 'taskset -c 20-23 lake env <comparator> replay/configs/controls/S0_IdenticalCopy.json'
+start: 2026-10-26T05:26:06Z (1792992366)
+end: 2026-10-26T05:50:13Z (from the systemd journal; the launching shell of the runner was closed before the unit finished, so the systemd-run client did not record the end itself)
+exit (systemd-run): 0 (journal shows "Consumed 24min 22.436s CPU time over 24min 6.705s wall clock time, 17.4G memory peak" and no "Failed with result" entry; comparator's last output line is "Your solution is okay!")
+
+===== complete output (17 lines) (927 cached build diagnostics of already-built modules, re-printed by `lake build`, omitted) =====
+Running as unit: run-p245559-i42173463.service; invocation ID: e93df02b3b7a48c5ad321a75bedbf616
+Building Replay.Controls.S0_IdenticalCopy
+Build completed successfully (1226 jobs).
+Exporting #[Nat, String, String.mk, Char, Quot, Quot.mk, Quot.lift, Quot.ind, SubNLogN.Assembly.intMul_challenge, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce] from Replay.Controls.S0_IdenticalCopy
+Building SubNLogN.Assembly.ChallengeHeadline
+Build completed successfully (10447 jobs).
+Exporting #[Nat, String, String.mk, Char, Quot, Quot.mk, Quot.lift, Quot.ind, SubNLogN.Assembly.intMul_challenge, propext, Quot.sound, Classical.choice, Nat.add, Nat.sub, Nat.mul, Nat.pow, Nat.gcd, Nat.div, Nat.mod, Nat.beq, Nat.ble, Nat.land, Nat.lor, Nat.xor, Nat.shiftLeft, Nat.shiftRight, String.ofList, Char.ofNat, List, eagerReduce] from SubNLogN.Assembly.ChallengeHeadline
+Running nanoda kernel on solution
+Nanoda kernel accepts the solution
+Running Lean default kernel on solution.
+Lean default kernel accepts the solution
+Your solution is okay!
+          Finished with result: success (from the systemd journal: the unit logged no "Main process exited"/"Failed with result" line, unlike the failed runs; the systemd-run client was terminated with its launching shell before it could print this summary)
+Main processes terminated with: code=exited, status=0/SUCCESS (journal: no failure entry; comparator printed "Your solution is okay!", which it prints only after every check passed)
+               Service runtime: 24min 6.705s (journal: "Consumed 24min 22.436s CPU time over 24min 6.705s wall clock time, 17.4G memory peak")
+             CPU time consumed: 24min 22.436s
+                   Memory peak: 17.4G (swap: 0B)

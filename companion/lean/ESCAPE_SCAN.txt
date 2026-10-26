@@ -1,0 +1,129 @@
+# Escape-hatch scan of `IntMul` (comments and string literals stripped)
+
+Scan scope: the 27 library files `IntMul.lean` and `IntMul/*.lean`, with all comments/docstrings and string literals stripped.
+
+Note on `checks/EvalProven.lean` (standalone post-build check outside the `IntMul` library build target): `checks/EvalProven.lean` deliberately uses `unsafe`, `implemented_by`, and `opaque` in meta code only (the command elaborator that constructs the proof terms); the kernel re-checks the produced theorems independently of how the terms were constructed, and `#print axioms` reports only `[propext, Classical.choice, Quot.sound]`.
+
+| pattern | hits |
+|---|---|
+| sorry | 0 |
+| admit | 0 |
+| axiom decl | 0 |
+| native_decide | 0 |
+| ofReduceBool/ofReduceNat | 0 |
+| implemented_by | 0 |
+| extern | 0 |
+| unsafe | 0 |
+| opaque | 0 |
+| partial def | 0 |
+| skipKernelTC/debug.* | 0 |
+| #exit | 0 |
+| csimp | 0 |
+| macro_rules | 0 |
+| macro decl | 0 |
+| syntax decl | 0 |
+| elab decl | 2 |
+| notation/infix/prefix/postfix | 0 |
+| run_cmd/run_tac/run_elab | 0 |
+| attribute [-...] (instance/simp removal) | 1 |
+| local/scoped instance | 0 |
+| import Lean | 0 |
+| Lean.Elab/Lean.Meta use | 0 |
+| Decidable instance decl | 0 |
+| Classical.choice explicit | 3 |
+
+`set_option` names used (count): backward.isDefEq.respectTransparency×18, maxHeartbeats×35, maxRecDepth×11
+
+## set_option usage (compatibility options, not escape hatches)
+
+The scan also inspected every `set_option` occurrence across the 27 library files (64 total: 18 `backward.isDefEq.respectTransparency` [18 added in the Lean 4.33.1 port], 11 `maxRecDepth` [10 added in the port, 1 unchanged from the original development], and 35 `maxHeartbeats` [2 added or raised in the port, 33 unchanged from the original development]). These options affect elaboration and tactic search only; the Lean kernel re-checks every resulting proof term independently.
+
+```
+IntMul.lean:28: set_option backward.isDefEq.respectTransparency false  [file-wide from L28; port-added (Lean 4.33.1 port)]
+IntMul/ComputableCore.lean:12: set_option backward.isDefEq.respectTransparency false  [file-wide from L12; port-added (Lean 4.33.1 port)]
+IntMul/EndToEnd.lean:15: set_option backward.isDefEq.respectTransparency false  [file-wide from L15; port-added (Lean 4.33.1 port)]
+IntMul/EndToEnd.lean:3402: set_option maxRecDepth 4000 in  [single declaration (`set_option ... in` at L3402); port-added (Lean 4.33.1 port)]
+IntMul/TMArithStages.lean:3: set_option backward.isDefEq.respectTransparency false  [file-wide from L3; port-added (Lean 4.33.1 port)]
+IntMul/TMArithStages.lean:402: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L402); port-added (Lean 4.33.1 port)]
+IntMul/TMCompiler.lean:7: set_option backward.isDefEq.respectTransparency false  [file-wide from L7; port-added (Lean 4.33.1 port)]
+IntMul/TMComposition.lean:6: set_option backward.isDefEq.respectTransparency false  [file-wide from L6; port-added (Lean 4.33.1 port)]
+IntMul/TMDeconvolution.lean:3: set_option backward.isDefEq.respectTransparency false  [file-wide from L3; port-added (Lean 4.33.1 port)]
+IntMul/TMDeconvolution.lean:4: set_option maxRecDepth 20000  [file-wide from L4; port-added (Lean 4.33.1 port)]
+IntMul/TMDeconvolution.lean:1102: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1102); original]
+IntMul/TMDeconvolution.lean:1190: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1190); original]
+IntMul/TMDeconvolution.lean:2208: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2208); original]
+IntMul/TMDeconvolution.lean:2826: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2826); original]
+IntMul/TMEndToEnd.lean:4: set_option backward.isDefEq.respectTransparency false  [file-wide from L4; port-added (Lean 4.33.1 port)]
+IntMul/TMEndToEnd.lean:5: set_option maxRecDepth 20000  [file-wide from L5; port-added (Lean 4.33.1 port)]
+IntMul/TMEndToEnd.lean:266: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L266); original]
+IntMul/TMEndToEnd.lean:1114: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1114); original]
+IntMul/TMEndToEnd.lean:1115: set_option maxRecDepth 2000 in  [single declaration (`set_option ... in` at L1115); original]
+IntMul/TMFastDFT.lean:3: set_option backward.isDefEq.respectTransparency false  [file-wide from L3; port-added (Lean 4.33.1 port)]
+IntMul/TMFastDFT.lean:4: set_option maxRecDepth 20000  [file-wide from L4; port-added (Lean 4.33.1 port)]
+IntMul/TMFastDFT.lean:2068: set_option maxHeartbeats 400000 in  [single declaration (`set_option ... in` at L2068); original]
+IntMul/TMFastDFT.lean:2665: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2665); original]
+IntMul/TMFastDFT.lean:2965: set_option maxHeartbeats 400000 in  [single declaration (`set_option ... in` at L2965); original]
+IntMul/TMFastDFT.lean:3184: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L3184); original]
+IntMul/TMFastDFTRecursive.lean:4: set_option backward.isDefEq.respectTransparency false  [file-wide from L4; port-added (Lean 4.33.1 port)]
+IntMul/TMFastDFTRecursive.lean:5: set_option maxRecDepth 20000  [file-wide from L5; port-added (Lean 4.33.1 port)]
+IntMul/TMFastDFTRecursive.lean:832: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L832); original]
+IntMul/TMFastDFTRecursive.lean:1176: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1176); original]
+IntMul/TMFastDFTRecursive.lean:1667: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1667); original]
+IntMul/TMFastDFTRecursive.lean:1922: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1922); original]
+IntMul/TMFastDFTRecursive.lean:2439: set_option maxHeartbeats 400000 in  [single declaration (`set_option ... in` at L2439); original]
+IntMul/TMFastDFTRecursive.lean:2774: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2774); original]
+IntMul/TMFastDFTRecursive.lean:3107: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L3107); original]
+IntMul/TMKronecker.lean:22: set_option backward.isDefEq.respectTransparency false  [file-wide from L22; port-added (Lean 4.33.1 port)]
+IntMul/TMKronecker.lean:23: set_option maxRecDepth 20000  [file-wide from L23; port-added (Lean 4.33.1 port)]
+IntMul/TMPrimitives.lean:5: set_option backward.isDefEq.respectTransparency false  [file-wide from L5; port-added (Lean 4.33.1 port)]
+IntMul/TMSchedule.lean:19: set_option backward.isDefEq.respectTransparency false  [file-wide from L19; port-added (Lean 4.33.1 port)]
+IntMul/TMSchedule.lean:20: set_option maxRecDepth 20000  [file-wide from L20; port-added (Lean 4.33.1 port)]
+IntMul/TMSchedule.lean:2041: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2041); original]
+IntMul/TMSchedule.lean:2278: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2278); original]
+IntMul/TMSchedule.lean:2677: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2677); original]
+IntMul/TMSchedule.lean:2923: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2923); original]
+IntMul/TMSchedule.lean:3085: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L3085); original]
+IntMul/TMSchedule.lean:3487: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L3487); original]
+IntMul/TMSchedule.lean:4020: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L4020); original]
+IntMul/TMScheduleTree.lean:21: set_option maxRecDepth 20000  [file-wide from L21; port-added (Lean 4.33.1 port)]
+IntMul/TMScheduleTree.lean:920: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L920); original]
+IntMul/TMScheduleTree.lean:1203: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1203); original]
+IntMul/TMScheduleTree.lean:1506: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1506); original]
+IntMul/TMScheduleTree.lean:1757: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L1757); original]
+IntMul/TMScheduleTree.lean:2055: set_option maxHeartbeats 4000000 in  [single declaration (`set_option ... in` at L2055); port-raised from 1200000 (Lean 4.33.1 port)]
+IntMul/TMScheduleTree.lean:2536: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2536); original]
+IntMul/TMScheduleTree.lean:2722: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L2722); original]
+IntMul/TMScheduleTree.lean:3161: set_option maxHeartbeats 1200000 in  [single declaration (`set_option ... in` at L3161); original]
+IntMul/TMScheduleTree.lean:3503: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L3503); original]
+IntMul/TMScheduleTree.lean:3713: set_option backward.isDefEq.respectTransparency false  [file-wide from L3713; port-added (Lean 4.33.1 port)]
+IntMul/TMScheduleTree.lean:3854: set_option maxHeartbeats 800000 in  [single declaration (`set_option ... in` at L3854); original]
+IntMul/TMSpreadFFT.lean:3: set_option backward.isDefEq.respectTransparency false  [file-wide from L3; port-added (Lean 4.33.1 port)]
+IntMul/TMSpreadFFT.lean:4: set_option maxRecDepth 20000  [file-wide from L4; port-added (Lean 4.33.1 port)]
+IntMul/TMStageEval.lean:18: set_option backward.isDefEq.respectTransparency false  [file-wide from L18; port-added (Lean 4.33.1 port)]
+IntMul/TMStageEval.lean:19: set_option maxRecDepth 20000  [file-wide from L19; port-added (Lean 4.33.1 port)]
+IntMul/TMStages.lean:16: set_option backward.isDefEq.respectTransparency false  [file-wide from L16; port-added (Lean 4.33.1 port)]
+IntMul/TrackedCore.lean:13: set_option backward.isDefEq.respectTransparency false  [file-wide from L13; port-added (Lean 4.33.1 port)]
+```
+
+## String-literal keyword occurrences (excluded from code counts above)
+```
+IntMul.lean:355: throwError "Non-standard axiom '{ax}' found in transitive closure of '{nm}'!"
+```
+
+## elab decl (2 hits; first 40)
+```
+IntMul.lean:349: elab "" id:ident : command => do
+IntMul/EndToEnd.lean:4877: elab "" : command => do
+```
+
+## attribute [-...] (instance/simp removal) (1 hits; first 40)
+```
+IntMul/KroneckerSpread.lean:4: attribute [-instance] Int.instConditionallyCompleteLinearOrder
+```
+
+## Classical.choice explicit (3 hits; first 40)
+```
+IntMul.lean:352: let allowed : List Name := [``propext, ``Classical.choice, ``Quot.sound]
+IntMul/TMCompiler.lean:526: (fun i tailCnt => Classical.choice (hpass i tailCnt))⟩
+IntMul/TMCompiler.lean:1911: (fun st' tailCnt => Classical.choice (hpass st' tailCnt)) cnt restCnt st⟩
+```

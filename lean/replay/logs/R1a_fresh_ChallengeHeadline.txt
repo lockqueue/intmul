@@ -1,0 +1,22 @@
+===== run metadata (R1a_fresh_ChallengeHeadline) =====
+tag: R1a_fresh_ChallengeHeadline
+cwd: <project-root>
+cpuset: 0-9
+LEAN_NUM_THREADS: -
+command: lake env leanchecker --fresh -v SubNLogN.Assembly.ChallengeHeadline
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+leanchecker: <elan>/toolchains/leanprover--lean4---v4.33.1/bin/leanchecker
+start: 2026-10-26T04:16:42Z (1792988202)
+end: 2026-10-26T05:07:54Z (reconstructed: start + 51:12.16 elapsed per the GNU time record; the runner's own end/exit lines were lost because the runner script file was edited while this instance was still running, which made bash fail at line 26 after leanchecker had already exited)
+exit: 0 (from the GNU time record "Exit status: 0"; leanchecker printed no error)
+
+===== complete output (1 lines) =====
+replaying SubNLogN.Assembly.ChallengeHeadline with --fresh
+
+===== GNU time -v summary =====
+Command being timed: "taskset -c 0-9 lake env leanchecker --fresh -v SubNLogN.Assembly.ChallengeHeadline"
+Elapsed (wall clock) time (h:mm:ss or m:ss): 51:12.16
+User time (seconds): 2940.88
+System time (seconds): 79.60
+Maximum resident set size (kbytes): 15429192
+Exit status: 0

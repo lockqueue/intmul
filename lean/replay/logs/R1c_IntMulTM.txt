@@ -1,0 +1,73 @@
+===== run metadata (R1c_IntMulTM) =====
+tag: R1c_IntMulTM
+cwd: <project-root>
+cpuset: 0-19
+LEAN_NUM_THREADS: 5
+command: lake env leanchecker -v IntMulTM
+lean: Lean (version 4.33.1, x86_64-unknown-linux-gnu, commit 819816b2e0a3bf405af45ae5c7af2491d8f5bee6, Release)
+leanchecker: <elan>/toolchains/leanprover--lean4---v4.33.1/bin/leanchecker
+start: 2026-10-26T04:24:59Z (1792988699)
+stdbuf: -oL -eL
+end: 2026-10-26T04:26:10Z (1792988770)
+exit: 0
+
+===== complete output (51 lines) =====
+replaying IntMulTM.GateCheck
+replaying IntMulTM.Current12
+replaying IntMulTM.Gate
+replaying IntMulTM.Remaining
+replaying IntMulTM.Spec
+replaying IntMulTM.Headline
+replaying IntMulTM.Current10
+replaying IntMulTM.Current11
+replaying IntMulTM.Current9
+replaying IntMulTM.Framework.Test.EndToEnd
+replaying IntMulTM.Framework.Test.AxiomsAll
+replaying IntMulTM.Framework.Test.Mutation
+replaying IntMulTM.Framework.Test.Nested
+replaying IntMulTM.Framework.Test.AxiomsCore
+replaying IntMulTM.Framework.Bits
+replaying IntMulTM.Framework.Accept
+replaying IntMulTM.Framework.IO
+replaying IntMulTM.Framework.Eval
+replaying IntMulTM.Framework.AxiomGuard
+replaying IntMulTM.Framework.Triple
+replaying IntMulTM.Framework.Layout
+replaying IntMulTM.Framework.Lib.CompareEval
+replaying IntMulTM.Framework.Lib.Compare
+replaying IntMulTM.Framework.Lib.Counter
+replaying IntMulTM.Framework.Lib.Basic
+replaying IntMulTM.Framework.Sim
+replaying IntMulTM.Framework.Compose
+replaying IntMulTM.Framework.Prog
+replaying IntMulTM.Current13
+replaying IntMulTM.Audit.Cone
+replaying IntMulTM.Audit.HeadlineAudit
+replaying IntMulTM.SpecFacts
+replaying IntMulTM.HeadlineGate
+replaying IntMulTM.Exec.InputStageRun
+replaying IntMulTM.Exec.Gate
+replaying IntMulTM.Exec.NativeTop
+replaying IntMulTM.Exec.NativeIsqrt
+replaying IntMulTM.Exec.Runner
+replaying IntMulTM.Exec.W0mFullRun
+replaying IntMulTM.Exec.TopC
+replaying IntMulTM.Exec.ConvStageRun
+replaying IntMulTM.Exec.IsqrtRun
+replaying IntMulTM.Exec.MulLeafV3
+replaying IntMulTM.Exec.W0mRun
+replaying IntMulTM.Exec.StagedTop
+replaying IntMulTM.Exec.TopRun
+replaying IntMulTM.Current5
+replaying IntMulTM.Current8
+replaying IntMulTM.Current14
+replaying IntMulTM.Current15
+replaying IntMulTM.Current7
+
+===== GNU time -v summary =====
+Command being timed: "taskset -c 0-19 stdbuf -oL -eL lake env leanchecker -v IntMulTM"
+Elapsed (wall clock) time (h:mm:ss or m:ss): 1:11.06
+User time (seconds): 86.53
+System time (seconds): 144.21
+Maximum resident set size (kbytes): 20604488
+Exit status: 0

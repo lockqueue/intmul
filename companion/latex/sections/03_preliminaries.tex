@@ -1,0 +1,185 @@
+\section{Preliminaries}\label{sec:prelim}
+
+This section fixes global notation (Section~\ref{sec:notation}), defines the multitape Turing machine model and dyadic fixed-point grids (Section~\ref{sec:prelim-model}), states the elementary-function table contract and tape schedule (Section~\ref{sec:tables}), records the matrix transposition and odd-stride routing bounds (Section~\ref{sec:routing}), and recalls our Discrete Fourier Transform and polynomial-transform conventions (Section~\ref{sec:prelim-dft}).
+
+\subsection{Notation}\label{sec:notation}
+
+Logarithms are natural ($\ln$) unless a base is written ($\log_2$). For an integer $R \ge 1$, a vector $x = (x_0, \dots, x_{R-1}) \in \C^R$ carries the Euclidean supremum norm $\|x\|_\infty := \max_{0 \le j < R} |x_j|$, where $|a + i b| = \sqrt{a^2 + b^2}$ is the complex modulus, as well as the coordinatewise supremum norm $\|x\|_{\infty,\mathrm{coord}} := \max_{0 \le j < R} \max(|\operatorname{Re}(x_j)|, |\operatorname{Im}(x_j)|)$. For a linear map $B\colon \C^m \to \C^m$, $\|B\|_{\infty \to \infty}$ denotes the induced $\ell_\infty$ operator norm (the maximum absolute row sum). Table~\ref{tab:notation} summarizes the notation used throughout the paper.
+
+\subsection{Multitape Turing machine and fixed-point grids}\label{sec:prelim-model}
+
+Following Sch\"onhage and Strassen~\cite{SS71} and Harvey and van der Hoeven~\cite[Section~2.1]{HvdH21}, our model of computation is a deterministic multitape Turing machine with a fixed finite alphabet and a fixed finite number of tapes (all complexity bounds hold \emph{a fortiori} on the standard $\Theta(\log n)$-bit Word RAM). Throughout the paper, a ``bit operation'' means a single Turing machine step (one state transition, tape-symbol read/write, and $\{-1, 0, +1\}$ head move on each of the $O(1)$ tapes), so all sequential tape scans, head movements, rewinds, and counter updates are charged explicitly. The input to a multiplication of two $n$-bit integers $A, B$ is the concatenation of their fixed-width $n$-bit binary strings ($2n$ bits, so $n$ is determined by the input) on a designated input tape, and the output is the fixed-width $2n$-bit binary string of $A \cdot B$ on a designated output tape; both are among the $O(1)$ tapes.
+
+\begin{definition}[Fixed-point grids and rounding]\label{def:grid}
+For an integer $q \ge 0$, define the dyadic fixed-point real and complex grids
+\[
+  \Rg_q := \bigl\{2^{-q} a : a \in \Z\bigr\}, \qquad \Cg_q := \bigl\{2^{-q}(a + i b) : a, b \in \Z\bigr\}.
+\]
+Here $q$ counts fractional bits after the binary point, while the integer part is represented in signed two's-complement binary without modular wrap-around. A target accuracy parameter $p \in \Z_{\ge 1}$ uses the working grid $\Cg_{p+2}$ ($q = p + 2$). For $x \in \R$, let $\Quant_q(x) := 2^{-q}\operatorname{round}(2^q x) \in \Rg_q$ denote nearest-grid rounding under any fixed deterministic tie-breaking rule on half-integers (such as ties to even, or $\lfloor 2^q x + 1/2 \rfloor$), and for $z = x + i y \in \C$, define coordinatewise rounding $\Quant_q(z) := \Quant_q(x) + i \Quant_q(y) \in \Cg_q$.
+\end{definition}
+
+\begin{table}[!ht]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{0.96}
+\caption{Summary of notation used throughout Sections~\ref{sec:prelim}--\ref{sec:main-proof} and Appendices~\ref{app:elementary}--\ref{app:deferred}.}\label{tab:notation}
+\begin{tabular}{@{}>{\raggedright}p{0.28\textwidth}>{\raggedright\arraybackslash}p{0.67\textwidth}@{}}
+\toprule
+Symbol & Meaning \\
+\midrule
+$n,\ b,\ N$ & bit length of input integers $A, B \ge 0$, radix-$2^b$ chunk width $b = \max(4, \lfloor \log_2 n \rfloor)$, and chunk count $N = \lceil n / b \rceil$ \\
+$R_0 = 2^{K_0},\ p_0$ & root transform length ($2N \le R_0 < 4N$) with $K_0 = \log_2 R_0$, and root target precision $p_0 = 2b + 2K_0 + 6$ \\
+$R_\ell = 2^{K_\ell} = t_{1,\ell} r_\ell$ & transform length at recursion depth $\ell$, with $K_\ell = \log_2 R_\ell$, $t_{1,\ell} = 2^{\lfloor K_\ell / 2 \rfloor}$, $r_\ell = 2^{\lceil K_\ell / 2 \rceil}$, and $\nu_\ell = r_\ell / t_{1,\ell} \in \{1, 2\}$ \\
+$k_{1,\ell},\ k_{2,\ell}$ & $\log_2 t_{1,\ell}$ and $\log_2 r_\ell$ ($k_{1,\ell} + k_{2,\ell} = K_\ell$) \\
+$L$ & leaf recursion depth (first depth $\ell$ where $R_\ell \le 4 p_\ell^2$) \\
+$p_\ell,\ p_{\mathrm{work},\ell},\ p_{\ell+1}$ & target precision at depth $\ell$, working cutoff $p_{\mathrm{work},\ell} = p_\ell + K_\ell + 6$, and child target precision $p_{\ell+1} = p_\ell + 2K_\ell + 12$ \\
+$\Rg_q,\ \Cg_q,\ \Quant_q$ & real and complex dyadic grids $2^{-q}\Z$ and $2^{-q}(\Z + i\Z)$ ($q = p + 2$ for target precision $p$), and coordinatewise nearest-grid rounding \\
+$q_{\mathrm{child}},\ u = 2^{-p_{\ell+1}}$ & child fractional grid parameter $q_{\mathrm{child}} = p_{\ell+1} + 2$ and unit accuracy scale of child calls (the letter $u$ also denotes the one-dimensional frequency index $u = u_2 + r u_1$ of~\eqref{eq:dft-1d}; the meaning is fixed by context: $u_2$ indexes columns, $u = 2^{-p_{\ell+1}}$ is the accuracy scale) \\
+$H_\ell,\ w_{\mathrm{coord},\ell},\ w_\ell$ & integer coordinate height bound at depth $\ell$, signed coordinate bit width, and complex record width $w_\ell = 2 w_{\mathrm{coord},\ell}$ \\
+$\Rr_r = \C[y]/(y^r + 1),\ G_{t_1}$ & negacyclic polynomial ring of rank $r$ and normalized length-$t_1$ polynomial transform over $\Rr_r$ \\
+$P_{j_1}(y),\ Q_{v_1}(y)$ & input and output polynomials in $\Rr_r$ of the polynomial transform $G_{t_1}$ \\
+$F_R,\ F_{t_1, r}$ & normalized positive one-dimensional DFT of length $R$ and two-dimensional DFT of shape $t_1 \times r$ \\
+$g(t),\ \hat{g}(\xi),\ \alpha_\ell$ & windowed sinc-Gaussian kernel $\sinc(t)e^{-\pi t^2 / \alpha_\ell^2}$, its continuous Fourier transform, and $\alpha_\ell = 2\sqrt{p_{\mathrm{work},\ell}\ln 2 / \pi}$ \\
+$m_{1,\ell},\ W_\ell,\ \tilde{W}_\ell$ & spatial window half-width, raw tap count $W_\ell = 2m_{1,\ell} + 1$, and modulo-$r_\ell$ folded filter length $\tilde{W}_\ell = \min(W_\ell, r_\ell)$ \\
+$c_0(u_2),\ c_1(u_2),\ M(u_2)$ & retained Poisson alias weights $\hat{g}(u_2/r)$ and $\hat{g}(1 - u_2/r)$ in column $u_2$, and $M(u_2) = \max(c_0(u_2), c_1(u_2))$ \\
+$\rho(u_2),\ \theta(u_2),\ A_{\mathrm{N}}$ & non-Nyquist recurrence ratio $-\min(c_0, c_1)/M(u_2)$, cyclic closure scalar $(1 - \rho(u_2)^{t_1})^{-1}$, and Nyquist spatial alternating sum \\
+$\mathcal{M}_Y$ & $\max(1, \|\widehat{Y}\|_\infty)$ for the routed child output $\widehat{Y}$ of a column (Lemma~\ref{lem:solver-err}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For every $x \in \R$ and $z \in \C$, regardless of which tie-breaking rule on half-integers is fixed in Definition~\ref{def:grid}, coordinatewise nearest rounding satisfies
+\begin{equation}\label{eq:quant-err}
+  |\Quant_q(x) - x| \le \frac{1}{2} 2^{-q}, \qquad |\Quant_q(z) - z| \le \frac{\sqrt{2}}{2} 2^{-q}.
+\end{equation}
+On the grid $\Cg_{p+2}$ ($q = p + 2$), real coordinate rounding error is at most $\frac{1}{8} 2^{-p} = 0.125 \cdot 2^{-p}$ and complex Euclidean rounding error is at most $\frac{\sqrt{2}}{8} 2^{-p} < 0.177 \cdot 2^{-p}$.
+
+\paragraph{Scalar height and uniform fixed-width records.}
+For $z \in \C$, $\|z\|_{\infty,\mathrm{coord}} \le |z| \le \sqrt{2}\|z\|_{\infty,\mathrm{coord}}$. If a scalar $z \in \Cg_q$ satisfies $\|z\|_{\infty,\mathrm{coord}} \le 2^H$ for an integer $H \ge 0$ (which holds whenever $|z| \le 2^H$, or when $z$ is produced by the polynomial transform $G_{t_1}$ from inputs of coordinatewise magnitude at most $2^H$ by Lemma~\ref{lem:syn-fft}), then its scaled integer coordinates $2^q \operatorname{Re}(z), 2^q \operatorname{Im}(z) \in \Z$ have absolute value at most $2^{q+H}$. As proved in Lemma~\ref{lem:forward}, along any recursive call tree of \texttt{FastDFT} starting from a normalized root input with $\|x^{(0)}\|_\infty < \sqrt{2}$ ($H_0 := 1$), the computed child input vectors $\widehat{V}_{v_1, \cdot}$ at depth $\ell$ satisfy $\max(1, \|\widehat{V}_{v_1, \cdot}\|_\infty) \le 2 r_\ell \max(1, \|x^{(\ell)}\|_\infty)$, where $r_\ell = 2^{K_{\ell+1}}$. Consequently, the integer height bound $H_\ell := 1 + \sum_{j=0}^{\ell-1} (K_{j+1} + 1)$ satisfies $\log_2 \max(1, \|x^{(\ell)}\|_\infty) \le H_\ell$ and
+\begin{equation}\label{eq:height-bound}
+  H_\ell = 1 + \sum_{j=0}^{\ell-1} (K_{j+1} + 1) \le 1 + K_0 + 2\ell = O(\log n).
+\end{equation}
+
+Because $K_{\ell+1} = \lceil K_\ell / 2 \rceil$, the recursion reaches a leaf $R_L \le 4 p_L^2$ in $L \le \lceil \log_2 K_0 \rceil$ levels, and $H_\ell < p_0 + \sum_{j=0}^{\ell-1} (2 K_j + 12) = p_\ell$ for all $K_0 \ge 2$ and $\ell \ge 0$. Thus $p_\ell > H_\ell$ at all levels $\ell \ge 0$ under our schedule \eqref{eq:cert-sched}: every routed record at depth $\ell$ has coordinatewise magnitude at most $2 r_\ell 2^{H_\ell} = 2^{H_{\ell+1}} \le 2^{p_{\ell+1}}$ and Euclidean modulus at most $\sqrt{2}\cdot 2^{H_{\ell+1}} < 2^{H_{\ell+1}+1}$, while the intermediate prefix-sweep scalars $\tilde{P}_i, Z^{\mathrm{comp}}_i$ inside \texttt{CyclicSolve} have magnitude $< 2.37\,t_{1,\ell}\mathcal{M}_Y$ (where $\mathcal{M}_Y := \max(1, \|\widehat{Y}\|_\infty)$, including the rounding terms of Lemma~\ref{lem:solver-err}); since $\mathcal{M}_Y \le 2\max(1, \|x^{(\ell)}\|_\infty) \le 2^{H_\ell+1}$ (shown in the proof of Lemma~\ref{lem:forward}) and $t_{1,\ell} \le r_\ell$, these scalars are bounded by $4.74\, r_\ell 2^{H_\ell} < 4 \cdot 2^{H_{\ell+1}} = 2^{H_{\ell+1}+2}$. Likewise, inside \texttt{NyquistSolve} the prefix sums satisfy $|\tilde{P}_i| \le 2.0002\,t_{1,\ell}\mathcal{M}_Y$, the correction satisfies $|\tilde{\delta}| \le 1.0001\,t_{1,\ell}\mathcal{M}_Y + |A_{\mathrm{N}}|/t_{1,\ell} + 2^{-p_{\ell+1}}$, and the outputs $Z^{\mathrm{comp}}_i = \tilde{P}_i + (-1)^i\tilde{\delta}$ satisfy $|Z^{\mathrm{comp}}_i| \le 3.0003\,t_{1,\ell}\mathcal{M}_Y + |A_{\mathrm{N}}|/t_{1,\ell} + 2^{-p_{\ell+1}}$, where $|A_{\mathrm{N}}| \le \|x^{(\ell)}\|_\infty \le 2^{H_\ell}$ by~\eqref{eq:nyquist-id}; hence $|Z^{\mathrm{comp}}_i| < 6.1\, r_\ell 2^{H_\ell} < 2^{H_{\ell+1}+2}$ as well.
+
+To ensure that all tape routing, matrix transposition, and merge-sort primitives operate on uniform fixed-width records, every complex scalar on $\Cg_q$ ($q \le q_{\mathrm{child}} = p_{\ell+1} + 2$) at recursion depth $\ell$ is padded by two's-complement sign extension and low-bit zero-filling to the uniform record width
+\begin{equation}\label{eq:record-width}
+  w_\ell := 2 w_{\mathrm{coord},\ell}, \qquad w_{\mathrm{coord},\ell} := q_{\mathrm{child}} + H_{\ell+1} + 3 = \Theta(p_{\ell+1}) = \Theta(\log n)
+\end{equation}
+bits (two $w_{\mathrm{coord},\ell}$-bit signed two's-complement integers, where the $+3$ headroom bits accommodate the sign bit, the $\sqrt{2}$ Euclidean-to-coordinatewise margin, and the $2^{H_{\ell+1}+2}$ prefix-sweep bound). Re-padding the $R_0$ active records when moving between depth $\ell$ and depth $\ell+1$ is a single sequential scan costing $O(R_0 w_{\ell+1}) = O(n)$ Turing machine steps per level. Explicit bit-width bounds for all intermediate scratch and accumulator registers are listed in Appendix~\ref{app:tape-schedule}.
+
+\paragraph{Rounded arithmetic primitives.}
+Addition and subtraction on $\Cg_q$ are exact and take $O(q + H + 1)$ bit operations. For $a, b \in \Cg_q$ (or $a \in \Rg_q, b \in \Cg_q$), the rounded product $\RM_q(a, b) := \Quant_q(a b)$ computes the exact integer product of the scaled numerators $N_a = 2^q a$ and $N_b = 2^q b$ (four real integer multiplications and two additions for complex-by-complex, or two real integer multiplications for real-by-complex) and rounds each coordinate once from fractional precision $2q$ to $q$, incurring error $|\RM_q(a, b) - ab| \le \frac{\sqrt{2}}{2} 2^{-q}$. For $z \in \Cg_q$ and $d \in \Rg_q \setminus \{0\}$, the rounded quotient $\RD_q(z, d) := \Quant_q(z / d)$ shifts $N_z := 2^q z \in \Z[i]$ by $2^q$ to form $2^{2q} z$ and performs integer Euclidean division with remainder by $N_d := 2^q d \in \Z \setminus \{0\}$ to round $2^q(z/d)$ onto $\Cg_q$, incurring $|\RD_q(z, d) - z/d| \le \frac{\sqrt{2}}{2} 2^{-q}$.
+
+\subsection{Elementary function evaluation and shared level tables}\label{sec:tables}
+
+To avoid assuming unit-cost real-RAM oracles for transcendental constants and functions ($\pi, \ln 2, \sqrt{\cdot}, \exp, \sin, \cos, \erf$), Lemma~\ref{lem:elementary} specifies how all level tables are deterministically computed on a multitape Turing machine (the table expressions are enumerated in Appendix~\ref{app:elem-proof}). Its proof appears in Appendix~\ref{app:elem-proof}.
+
+\begin{lemma}[Fixed-point evaluation of elementary functions and faithful tables]\label{lem:elementary}
+Let $s \ge 8$ be a target fractional precision and let $D := \max(s, K_0) = O(\log n)$. Work on the internal dyadic grid $\Rg_S$ at precision $S := s + 15 D + 64 = \Theta(D)$ with truncated series of $N_{\mathrm{terms}} := 2 S + 36 D = \Theta(D)$ terms, where both the exact real argument $x$ and the grid argument $\tilde{x} \in \Rg_S$ lie in the stated domain (with $2^S \tilde{x}$ a signed integer of bit-length at most $S + 2D + 8 = O(D)$) and satisfy $|\tilde{x} - x| \le \delta_{\mathrm{in}} \le 2^{-s-20}$ (with $\delta_{\mathrm{in}} = 0$ for exact dyadic rational arguments $t = d + j_1/t_{1,\ell} \in \Rg_{K_0} \subseteq \Rg_S$).
+Each primitive (i)--(v) uses intermediate integers of bit-length at most $2S + 4D + 16 = O(D)$ and outputs $\tilde{y} \in \Rg_S$ satisfying $|\tilde{y} - f(\tilde{x})| < 2^{-s-D-23} < 2^{-s-30}$ and $|\tilde{y} - f(x)| < 2^{-s-D-23} + L_f \delta_{\mathrm{in}}$ (where $L_{\sqrt{\cdot}} \le 2^{D/2-1}$ on $[2^{-D}, 2^{2D}]$, $L_{\exp}, L_{\sin}, L_{\cos} \le 1$, $L_{\erf} = 2/\sqrt{\pi} < 1.13$, and $L_{\sinc} = 4/\pi < 1.28$ on $[-1/2, 1/2]$) in $O(D^3)$ schoolbook bit operations; every $\sqrt{\cdot}$ evaluation of the algorithm has its argument in $[1, 2^{2D}]$, where $L_{\sqrt{\cdot}} \le \frac{1}{2}$ (Appendix~\ref{app:elem-proof}). Evaluating any real or complex table expression of our algorithm at target precision $s := q + 10$ (where $q = q_{\mathrm{child}} \ge p_{\mathrm{work},\ell}$ for the $\alpha_\ell$-dependent tables of a non-leaf level, so $p_{\mathrm{work},\ell} < s \le D$ there; the leaf twiddle tables use $q = q_b$ and involve no $\alpha_\ell$) produces $\tilde{v} \in \Rg_S$ (resp.\ $\Cg_S$) within $< 2^{-s-20} < 2^{-q-10}$ of the exact value $v$, so rounding once via $\bar{v} := \Quant_q(\tilde{v})$ satisfies the 1-ulp faithful table rounding contract:
+\begin{equation}\label{eq:faithful-table}
+  |\bar{v} - v| \le \left(\frac{1}{2} + 2^{-10}\right) 2^{-q} < 2^{-q} \quad (\text{real}), \qquad |\bar{v} - v| \le \sqrt{2}\left(\frac{1}{2} + 2^{-10}\right) 2^{-q} < \sqrt{2} \cdot 2^{-q} \quad (\text{complex}).
+\end{equation}
+On $\Cg_{q_{\mathrm{child}}}$ ($q_{\mathrm{child}} = p_{\ell+1} + 2$, $u = 2^{-p_{\ell+1}}$), \eqref{eq:faithful-table} gives $|\bar{v} - v| \le \frac{1}{4} u = 0.25 u$ for real table entries and $|\bar{v} - v| \le \frac{\sqrt{2}}{4} u < 0.354 u$ for complex table entries, where the procedures are:
+\begin{enumerate}[label=(\roman*),leftmargin=*]
+  \item Evaluate $\pi$ via Machin's identity $\frac{\pi}{4} = 4\arctan(1/5) - \arctan(1/239)$ with alternating remainder $\le 5(2N_{\mathrm{terms}}+1)^{-1}\allowbreak 5^{-(2N_{\mathrm{terms}}+1)}$ for $\pi/4$ (both tails), hence $\le 20(2N_{\mathrm{terms}}+1)^{-1}\allowbreak 5^{-(2N_{\mathrm{terms}}+1)} < 2^{-S-16}$ for $\pi$, and $\ln 2 = 2\sum_{k=0}^\infty \frac{1}{(2k+1)3^{2k+1}}$ with geometric remainder $\le \frac{3}{4(2N_{\mathrm{terms}}+1)} 3^{-2N_{\mathrm{terms}}} < 2^{-S-16}$. Let $\tilde{\pi}, \tilde{\ell}_2 \in \Rg_S$ denote these approximations and $\tilde{h} := \Quant_S(\tilde{\pi}/2)$.
+  \item Evaluate square roots $\sqrt{x}$ for $x \in [2^{-D}, 2^{2D}]$ via exact integer square root $\lfloor \sqrt{2^{2S} \tilde{x}} \rfloor$.
+  \item Evaluate $\exp(x)$ for $x \in [-\pi (D + 2)^2, 0]$, returning $0$ when $\tilde{x} < -(S + 16)\tilde{\ell}_2$ (since then $e^{\tilde{x}} < 2^{-S-15}$) and otherwise dividing $-\tilde{x} = m \tilde{\ell}_2 + \tilde{r}$ with $m \in \{0, \dots, S + 16\}$, $\tilde{r} \in [0, \tilde{\ell}_2)$ and evaluating $2^{-m}\sum_{k=0}^{N_{\mathrm{terms}}-1} (-\tilde{r})^k / k!$ (remainder $\le \tilde{r}^{N_{\mathrm{terms}}} / N_{\mathrm{terms}}! < 2^{-S-16}$).
+  \item Evaluate $\sin(x), \cos(x)$ for $|x| \le \pi(D + 2)$ via range reduction $\tilde{x} = m \tilde{h} + \tilde{r}$ with integer $m := \lfloor \tilde{x}/\tilde{h} + 1/2 \rfloor$ ($|m| \le 2D + 5$) and $|\tilde{r}| \le \tilde{h}/2 < 0.79 < 1$ and alternating Taylor series with remainder $\le |\tilde{r}|^{2N_{\mathrm{terms}}} / (2N_{\mathrm{terms}})! < 2^{-S-16}$ (and for $|t| \le 1/2$, evaluate $\sinc(t) = \sum_{k=0}^\infty (-1)^k \frac{(\pi t)^{2k}}{(2k+1)!}$ directly by its $N_{\mathrm{terms}}$-term truncation with alternating remainder $\le \frac{(\pi/2)^{2N_{\mathrm{terms}}}}{(2N_{\mathrm{terms}}+1)!} < 2^{-S-16}$, avoiding division by small $\pi t$).
+  \item Evaluate $\erf(z) = \frac{2}{\sqrt{\pi}} e^{-z^2}\allowbreak \sum_{n=0}^\infty \frac{2^n z^{2n+1}}{1 \cdot 3 \cdots (2n+1)}$ on $z \in [0, 3\sqrt{D}]$, returning $1$ when $\RM_S(\tilde{z}, \tilde{z}) > \allowbreak (s + D + 24)\tilde{\ell}_2$ (since then $\erfc(\tilde{z}) < 2^{-s-D-23}$) and otherwise summing the first $N_{\mathrm{terms}}$ series terms on $\Rg_S$.
+\end{enumerate}
+\end{lemma}
+
+\paragraph{Shared level tables and breadth-first tape layout.}
+For a top-level multiplication of $n$-bit integers, the dimensions $R_\ell = 2^{K_\ell}$ and precisions $(p_\ell, p_{\mathrm{work},\ell}, p_{\ell+1})$ at each depth $\ell \in \{0, \dots, L\}$ depend only on $(R_0, p_0)$ and $\ell$. Before the recursive transforms begin, the algorithm writes once per level $\ell$ onto a table tape $T_{\mathrm{tab}}$ the folded filter taps and their Kronecker-packed integers, the twist roots, the column solver tuples $(\mu(u_2),\allowbreak \hat{\rho}(u_2),\allowbreak \hat{\theta}(u_2)) \in \Rg_{q_{\mathrm{child}}}^3$, and at $\ell = L$ the per-stage leaf twiddle lists. Since $t_{1,\ell}, r_\ell \le \sqrt{2 R_0}$, $m_{1,\ell} \le p_L$ (Lemma~\ref{lem:forward}), and $R_L \le 4 p_L^2$, Lemma~\ref{lem:elementary} with $D = O(p_L) = O(\log n)$ builds all shared level tables in
+\begin{equation}\label{eq:table-precomp}
+  \mathcal{C}_{\mathrm{tables}}(n) = O\bigl((L + 1)(\sqrt{R_0} \, p_L^4 + p_L^5)\bigr) = O\bigl(\sqrt{n} (\log n)^{7/2} \log \log n\bigr) = o(n)
+\end{equation}
+Turing machine steps. The recursion tree is then executed breadth-first on $O(1)$ tapes using, besides the input and output tapes, two alternating data tapes $T_{\mathrm{data}}^{(0)}, T_{\mathrm{data}}^{(1)}$, four scratch tapes $T_1, \dots, T_4$, the table tape $T_{\mathrm{tab}}$, a level-segmented stack tape $T_{\mathrm{stack}}$ storing each node's Nyquist alternating sum, and dedicated work tapes for the nested inner multiplier. Total table replay and level-sweep coordination across all $L = O(\log\log n)$ levels take $O(n \log\log n) = o(n \log n)$ steps; the full tape schedule is given in Appendix~\ref{app:tape-schedule}.
+
+\subsection{Matrix transposition and odd-stride column routing}\label{sec:routing}
+
+The following lemma bounds the two data-routing primitives used at each recursion level; its proof (by multi-pass split-and-interleave scans and column-parallel bottom-up merge sort) is given in Appendix~\ref{app:routing}.
+
+\begin{lemma}[Multitape transposition and odd-stride column routing]\label{lem:routing}
+Let $t_1 \mid r$ be powers of two ($t_1 = 2^{k_1}$, $r = 2^{k_2}$), and let each matrix entry be a uniform fixed-width record of $w = \Theta(q)$ bits with $q \ge k_2 \ge k_1$. On a deterministic multitape Turing machine with a constant number of tapes:
+\begin{enumerate}[label=(\roman*),leftmargin=*]
+  \item Transposing a $t_1 \times r$ matrix between row-major order $(j_1, j_2)$ and column-major order $(j_2, j_1)$, including de-interleaving $x \in \Cg_q^{t_1 r}$ indexed by $j = j_1 + t_1 j_2$ into $t_1$ contiguous rows of length $r$ or transposing $(\widehat{Z}_{u_1, u_2})$ from column-major order $(u_2, u_1)$ back to natural frequency order $u = u_2 + r u_1$, takes $O\bigl(t_1 r q (1 + \log_2 t_1)\bigr)$ Turing machine steps.
+  \item Given $t_1$ child DFT output vectors $\widehat{C}_{v_1} \in \Cg_q^r$ in row order $v_1 \in \{0, \dots, t_1 - 1\}$, routing all entries according to the odd-stride column permutation
+  \[
+    (v_1, u_2) \longmapsto \bigl(u_1, u_2\bigr), \qquad u_1 := (2u_2 - 1) v_1 \bmod t_1,
+  \]
+  into column-major order $(u_2, u_1)$ takes $O\bigl(t_1 r q (1 + \log_2 t_1)\bigr)$ Turing machine steps.
+\end{enumerate}
+\end{lemma}
+
+\subsection{Discrete Fourier transforms, two-call convolution, and polynomial transforms}\label{sec:prelim-dft}
+
+For $R \in \Z_{\ge 1}$, the normalized one-dimensional Discrete Fourier Transform $F_R\colon \C^R \to \C^R$ is defined for $u \in \{0, \dots, R-1\}$ by
+\begin{equation}\label{eq:dft-1d}
+  (F_R x)_u := \frac{1}{R} \sum_{j=0}^{R-1} x_j \, e^{2\pi i j u / R}.
+\end{equation}
+By the triangle inequality, $\|F_R x\|_\infty \le \frac{1}{R} \sum_{j=0}^{R-1} |x_j| \le \|x\|_\infty$. Under this normalization, $\bigl(F_R(\overline{F_R w})\bigr)_j = \frac{1}{R} \overline{w_j}$ for every $w \in \C^R$, and the cyclic convolution $(a \circledast b)_j := \sum_{k=0}^{R-1} a_k b_{(j-k)\bmod R}$ satisfies $F_R(a \circledast b) = R \cdot (F_R a) \odot (F_R b)$, where $\odot$ denotes pointwise multiplication. Packing two real sequences into one complex sequence is a classical textbook identity (see, e.g., \cite{Nussbaumer82}); we record the exact two-call form in our normalization.
+
+\begin{lemma}[Two-call real cyclic convolution]\label{lem:two-call}
+For any two real vectors $a, b \in \R^R$, set $z := a + i b \in \C^R$. Then the real cyclic convolution $a \circledast b \in \R^R$ is given in terms of two evaluations of $F_R$ by
+\begin{equation}\label{eq:two-call}
+  a \circledast b = -\frac{R^2}{2} \operatorname{Im}\!\Bigl(F_R\bigl(\overline{(F_R z)^2}\bigr)\Bigr),
+\end{equation}
+where $(F_R z)^2 := (F_R z) \odot (F_R z)$ denotes the pointwise square.
+\end{lemma}
+
+\begin{proof}
+By linearity of $F_R$ and the convolution theorem,
+\[
+  (F_R z)^2 = (F_R a + i F_R b)^2 = (F_R a \odot F_R a - F_R b \odot F_R b) + 2 i (F_R a \odot F_R b) = \frac{1}{R} F_R(d - e + 2 i c),
+\]
+where $d := a \circledast a \in \R^R$, $e := b \circledast b \in \R^R$, and $c := a \circledast b \in \R^R$. Applying $F_R(\overline{F_R w}) = \frac{1}{R} \overline{w}$ to $w := \frac{1}{R}(d - e + 2 i c)$ yields
+\[
+  F_R\bigl(\overline{(F_R z)^2}\bigr) = \frac{1}{R^2} \overline{d - e + 2 i c} = \frac{1}{R^2}(d - e - 2 i c),
+\]
+because $d, e, c \in \R^R$ are real. Taking the imaginary part and multiplying by $-R^2 / 2$ recovers $c = a \circledast b$.
+\end{proof}
+
+For dimensions $(t_1, r)$, the normalized two-dimensional Discrete Fourier Transform $F_{t_1, r}\colon \C^{t_1 \times r} \to \C^{t_1 \times r}$ is defined for $(u_1, u_2) \in \{0, \dots, t_1-1\} \times \{0, \dots, r-1\}$ by
+\begin{equation}\label{eq:dft-2d}
+  (F_{t_1, r} U)_{u_1, u_2} := \frac{1}{t_1 r} \sum_{j_1=0}^{t_1-1} \sum_{j_2=0}^{r-1} U_{j_1, j_2} \, e^{2\pi i j_1 u_1 / t_1} \, e^{2\pi i j_2 u_2 / r}.
+\end{equation}
+
+Let $r = 2^{k_2}$ and $t_1 = 2^{k_1}$ be powers of two with $t_1 \mid r$, and set $\nu := r / t_1 \in \{1, 2\}$. In the negacyclic quotient ring $\Rr_r := \C[y]/(y^r + 1)$, the monomial $\omega_{t_1} := y^{2\nu}$ satisfies $\omega_{t_1}^{t_1/2} = y^{\nu t_1} = y^r \equiv -1 \pmod{y^r + 1}$, so $\omega_{t_1}$ is a primitive $t_1$-th root of unity in $\Rr_r$. Following Nussbaumer~\cite{Nussbaumer80,Nussbaumer82}, for $P = (P_0(y), \dots, P_{t_1-1}(y)) \in (\Rr_r)^{t_1}$ we define the normalized polynomial transform $G_{t_1}\colon (\Rr_r)^{t_1} \to (\Rr_r)^{t_1}$ for $v_1 \in \{0, \dots, t_1-1\}$ by
+\begin{equation}\label{eq:syn-fft}
+  (G_{t_1} P)_{v_1}(y) := \frac{1}{t_1} \sum_{j_1=0}^{t_1-1} P_{j_1}(y) \, y^{2\nu j_1 v_1} \pmod{y^r + 1}.
+\end{equation}
+
+\begin{lemma}[Radix-2 polynomial transform \texorpdfstring{$G_{t_1}$}{G\_t1}]\label{lem:syn-fft}
+Let $t_1 = 2^{k_1} \ge 2$ ($k_1 \ge 1$) and $r = 2^{k_2}$ with $t_1 \mid r$. The radix-2 decimation-in-time Cooley--Tukey factorization of $G_{t_1}$ over $\Rr_r$ bit-reverses the $t_1$ input polynomials and executes $k_1 = \log_2 t_1$ butterfly stages. In stage $s \in \{1, \dots, k_1\}$, each butterfly updates a pair of polynomials $A(y), B(y) \in \Cg_q[y]/(y^r + 1)$ via
+\[
+  A^{\mathrm{new}}(y) := \Quant_q\!\left(\frac{1}{2}\bigl(A(y) + y^{2m} B(y)\bigr)\right), \qquad B^{\mathrm{new}}(y) := \Quant_q\!\left(\frac{1}{2}\bigl(A(y) - y^{2m} B(y)\bigr)\right) \pmod{y^r + 1}.
+\]
+On a deterministic multitape Turing machine, for inputs on $\Cg_q$ ($q = p_{\ell+1} + 2 \ge k_2$) with coordinatewise magnitude $\|P\|_{\infty,\mathrm{coord}} \le 2^H$ stored as uniform fixed-width records of width $w = \Theta(q + H + 1)$, computing $G_{t_1}$ performs zero scalar multiplications, takes $O\bigl(t_1 r (q + H + 1)(1 + \log_2 t_1)\bigr)$ Turing machine steps, preserves the coordinatewise magnitude bound $\|\cdot\|_{\infty,\mathrm{coord}} \le 2^H$ at every stage (while for any Euclidean input bound $\|P\|_\infty \le V$, stage $s$ satisfies $\|P^{(s)}\|_\infty \le V + s \frac{\sqrt{2}}{2} 2^{-q}$), and outputs $\widehat{Q} = (\widehat{Q}_0, \dots, \widehat{Q}_{t_1-1}) \in (\Cg_q[y]/(y^r+1))^{t_1}$ in natural index order $v_1 \in \{0, \dots, t_1-1\}$ satisfying
+\begin{equation}\label{eq:syn-err}
+  \|\widehat{Q} - G_{t_1} P\|_\infty \le k_1 \frac{\sqrt{2}}{2} 2^{-q} = k_1 \frac{\sqrt{2}}{8} 2^{-p_{\ell+1}} < 0.177 \, k_1 \, 2^{-p_{\ell+1}}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+First, apply the bit-reversal permutation to the $t_1 = 2^{k_1}$ input polynomials $P_0, \dots, P_{t_1-1}$, each stored as a contiguous block of $r$ records of width $w$, in $k_1 = \log_2 t_1$ sequential split-and-concatenate passes. In pass $s \in \{1, \dots, k_1\}$, within each of the $2^{s-1}$ segments of $t_1 / 2^{s-1}$ polynomials, copy even-indexed polynomials to auxiliary tape $T_1$ and odd-indexed polynomials to $T_2$ and concatenate $T_1$ and $T_2$, costing $O(t_1 r w)$ steps per pass and $O(t_1 r w \log_2 t_1)$ steps in total.
+
+Next, in stage $s \in \{1, \dots, k_1\}$ of decimation-in-time Cooley--Tukey, the tape consists of $t_1 / 2^s$ contiguous blocks of $2^s$ polynomials. Within each block, the first $2^{s-1}$ polynomials $(A_j(y))_{j=0}^{2^{s-1}-1}$ are paired with the second $2^{s-1}$ polynomials $(B_j(y))_{j=0}^{2^{s-1}-1}$ with twiddle exponent
+\[
+  \delta_j := 2m_j = 2\nu j \cdot 2^{k_1 - s} \in \{0, 2, \dots, r - 2\}, \qquad 0 \le 2m_j \le r - 2\nu 2^{k_1 - s} < r,
+\]
+since $j < 2^{s-1}$ and $\nu t_1 = r$. In one linear scan of the block, copy $(A_j)_{j=0}^{2^{s-1}-1}$ to $T_1$ and $(B_j)_{j=0}^{2^{s-1}-1}$ to $T_2$ ($O(2^s r w)$ steps), maintaining $\delta_j \in \{0, \dots, r-2\}$ by adding the stage stride $2\nu \cdot 2^{k_1 - s}$ as $j$ increments ($O(\log r) \le O(w)$ steps per polynomial).
+For each pair $j$, multiplying $B_j(y) = \sum_{k_2=0}^{r-1} b_{k_2} y^{k_2}$ by $y^{\delta_j} \pmod{y^r + 1}$ yields $\sum_{k_2=0}^{r-1} \tilde{b}_{k_2} y^{k_2}$ with
+\[
+  \tilde{b}_{k_2} = \begin{cases} -b_{k_2 + r - \delta_j} & \text{for } 0 \le k_2 < \delta_j, \\ +b_{k_2 - \delta_j} & \text{for } \delta_j \le k_2 < r. \end{cases}
+\]
+To stream $(\tilde{b}_{k_2})_{k_2=0}^{r-1}$ in natural order on a Turing machine, scan the first $r - \delta_j$ coefficient records $b_0, \dots, b_{r - \delta_j - 1}$ of $B_j$ on $T_2$ (counted by decrementing a $k_2$-bit counter initialized to $r - \delta_j$ in $O(r + \log r)$ total counter steps) and copy them to $T_3$. This leaves $T_2$ at $b_{r - \delta_j}$, after which $T_3$ is rewound to $b_0$. Then scan $a_0, \dots, a_{r-1}$ on $T_1$ in lockstep with the $\delta_j$ negated records $-b_{r - \delta_j}, \dots, -b_{r-1}$ on $T_2$ followed by the $r - \delta_j$ records on $T_3$, writing $A_j^{\mathrm{new}}(y)$ to the upper half of the block on the main tape and $B_j^{\mathrm{new}}(y)$ to $T_4$, and finally copying $T_4$ to the lower half of the block. Each polynomial pair in stage $s$ takes $O(r w + \log r) = O(r w)$ steps, and all $k_1$ stages take $O\bigl(t_1 r w (1 + \log_2 t_1)\bigr)$ steps.
+
+For the norm and error bounds, the signed cyclic shift $y^{2m_j} B_j(y) \pmod{y^r+1}$ is exact on $\Cg_q$, and for each real or imaginary coordinate $x, y \in \Rg_q \cap [-2^H, 2^H]$, the exact average $\frac{1}{2}(x \pm y)$ lies in $[-2^H, 2^H]$. Since $\pm 2^H \in \Rg_q$ are exact grid points and $\Quant_q$ is monotone on $\R$, $\Quant_q\bigl(\frac{1}{2}(x \pm y)\bigr) \in [-2^H, 2^H]$, preserving $\|\cdot\|_{\infty,\mathrm{coord}} \le 2^H$. Simultaneously, for each complex coefficient $k_2$, rounding $\frac{1}{2}(a_{k_2} \pm \tilde{b}_{k_2})$ via $\Quant_q$ incurs Euclidean error at most $\frac{\sqrt{2}}{2} 2^{-q}$ by \eqref{eq:quant-err}. Because the exact butterfly $(A, B) \mapsto \frac{1}{2}(A + y^{2m} B, A - y^{2m} B)$ is a contraction in the complex Euclidean $\ell_\infty$ norm, the stage-$s$ array $P^{(s)}$ and forward error $e_s$ relative to the exact stage-$s$ array satisfy
+\[
+  \|P^{(s)}\|_\infty \le \|P^{(s-1)}\|_\infty + \frac{\sqrt{2}}{2} 2^{-q}, \qquad e_s \le e_{s-1} + \frac{\sqrt{2}}{2} 2^{-q},
+\]
+giving $e_{k_1} \le k_1 \frac{\sqrt{2}}{2} 2^{-q} < 0.177 \, k_1 \, 2^{-p_{\ell+1}}$.
+\end{proof}

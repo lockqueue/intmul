@@ -1,0 +1,10 @@
+module SubNLogN.Assembly.ChallengeHeadline: 12755 imported modules (incl. itself), 874850 constants in the import closure
+  unsafe: 774, partial: 4878 (leanchecker skips unsafe/partial constants)
+  by kind: [(inductive, 7625), (opaque, 3895), (axiom, 15), (def, 253569), (theorem, 590131), (constructor, 11847), (quot, 4), (recursor, 7764)]
+  axiom declarations present in the environment (15): #[Classical.choice, Lean.ofReduceBool, Lean.ofReduceNat, Lean.trustCompiler, Quot.lcInv, Quot.sound, isScalarObj, lcAny, lcCast, lcErased, lcProof, lcUnreachable, lcVoid, propext, sorryAx]
+  imported modules by root namespace: [(LevelSync, 4), (Init, 631), (Batteries, 192), (Plausible, 13), (Mathlib, 8312), (LeanSearchClient, 4), (IntMul, 26), (Aesop, 132), (IntMulTM, 28), (WP, 642), (Std, 483), (Qq, 14), (Lean, 1208), (Lake, 1), (ImportGraph, 10), (ProofWidgets, 13), (Contracts, 25), (SubNLogN, 1017)]
+module IntMulTM.Headline: 6695 imported modules (incl. itself), 555268 constants in the import closure
+  unsafe: 739, partial: 4243 (leanchecker skips unsafe/partial constants)
+  by kind: [(inductive, 5339), (opaque, 3824), (axiom, 15), (def, 183174), (theorem, 349155), (constructor, 8279), (quot, 4), (recursor, 5478)]
+  axiom declarations present in the environment (15): #[Classical.choice, Lean.ofReduceBool, Lean.ofReduceNat, Lean.trustCompiler, Quot.lcInv, Quot.sound, isScalarObj, lcAny, lcCast, lcErased, lcProof, lcUnreachable, lcVoid, propext, sorryAx]
+  imported modules by root namespace: [(LevelSync, 4), (Init, 631), (Batteries, 80), (Plausible, 13), (Mathlib, 3385), (LeanSearchClient, 4), (IntMul, 26), (Aesop, 132), (IntMulTM, 28), (WP, 638), (Std, 483), (Qq, 14), (Lean, 1208), (Lake, 1), (ImportGraph, 10), (ProofWidgets, 13), (Contracts, 25)]

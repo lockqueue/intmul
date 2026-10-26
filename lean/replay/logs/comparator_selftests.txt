@@ -1,0 +1,20 @@
+(comparator test suite, `lean --run runtests.lean`, run with the real landrun and the built lean4export; summary section of the output)
+
+# Summary
+
+✓ theorem_hole_issue: PASSED
+✓ primitive_issue: PASSED
+✓ def_hole_axiom_issue: PASSED
+✓ numeric_namespace: PASSED
+✓ simple_kind_mismatch: PASSED
+✓ simple_match: PASSED
+✓ opaque_value: PASSED
+✓ char_ofnat_issue: PASSED
+✓ def_hole_type_mismatch: PASSED
+✓ olean_issue: PASSED
+✓ def_hole_kind_mismatch: PASSED
+✓ def_hole: PASSED
+✓ simple_mismatch: PASSED
+✓ simple_axiom_issue: PASSED
+
+All tests passed!

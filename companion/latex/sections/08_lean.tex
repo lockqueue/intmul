@@ -1,0 +1,112 @@
+\section{Formal verification in Lean~4}\label{sec:lean}
+
+\paragraph{Scope and structure.}
+We formalize Theorem~\ref{thm:lean} in the library \texttt{IntMul} (\texttt{IntMul.lean} and $26$ modules under \texttt{IntMul/}), comprising $27$ files and $82{,}377$ lines of Lean~4~\cite{dMU21} on Mathlib~\cite{Mathlib20}. The headline theorem \texttt{IntMul.\allowbreak tmIntMul\_\allowbreak evalsToInTime\_\allowbreak n\_\allowbreak log\_\allowbreak n} (\texttt{IntMul/\allowbreak TMEndToEnd.lean}) is proved for one concrete, parameter-free multi-stack machine \texttt{tmIntMul} in Mathlib's \texttt{Turing.FinTM2} model. We quote the bit-encoding definitions from \texttt{IntMul/\allowbreak Defs.lean} and the machine and complexity declarations from \texttt{IntMul/\allowbreak TMEndToEnd.lean} verbatim (definitions with their bodies, theorems as statements only; docstrings, proofs, and the body of \texttt{eightStacks\allowbreak Equiv\allowbreak Four\allowbreak BiInfinite\allowbreak Tapes} are omitted):
+\begin{Verbatim}[fontsize=\footnotesize,frame=single,framesep=2mm]
+def encodeNatBits (w : ℕ) (x : ℕ) : List Bool :=
+  List.ofFn (fun i : Fin w => x.testBit i.val)
+
+def encodeInputBits (n A B : ℕ) : List Bool :=
+  encodeNatBits n A ++ encodeNatBits n B
+
+def tmIntMul : Turing.FinTM2 :=
+  (bmRunRaw bmIntMulCore).toFinTM2
+
+theorem isUniformFinTM2_tmIntMul :
+    IsUniformFinTM2 tmIntMul (bmRunRaw bmIntMulCore).numLabels 32 2
+
+theorem tmIntMul_evalsToInTime_n_log_n :
+    ∃ C > 0, ∀ n : ℕ, 2 ≤ n → ∀ A B : ℕ, A < 2 ^ n → B < 2 ^ n →
+      ∃ t ≤ C * n * Nat.log 2 n,
+        Turing.EvalsToInTime tmIntMul.step
+          (Turing.initList tmIntMul (encodeInputBits n A B))
+          (some (Turing.haltList tmIntMul (encodeNatBits (2 * n) (A * B)))) t
+\end{Verbatim}
+Here \texttt{encodeNatBits w x} (equivalently \texttt{(List.range w).map (x.testBit ·)}) is the fixed-width $w$-bit little-endian binary list of $x$, \texttt{encodeInputBits n A B} concatenates the two $n$-bit inputs on stack~$0$ with all other stacks initially empty (\texttt{Turing.initList}), and \texttt{Turing.haltList\allowbreak\ tmIntMul s} is the halting configuration (label \texttt{none}, register reset to \texttt{initialState}, \texttt{s} on the output stack, and all other stacks empty). The witness for $C$ in the proof is the closed arithmetic expression \texttt{C\_\allowbreak tm\_\allowbreak total} (\texttt{C\_\allowbreak tm\_\allowbreak d2 + 500}, where \texttt{C\_\allowbreak tm\_\allowbreak d2} multiplies the tier-1 constant \texttt{C\_\allowbreak tm\_\allowbreak d1} $\approx 3.1\cdot 10^{22}$ by $1.5\cdot 10^{13}$ and by twice the counted-operation constant \texttt{C\_\allowbreak nested\_\allowbreak total} $\approx 5.4\cdot 10^{56}$); it evaluates to about $5.0\cdot 10^{92}$. No attempt was made to optimize it. Mathlib's \texttt{Turing.\allowbreak EvalsToInTime f a b m} is a \texttt{Type}-valued structure (a run from \texttt{a} reaching \texttt{b} together with its step count, at most \texttt{m}); we quote verbatim the \texttt{CoeDep} instance and uniformity predicate from \texttt{IntMul/\allowbreak TMPrimitives.lean} together with the elementary-operation counter and predicate from \texttt{IntMul.lean}:
+\begin{Verbatim}[fontsize=\footnotesize,frame=single,framesep=2mm]
+instance instCoeDepEvalsToInTimeProp {σ : Type u} (f : σ → Option σ) (a : σ) (b : Option σ)
+    (m : ℕ) : CoeDep Type (Turing.EvalsToInTime f a b m) Prop where
+  coe := Nonempty (Turing.EvalsToInTime f a b m)
+
+def IsUniformFinTM2 (tm : Turing.FinTM2) (maxLabels maxStates maxAlpha : ℕ) : Prop :=
+  Fintype.card tm.Λ ≤ maxLabels ∧
+  Fintype.card tm.σ ≤ maxStates ∧
+  Fintype.card (tm.Γ tm.k₀) ≤ maxAlpha ∧
+  Fintype.card tm.K ≤ 8 ∧
+  ∃ inst : ∀ k : tm.K, Fintype (tm.Γ k),
+    ∀ k : tm.K, @Fintype.card (tm.Γ k) (inst k) ≤ maxAlpha
+
+def stmtMaxElemOps {K : Type*} {Γ : K → Type*} {Λ σ : Type*} :
+    Turing.TM2.Stmt Γ Λ σ → ℕ
+  | .push _ _ q => 1 + stmtMaxElemOps q
+  | .peek _ _ q => 1 + stmtMaxElemOps q
+  | .pop _ _ q => 1 + stmtMaxElemOps q
+  | .load _ q => 1 + stmtMaxElemOps q
+  | .branch _ q₁ q₂ => 1 + max (stmtMaxElemOps q₁) (stmtMaxElemOps q₂)
+  | .goto _ => 1
+  | .halt => 1
+
+def FinTM2BoundedElemOps (M : Turing.FinTM2) (C_step : ℕ) : Prop :=
+  ∀ l : M.Λ, stmtMaxElemOps (M.m l) ≤ C_step
+\end{Verbatim}
+
+{\sloppy\paragraph{Machine model and elementary operations.}
+The uniformity theorem \texttt{isUniform\allowbreak FinTM2\_\allowbreak tmIntMul} thus certifies at most eight stacks, stack alphabets of size at most~$2$, at most $32$ register states, and at most \texttt{(bmRunRaw\allowbreak\ bmIntMulCore).\allowbreak numLabels} control labels (a fixed natural number determined by the construction; the library does not state its value, but the check file \texttt{checks/\allowbreak EvalProven.lean} distributed with the snapshot proves \texttt{(bmRunRaw\allowbreak\ bmIntMulCore).\allowbreak numLabels = 1041232178} from the library's definitions, so the finite control has about $10^9$ labels), all independent of $n, A, B$. By construction \texttt{tmIntMul} has exactly eight \texttt{Bool} stacks (its stack index type \texttt{TapeIdx} has eight elements by \texttt{rfl}) and the register type \texttt{DelimReg} with \texttt{Fintype.\allowbreak card DelimReg = 32} (theorem \texttt{card\_\allowbreak delimReg}). In Mathlib's \texttt{Turing.TM2} semantics, one \texttt{TM2.step} executes the statement tree of one control label; using \texttt{stmtMaxElemOps} and \texttt{FinTM2\allowbreak Bounded\allowbreak ElemOps} quoted above, we lift the step bound to total elementary stack operations alongside a data-level pairing of the eight stacks into four list pairs (\texttt{IntMul.lean}):\par}
+\begin{Verbatim}[fontsize=\footnotesize,frame=single,framesep=2mm]
+theorem tmIntMul_elementary_stack_ops_n_log_n :
+    ∃ C_step C_time C_ops : ℕ, 0 < C_step ∧ 0 < C_time ∧ 0 < C_ops ∧
+      FinTM2BoundedElemOps tmIntMul C_step ∧
+      ∀ n : ℕ, 2 ≤ n → ∀ A B : ℕ, A < 2 ^ n → B < 2 ^ n →
+        ∃ t ≤ C_time * n * Nat.log 2 n,
+          C_step * t ≤ C_ops * n * Nat.log 2 n ∧
+          Turing.EvalsToInTime tmIntMul.step
+            (Turing.initList tmIntMul (encodeInputBits n A B))
+            (some (Turing.haltList tmIntMul (encodeNatBits (2 * n) (A * B)))) t
+
+def eightStacksEquivFourBiInfiniteTapes :
+    (Fin 8 → List Bool) ≃ (Fin 4 → List Bool × List Bool)
+\end{Verbatim}
+The same check file proves \texttt{finTM2\allowbreak MaxStmt\allowbreak ElemOps\allowbreak\ tmIntMul = 16}, so the general lifting lemma's witness $C_{\mathrm{step}} = \texttt{finTM2MaxStmtElemOps}\ \texttt{tmIntMul} + 1$ equals $17$ (\texttt{finTM2\allowbreak Bounded\allowbreak ElemOps\_\allowbreak self}; the $+1$ makes the witness positive for every machine, and $16$ would also satisfy \texttt{FinTM2BoundedElemOps}). Both values are obtained by folding the label counts and operation maxima over the machine's syntax tree, because a direct \texttt{\#eval} would enumerate the $10^9$ labels; the check file is a small metaprogram, run separately after \texttt{lake build} (\texttt{lake env lean checks/EvalProven.lean}), whose proof-generating elaborator uses \texttt{unsafe}, \texttt{implemented\_by}, and \texttt{opaque}, while the two theorems it adds are checked by the kernel and its own \texttt{\#print axioms} commands report only the three standard axioms for them. \texttt{eightStacks\allowbreak Equiv\allowbreak Four\allowbreak BiInfinite\allowbreak Tapes} only pairs the eight stacks into four (left, right) lists; it is not a simulation theorem. A $k$-stack machine over finite alphabets and a multitape Turing machine simulate each other with constant-factor slowdown (one tape per stack), and the formal statement is about the stack machine.
+
+\paragraph{Value-level cost model and analytic library.}
+In addition to \texttt{tmIntMul}, the library proves value-level correctness and bottom-up counted $O(n \log n)$ bit-operation bounds for the executable functional multiplier (\texttt{computableNatMulTracked\_\allowbreak spec} and \texttt{computableNatMulBitsTracked\_\allowbreak spec} in \texttt{IntMul/\allowbreak EndToEnd.lean}), packaged with \texttt{isUniform\allowbreak FinTM2\_\allowbreak tmIntMul} and \texttt{tmIntMul\_\allowbreak evalsToInTime\_\allowbreak n\_\allowbreak log\_\allowbreak n} in \texttt{intMul\_\allowbreak complete\_\allowbreak endToEnd\_\allowbreak summary}, and with the uniform \texttt{FinTM2} primitive and composition suites in \texttt{intMul\_\allowbreak endToEnd\_\allowbreak unconditional\_\allowbreak summary}. The analytic and fixed-point bounds on which the formal proof rests (Poisson identity, passband, stopband and conditioning bounds, spreading, multi-level accuracy, root recovery) are proved inside the same library; Table~\ref{tab:lean-map} lists the correspondence we established and the places where the formal constants are looser than the printed ones.
+
+\begin{table}[!ht]
+\centering
+\footnotesize
+\caption{Correspondence between paper statements and Lean~4 declarations in namespace \texttt{IntMul}.}
+\label{tab:lean-map}
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{@{}>{\raggedright}p{0.33\textwidth}>{\raggedright\arraybackslash}p{0.64\textwidth}@{}}
+\toprule
+Paper statement & Lean~4 declarations and constant notes \\
+\midrule
+Definition~\ref{def:grid}, schedule~\eqref{eq:cert-sched} & \texttt{cSpec}, \texttt{pWorkEll}, \texttt{pChildEll}, \texttt{qChildEll}, \texttt{isBaseLeaf}, \texttt{roundShiftInt} (\texttt{Defs.lean}; identical schedule and leaf predicate $2^{K_\ell} \le 4 p_\ell^2$ (\texttt{isBaseLeaf}), floor-shifted tie rule $\lfloor 2^q v + \tfrac{1}{2}\rfloor$) \\\addlinespace[1.5pt]
+Lemma~\ref{lem:elementary} (elementary series) & \texttt{abs\_\allowbreak approxPiRat\_\allowbreak sub\_\allowbreak pi\_\allowbreak le}, \texttt{abs\_\allowbreak approxLogTwoRat\_\allowbreak sub\_\allowbreak log\_\allowbreak two\_\allowbreak le}, \texttt{abs\_\allowbreak approxSqrtRat\_\allowbreak sub\_\allowbreak sqrt\_\allowbreak le}, \texttt{abs\_\allowbreak expTaylorRat\_\allowbreak sub\_\allowbreak exp\_\allowbreak le}, \texttt{norm\_\allowbreak expITaylorRat\_\allowbreak sub\_\allowbreak exp\_\allowbreak le}, \texttt{abs\_\allowbreak sincTaylorRat\_\allowbreak sub\_\allowbreak sinc\_\allowbreak le}, \texttt{abs\_\allowbreak erfIntegral\allowbreak TaylorRat\_\allowbreak sub\_\allowbreak integral\_\allowbreak le} (\texttt{Computable\allowbreak Schedule.lean}; rational series and integer-square-root bounds, with $\frac{\pi}{4}=\arctan\frac{1}{2}+\arctan\frac{1}{3}$) \\\addlinespace[1.5pt]
+Lemma~\ref{lem:routing} (transpose \& odd-stride) & \texttt{transposeMatrix\_\allowbreak spec}, \texttt{oddColGather\_\allowbreak oddColScatter}, \texttt{oddColScatter\_\allowbreak oddColGather} (\texttt{TMPrimitives.lean}, value-level); \texttt{bmTranspose\allowbreak Matrix\_\allowbreak computesInTime} (\texttt{TMSpread\allowbreak FFT.lean}), \texttt{bmOddCol\allowbreak ScatterCols\_\allowbreak computesInTime} (\texttt{TMKronecker.lean}, stack-machine time bounds) \\\addlinespace[1.5pt]
+Lemma~\ref{lem:two-call}, Lemma~\ref{lem:syn-fft} & \texttt{twoCallDFTConv\_\allowbreak re\_\allowbreak eq\_\allowbreak linear\allowbreak Conv\allowbreak Coeff} (\texttt{FastDFT.lean}; \texttt{twoCall\allowbreak DFTConv} evaluates $R\sum_u \frac{(F_R z)_u^2}{2i}\,e^{-2\pi i uk/R} = R^2\,\overline{F_R\bigl(\overline{(F_R z)^2/(2i)}\bigr)}_k$ and reads the real part, which equals $-\frac{R^2}{2}\operatorname{Im}F_R\bigl(\overline{(F_R z)^2}\bigr)_k$, the identity~\eqref{eq:two-call}, and states it for linear chunk convolutions, which coincide with the cyclic ones because $R_0 \ge 2N$); \texttt{radix2\allowbreak SyntheticFFTExact\_\allowbreak eq\_\allowbreak syntheticFFT}, \texttt{syntheticFFT\_\allowbreak rounding\_\allowbreak error\_\allowbreak le} (\texttt{SyntheticFFT.lean}; bounds stage rounding by $\le k_{1,\ell}\frac{\sqrt{2}}{4}2^{-p_{\ell+1}}\le 0.18 K_\ell 2^{-p_{\ell+1}}$ vs.\ $0.177 k_{1,\ell} 2^{-p_{\ell+1}}$) \\\addlinespace[1.5pt]
+Proposition~\ref{thm:twisted}, Theorem~\ref{thm:poisson} & \texttt{twisted\_\allowbreak fourier\_\allowbreak duality\_\allowbreak reduction} (\texttt{SyntheticFFT.lean}); \texttt{gHat\_\allowbreak eq\_\allowbreak sub}, \texttt{untruncated\allowbreak Filter\allowbreak Response\_\allowbreak eq\_\allowbreak untruncated\allowbreak Poisson\allowbreak ModeSum}, \texttt{poisson\_\allowbreak fractional\_\allowbreak shift\_\allowbreak identity} (\texttt{PoissonKernel.lean}) \\\addlinespace[1.5pt]
+Theorem~\ref{thm:deconv} (passband, two-term, Nyquist) & \texttt{tsum\_\allowbreak gHat\_\allowbreak sub\_\allowbreak int\_\allowbreak eq\_\allowbreak one}, \texttt{gHat\_\allowbreak passband\_\allowbreak max\_\allowbreak ge} ($\ge 0.49999999$), \texttt{gHat\_\allowbreak stopband\_\allowbreak alias\_\allowbreak lt} ($< 0.15\cdot 2^{-p_{\mathrm{work}}}$ vs.\ $< 0.120\cdot 2^{-p_{\mathrm{work}}}$), \texttt{gHat\_\allowbreak ratio\_\allowbreak pow\_\allowbreak t1\_\allowbreak le\_\allowbreak 015} ($a^{t_1} \le 0.15$ vs.\ $< 0.14$; conditioning $\le 2.36\,t_1$ in \texttt{gHat\_\allowbreak deconvolution\_\allowbreak conditioning\_\allowbreak le\_\allowbreak 236\_\allowbreak t1}); \texttt{nyquist\_\allowbreak alternating\_\allowbreak sum\_\allowbreak eq}, \texttt{nyquist\allowbreak Column\allowbreak Solve\_\allowbreak spec}, \texttt{vecInfNorm\_\allowbreak nyquist\allowbreak Column\allowbreak Solve\_\allowbreak le} ($t_1/c_0 \le 2.36\,t_1$ vs.\ $(t_1-1)/(2c) < 1.0000001\,t_1$) \\\addlinespace[1.5pt]
+Lemma~\ref{lem:filter-norms}, Lemma~\ref{lem:kronecker}, Theorem~\ref{thm:spread} & \texttt{filter\_\allowbreak l1\_\allowbreak norm\_\allowbreak le} ($\le \frac{2}{\pi}\ln\alpha + 1.62$ vs.\ $< \frac{2}{\pi}\ln\alpha + 1.444$), \texttt{spatial\_\allowbreak truncation\_\allowbreak tail\_\allowbreak le} ($< 0.4\cdot 2^{-p_{\ell+1}}$ vs.\ $< 0.077\cdot 2^{-p_{\ell+1}}$); \texttt{overlapAdd\_\allowbreak eq\_\allowbreak cyclicConv}, \texttt{kronecker\_\allowbreak spread\_\allowbreak exact\_\allowbreak of\_\allowbreak bounds}, \texttt{kronecker\_\allowbreak spread\_\allowbreak complexity\_\allowbreak bound} (\texttt{Kronecker\allowbreak Spread.lean}) \\\addlinespace[1.5pt]
+Lemma~\ref{lem:solver-err}, Lemma~\ref{lem:forward} & \texttt{level\_\allowbreak error\_\allowbreak budget\_\allowbreak le}, \texttt{base\_\allowbreak leaf\_\allowbreak error\_\allowbreak budget\_\allowbreak le} (formal statements prove the total $\le 2^{-p_\ell}$; the paper's margins are $0.197$ and $0.267$), \texttt{inductive\_\allowbreak accuracy\_\allowbreak closure} (\texttt{Deconvolution.lean}); \texttt{vecInfNorm\_\allowbreak fastDFT\allowbreak Recursive\_\allowbreak sub\_\allowbreak normDFT1D\_\allowbreak le}, \texttt{vecInfNorm\_\allowbreak fastDFT\allowbreak Recursive\_\allowbreak sub\_\allowbreak normDFT1D\_\allowbreak le\_\allowbreak two\_\allowbreak zpow} (\texttt{FastDFT.lean}) \\\addlinespace[1.5pt]
+Theorems~\ref{thm:main} and~\ref{thm:lean} & \texttt{reconstruct\allowbreak Product\allowbreak Via\allowbreak FastDFT\_\allowbreak eq\_\allowbreak mul} (root margin $\le \frac{1}{8} < \frac{1}{2}$ vs.\ $< 3.19\cdot 2^{-7}$); \texttt{computable\allowbreak NatMul\allowbreak Tracked\_\allowbreak spec}, \texttt{computable\allowbreak NatMul\allowbreak Bits\allowbreak Tracked\_\allowbreak spec} (\texttt{EndToEnd.lean}); \texttt{tmIntMul\_\allowbreak evalsToInTime\_\allowbreak n\_\allowbreak log\_\allowbreak n}, \texttt{tmIntMul\_\allowbreak elementary\_\allowbreak stack\_\allowbreak ops\_\allowbreak n\_\allowbreak log\_\allowbreak n}, \texttt{intMul\_\allowbreak complete\_\allowbreak endToEnd\_\allowbreak summary} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+{\sloppy\paragraph{Axioms and compile-time checks.}
+The $27$ library files (\texttt{checks/\allowbreak EvalProven.lean} is not among them and is not part of the \texttt{lake build} target) contain no \texttt{sorry}, \texttt{admit}, \texttt{axiom}, \texttt{native\_decide}, \texttt{implemented\_by}, \texttt{extern}, \texttt{opaque}, \texttt{unsafe}, or \texttt{partial} declarations. The umbrella file \texttt{IntMul.lean} ends with compile-time \texttt{\#verify\_\allowbreak standard\_\allowbreak axioms} commands (a command defined in \texttt{IntMul.lean} itself on top of \texttt{Lean.\allowbreak collectAxioms}) that cause compilation to fail if the transitive axiom closure of \texttt{tmIntMul}, \texttt{isUniform\allowbreak FinTM2\_\allowbreak tmIntMul}, \texttt{tmIntMul\_\allowbreak evalsToInTime\_\allowbreak n\_\allowbreak log\_\allowbreak n}, \texttt{tmIntMul\_\allowbreak elementary\_\allowbreak stack\_\allowbreak ops\_\allowbreak n\_\allowbreak log\_\allowbreak n}, \texttt{intMul\_\allowbreak complete\_\allowbreak end\allowbreak ToEnd\_\allowbreak summary}, or \texttt{intMul\_\allowbreak endToEnd\_\allowbreak unconditional\_\allowbreak summary} contains anything beyond \texttt{propext}, \texttt{Classical.choice}, and \texttt{Quot.sound}, followed by \texttt{\#print axioms} commands for the same six declarations.\par}
+
+\paragraph{Departures from the written text.}
+The formal construction departs from the written text in the following details (none of which affects the $O(n \log n)$ form of Theorem~\ref{thm:lean}), in addition to the variant elementary-function evaluations recorded in Table~\ref{tab:lean-map} ($\pi$ via $\arctan\tfrac{1}{2} + \arctan\tfrac{1}{3}$; $\exp$, $e^{i\theta}$, $\sinc$, and $\int_0^z e^{-t^2}\,dt$ via direct rational Taylor polynomials without range reduction).
+\begin{enumerate}[label=(\arabic*),leftmargin=*]
+\item \emph{Rounding.} Rounding in Lean uses the floor-shifted tie rule $\lfloor 2^q v + \frac{1}{2}\rfloor$ (\texttt{roundShiftInt}), whereas the C program uses MPFR's nearest rounding (\texttt{MPFR\_\allowbreak RNDN}) when quantizing precomputed tables and $\lfloor m/2^s + \frac{1}{2}\rfloor$ in fixed-point shifts, while Definition~\ref{def:grid} allows any fixed nearest tie rule.
+\item \emph{Bootstrap.} \texttt{tmIntMul} uses a two-tier self-recursive bootstrap with binary shift-add schoolbook multiplication at the bottom, with secondary work $O(n(\log\log n)^4)$, whereas Section~\ref{sec:main-proof} uses a three-stage bootstrap with secondary work $O(n(\log\log n)^2)$. The $(\log\log n)^4$ bound is an intermediate bound of the formal proof: \texttt{nestedSubMul\allowbreak BitOps\_\allowbreak le\_\allowbreak log\_\allowbreak cube} bounds the middle-tier multiplier by $O(q(\log q)^3)$ per $q$-bit product and \texttt{log\_\allowbreak rootK0\_\allowbreak add\_\allowbreak one\_\allowbreak fourth\_\allowbreak le} absorbs the resulting factor into $O(n \log n)$, both in \texttt{IntMul/\allowbreak EndToEnd.lean}.
+\item \emph{Input encoding.} Inputs use the fixed-width encoding \texttt{encodeInputBits n A B}, the list \texttt{encodeNatBits n A ++ encodeNatBits n B} (bit $i$ of each operand at position $i$, least significant first) on the input stack; the output is \texttt{encodeNatBits (2 * n) (A * B)}.
+\item \emph{Small inputs.} \texttt{tmIntMul} handles every $n \ge 2$ uniformly without the $n \le 64$ shortcut of the pseudocode.
+\item \emph{Window radius.} The formal development uses the admissible window radius \texttt{computeM1Ell K p} $= \lfloor\sqrt{p_{\mathrm{work},\ell}\,p_{\ell+1}}\rfloor + 1$ (integer square root; theorems \texttt{m1Ell\_\allowbreak le\_\allowbreak compute\allowbreak M1Ell} and \texttt{compute\allowbreak M1Ell\_\allowbreak le\_\allowbreak pChildEll} place it in the interval of Lemma~\ref{lem:forward}) instead of the default radius $\lceil \alpha_\ell\sqrt{p_{\ell+1}\ln 2/\pi} \rceil$ of Remark~\ref{rem:folding} and of the C~program (the Turing machine of Appendix~\ref{app:tape-schedule} computes it as $\lceil \tilde{x} + 2^{-s-20} \rceil \in \{\lceil\cdot\rceil, \lceil\cdot\rceil + 1\}$; every statement holds for every admissible radius).
+\end{enumerate}
+Separately, the companion paper's development~\cite{CLW26} contains its own kernel-checked multiplier for this algorithm.
+
+\paragraph{Toolchain and distributed snapshot.}
+The development was carried out under Lean~4.27.0 and Mathlib revision \texttt{a3a10db0}. To build under Lean~4.33.1 / Mathlib \texttt{0df444a3} the port adjusted imports, instance resolution and proof scripts; in $18$ files it sets the compatibility option \texttt{backward.\allowbreak isDefEq.\allowbreak respectTransparency false} (restoring the pre-4.3x unifier behaviour for implicit arguments) and raises \texttt{maxHeartbeats}/\allowbreak\texttt{maxRecDepth} limits. These options affect elaboration only; every proof term is re-checked by the kernel, and no theorem statement was changed (we verified that the declaration headers recorded in \texttt{SIGNATURES.txt} are byte-identical to those of the original development, which is not part of the snapshot). The distributed snapshot \texttt{82b659a08376}~\cite{LeanMS26} compiles with \texttt{lake build} (exit~0) and \texttt{\#print axioms} reports only \texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound} for the headline theorems.

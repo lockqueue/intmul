@@ -1,0 +1,98 @@
+\section{Formal verification in Lean~4}\label{sec:lean}\label{sec:prov-lean}
+
+\paragraph{What is proved.}
+Theorem~\ref{thm:lean} establishes the $O\bigl(n(\log n)^{1-2^{-46}}\bigr)$ complexity bound of Theorem~\ref{thm:main} in the Lean~4 proof assistant~\cite{dMU21} against its mathematical library Mathlib~\cite{Mathlib20}; the formal development is~\cite{Lean26}. Our written proofs in Sections~\ref{sec:bridge}--\ref{sec:main} take the elementary stream primitives (Fact~\ref{fact:oai-streams}) and the $h=100$ finite-network certificates (Fact~\ref{fact:oai-networks}) of~\cite{OAI26} as black boxes. By contrast, the formal proof assumes no result of~\cite{OAI26}, of~\cite{MS}, or of any other paper as a hypothesis or axiom. Both triple networks of~\cite[\S3]{OAI26} at $h=100$ and their rank and endpoint certificates, all multi-stack Turing machine procedures, the parameter-exposed reductions of Appendix~\ref{app:parameter-transfer}, and the $O(N\log N)$ inner integer multiplier are defined and proved inside Lean. The formalization uses only the three standard axioms of Lean's logic (\texttt{propext}, \texttt{Classical.choice}, and \texttt{Quot.sound}).
+
+\paragraph{The formal statement.}
+The top-level theorem of the development is
+\begin{Verbatim}[fontsize=\small,frame=single,framesep=2mm]
+theorem SubNLogN.Assembly.intMul_challenge : SubNLogN.Challenge.IntMulSubNLogN
+\end{Verbatim}
+The proposition \texttt{IntMulSubNLogN} and its input encoding are defined in the self-contained statement file \texttt{SubNLogN/Challenge.lean}, inside \texttt{namespace SubNLogN.Challenge} with \texttt{Computability} open. We quote them verbatim, omitting only docstrings, the decoder with its helper functions and correctness lemmas, and two sanity checks:
+\begin{Verbatim}[fontsize=\small,frame=single,framesep=2mm]
+inductive PairSym
+  | bit (b : Bool)
+  | sep
+  deriving DecidableEq, Fintype
+
+def encodeNatPair (p : ℕ × ℕ) : List PairSym :=
+  (encodeNat p.1).map PairSym.bit ++ PairSym.sep :: (encodeNat p.2).map PairSym.bit
+
+def encNatPair : Encoding (ℕ × ℕ) PairSym where
+  encode := encodeNatPair
+  decode := decodeNatPair
+  decode_encode := decodeNatPair_encodeNatPair
+
+def IntMulSubNLogN : Prop :=
+  ∃ M : Turing.TM2ComputableInTime encNatPair.encode encodingNatBool.encode
+      (fun p : ℕ × ℕ => p.1 * p.2),
+    (∀ k, Finite (M.tm.Γ k)) ∧
+    ∃ C N₀ : ℕ, 0 < C ∧ ∀ L ≥ N₀,
+      (M.time L) ^ (2 ^ 46) ≤ (C * L) ^ (2 ^ 46) * (Nat.log2 L) ^ (2 ^ 46 - 1)
+\end{Verbatim}
+In words, \texttt{IntMulSubNLogN} asserts that there exists a single multi-stack Turing machine~$M$ in Mathlib's model, with finite stack alphabets on all stacks, that transforms $\mathrm{bits}(a)\,\mathtt{sep}\,\mathrm{bits}(b)$ into $\mathrm{bits}(ab)$ for all $a,b\in\N$ and halts within $C\,L\,(\log_2 L)^{1-2^{-46}}$ steps on all inputs of length $L\ge N_0$. Here $\mathrm{bits}(x)$ is least-significant-bit-first binary with no zero at the most-significant end, empty for $x=0$.
+
+\paragraph{Correspondence to Theorem~\ref{thm:main}.}
+\begin{enumerate}[label=(\alph*),leftmargin=*]
+\item \emph{Machine model.} \texttt{Turing.TM2ComputableInTime} packages a machine of Mathlib's \texttt{Turing.\allowbreak FinTM2} model with input/output alphabet identifications and a time bound \texttt{M.time}; the conjunct \texttt{∀ k, Finite (M.tm.Γ k)} enforces finiteness of every stack alphabet (Mathlib itself requires this only of the input alphabet). Each stack is a tape whose head remains at its top cell, and one \texttt{FinTM2} step executes a bounded number of push, pop, peek, and state-branch operations, costing $O(1)$ standard multitape steps. Translating between fixed-width $n$-bit operand encodings and \texttt{encNatPair}/\texttt{encodingNatBool} takes $O(n)$ steps (these routine model translations are not formalized).
+\item \emph{Input, output, and worst-case time.} Execution starts with \texttt{encodeNatPair (a, b)} on the input stack and all other stacks empty, and must reach Mathlib's halting configuration holding $\mathrm{bits}(ab)$ on the output stack with all other stacks empty within $T(L)=\texttt{M.time L}$ steps, for every $(a,b)\in\N^2$. For $L=|\mathrm{bits}(a)|+|\mathrm{bits}(b)|+1\ge N_0$, taking $2^{46}$-th roots of $T(L)^{2^{46}}\le (CL)^{2^{46}}\lfloor\log_2 L\rfloor^{2^{46}-1}$ gives $T(L)\le C\,L\,(\log_2 L)^{1-2^{-46}}$. For $n$-bit operands $0\le a,b<2^n$ ($n\ge 2$), stripping leading zeros gives $1\le L\le 2n+1$: inputs with $L<\max(N_0,2)$ take at most $\max_{1\le L'<\max(N_0,2)} T(L')=O(1)$ steps, while inputs with $\max(N_0,2)\le L\le 2n+1$ satisfy $T(L)\le C(2n+1)(\log_2(2n+1))^{1-2^{-46}}$ by monotonicity, so together with the $O(n)$ fixed-width wrapper this yields $O\bigl(n(\log n)^{1-2^{-46}}\bigr)$.
+\item \emph{Exponents.} Alongside \texttt{intMul\_challenge} (and \texttt{intMul\_TM2\_sub\_nlogn\_46}), the development derives by exponent monotonicity with the same machine the bounds with exponents $2^{-47}$ (\texttt{intMul\_TM2\_sub\_nlogn\_47}) and $2^{-56}$ (\texttt{intMul\_TM2\_sub\_nlogn\_56}) as well as $o(n\log n)$ (\texttt{intMul\_TM2\_littleO\_nlogn}). Only the $\kappa=2^{-46}$ Walsh parameterization is constructed as a formal machine; the printed-constants parameterization and the Bluestein comparison route (Appendix~\ref{app:bluestein}) are not formalized separately.
+\item \emph{Natural numbers.} The formal statement is over $\N$; signed $n$-bit integers reduce to $\N$ by a linear-time sign-and-magnitude wrapper (not formalized).
+\end{enumerate}
+
+\paragraph{The formalized algorithm.}
+Although \texttt{IntMulSubNLogN} is existential, inspection of the definitions confirms that the constructed machine implements the Walsh route at the $\kappa=2^{-46}$ parameter tuple of Table~\ref{tab:walsh-rows} (\texttt{SubNLogN/Math/Cost/Row46.lean}: $C_1=14$, $\eps=1/15$, $\beta=1/64$, $c=\xi/256$, $\tau=1-4\xi$, $\sigma=1-\xi$, $\lambda=1-63\xi/64$, $\lambda'=1-31\xi/32$ with $\xi=2^{-42}$). It combines the $h=100$ bit and complex networks, the fractional-shift bridge (Section~\ref{sec:bridge}), the direct tensor FFT (Theorem~\ref{thm:direct-fft}, Corollary~\ref{cor:walsh-middle}), and two-call root packing (Proposition~\ref{prop:root-packing}). For the inner $O(N\log N)$ multiplier (and the fallback below the cutoff $K_*$), it uses an independent Lean~4 formalization of the two-dimensional multiplier of~\cite{MS} (949 files, about 185{,}000 lines; headline \texttt{IntMulTM.\allowbreak intMul\_\allowbreak TM2\_\allowbreak nlogn}), developed for this paper and kernel-checked as part of it. The companion manuscript~\cite{MS} distributes its own, separate Lean development (headline \texttt{IntMul.\allowbreak tmIntMul\_\allowbreak evalsToInTime\_\allowbreak n\_\allowbreak log\_\allowbreak n}). Syntactic CRT-freeness is not expressed in the formal proposition. Table~\ref{tab:lean-map} maps the paper's components to their Lean theorems.
+
+\begin{table}[ht]
+\centering\small
+\caption{\protect\raggedright Correspondence between the components of the $\kappa=2^{-46}$ proof and Lean~4 theorems, given without their namespace prefixes (\texttt{SubNLogN} and its sub-namespaces under \texttt{Math}, \texttt{Machine}, \texttt{Assembly}, and \texttt{S5}; top-level and gate-checked names are listed in \texttt{SubNLogN/GateCheck.lean} and the archive \texttt{README.md}), except \texttt{IntMulTM.intMul\_TM2\_nlogn}.}\label{tab:lean-map}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{5.3cm}>{\raggedright\arraybackslash}p{10.5cm}@{}}
+\toprule
+Paper component & Lean~4 theorems \\
+\midrule
+Fact~\ref{fact:oai-streams}; Lemmas~\ref{lem:transfer-streams} and~\ref{lem:transfer-long-record} &
+\texttt{FinTM2} stream kernels with proved step bounds (\texttt{k1PairPerm\_holds}, \texttt{k2Distribute\_holds}, \texttt{k3Add\_holds}, \texttt{k4RotateCtl\_holds}, \texttt{c3LongRecordScan\_holds}) on a framed, re-entrant procedure calculus. \\
+Fact~\ref{fact:oai-networks}; Definition~\ref{def:fixed-network-premises}, Proposition~\ref{prop:deficits} &
+\texttt{bitNetCert\_holds}, \texttt{complexNetCert\_holds}, \texttt{deficitsH100\_holds}. \\
+Lemma~\ref{lem:transfer-shear}, Proposition~\ref{prop:transfer11}, Lemmas~\ref{lem:transfer12}--\ref{lem:transfer-phase} &
+\texttt{shearFactorization\_holds}, \texttt{existsValidFac\_holds}, \texttt{packedAdd\_correct}, \texttt{cCoreProc\_correct}; machine level: \texttt{c6\_holds}, \texttt{c7Extract\_holds}. \\
+Proposition~\ref{prop:prop14-param} ($C_1=14$, $\beta=1/64$) &
+\texttt{prop71\_final}, \texttt{prop71Guard\_holds} (layer machine inside \texttt{walshMiddle\_holds}). \\
+Section~\ref{sec:walsh} (Lemmas~\ref{lem:walsh-select}, \ref{lem:cnot}; Theorem~\ref{thm:positional-perm}) &
+\texttt{walsh\_exact}, \texttt{cnot\_batch}, \texttt{positional\_perm}; machine level: \texttt{cnot1Machine\_holds}, \texttt{positionalPermMachine\_of\_leaves} (parametric in the layer contracts; hypotheses discharged by \texttt{cnotScan\_holds} and \texttt{posPermSched\_holds}). \\
+Lemmas~\ref{lem:bridge-A}--\ref{lem:bridge-C}; Theorem~\ref{thm:bridge-precision} &
+\texttt{lemmaA}; \texttt{lemmaB\_i}, \dots, \texttt{lemmaB\_vi}; \texttt{lemmaC\_ii} and companions; \texttt{bridge\_precision} (for arbitrary nearest rounding). \\
+Theorem~\ref{thm:direct-fft}, Corollary~\ref{cor:walsh-middle} &
+\texttt{direct\_fft}, \texttt{walsh\_middle}; machine level: \texttt{walshMiddle\_holds}. \\
+Proposition~\ref{prop:root-packing} &
+\texttt{root\_packing}, \texttt{bridgeFixed\_contract}, \texttt{rootW8\_Fnew}. \\
+Cost table, gaps, and $\kappa=2^{-46}$ row (Sections~\ref{sec:main-tables}--\ref{sec:main-rows}) &
+\texttt{headlineCost\_walshNat46\_W8}, \texttt{kappa\_lt\_gaps}, \texttt{wrec\_le\_rpow}; step budget: \texttt{walshCostClause\_walshMidData}. \\
+Inner multiplier, $\mathsf M(N)=O(N\log N)$ &
+\texttt{mulBig\_holds} (assembled from the \texttt{WP} stage programs that also yield \texttt{IntMulTM.\allowbreak intMul\_TM2\_nlogn}); below-cutoff pipeline \texttt{w9\_\allowbreak pipeline\_\allowbreak headline\_\allowbreak runs}; standalone $O(n\log n)$ machine \texttt{IntMulTM.\allowbreak intMul\_TM2\_nlogn} (transported to \texttt{encNatPair} by \texttt{S5.intMul\_\allowbreak TM2\_\allowbreak nlogn\_\allowbreak subNLogNSpec}). \\
+Theorems~\ref{thm:main} and~\ref{thm:lean} ($\kappa=2^{-46}$) &
+\texttt{intMul\_TM2\_sub\_nlogn\_46}, \texttt{intMul\_challenge}. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Departures from the written text.}
+The formal construction departs from the written text in the following minor ways:
+\begin{enumerate}[label=(\arabic*),leftmargin=*]
+\item \emph{Root parameters.} The formal proof uses the root schedule of~\cite{MS}, $R=2^{K_0}$ with $p_0=2b+2K_0+6$ and $K_0\le k+2$ (so $R$ is at most four times the value in Lemma~\ref{lem:root-family}), the same schedule as our independent formalization of the two-dimensional multiplier, and proves the cost chain directly for that family.
+\item \emph{Rounding.} The machine rounds half-way ties upward rather than to even; Theorem~\ref{thm:bridge-precision}, Proposition~\ref{prop:root-packing}, and the table bounds are proved in Lean for every nearest rounding.
+\item \emph{Cutoff.} The threshold $K_*$ is defined as the least admissible integer rather than the closed form~\eqref{eq:cutoff}.
+\item \emph{Costs.} Machine steps are counted directly, unrolling the recurrences of Appendix~\ref{app:parameter-transfer} in the exact form $W F_k \le s F_{k-1} + W c$.
+\end{enumerate}
+Conversely, the formal development supplies three items left black-box or informal in the written text. These are a machine-checked proof of the $h=100$ network certificates (Fact~\ref{fact:oai-networks}), a fully typed formulation of Definition~\ref{def:fixed-network-premises}(b), and a re-entrant calling contract for the recursive exact complex core of Lemma~\ref{lem:transfer-phase}.
+
+\paragraph{Trust base and kernel checks.}
+Accepting the formal proof requires trusting only four components. First is the Lean~4 kernel (version~4.33.1). Second are the Mathlib definitions referenced in the statement at Mathlib commit \texttt{0df444a3} (\texttt{Turing.\allowbreak FinTM2}, \texttt{Turing.\allowbreak TM2ComputableInTime}, \texttt{Computability.\allowbreak encodeNat}, \texttt{Computability.\allowbreak decodeNat}, \texttt{encodingNatBool}, \texttt{Encoding}, and \texttt{Finite}), together with Lean core's \texttt{Nat.log2}. Third is the 80-line statement file \texttt{SubNLogN/\allowbreak Challenge.lean}, whose core specification is quoted above and which imports only two Mathlib modules (SHA-256 \texttt{7aa50930\allowbreak 921c494e\allowbreak 50803b03\allowbreak 7c4cc6ed\allowbreak 9be880c3\allowbreak f795e4b1\allowbreak 71e16ab5\allowbreak 9cf61fb5}). Fourth are the three logical axioms \texttt{propext}, \texttt{Classical.choice}, and \texttt{Quot.sound}. Everything else (roughly 299{,}000 lines across 1{,}062 files for the sub-$n\log n$ reduction, about 185{,}000 lines across 949 files in our independent formalization of the two-dimensional multiplier of~\cite{MS}, and Mathlib's proofs) is verified by the kernel and need not be read line by line. On the distributed snapshot (\cite{Lean26}; comment-stripped sources byte-identical to commit \texttt{3480d37}), the following three checks passed (commands and logs in \texttt{replay/} of the archive):
+\begin{enumerate}[label=(\arabic*),leftmargin=*]
+\item Every module of the development was built without errors by Lean~4.33.1 (\texttt{lake build}, exit~0), and every declaration was replayed through the Lean kernel with \texttt{leanchecker}: each of the 2{,}011 modules against its imports, and the full import closure of each headline module (874{,}850 and 555{,}268 constants, including the Mathlib it uses) into a fresh kernel environment.
+\item \texttt{\#print axioms} confirmed that \texttt{intMul\_challenge} and its corollaries depend only on the three standard axioms, with zero occurrences of \texttt{sorry}, \texttt{axiom}, \texttt{native\_decide}, \texttt{implemented\_by}, \texttt{extern}, or \texttt{unsafe}.
+\item \texttt{comparator}\footnote{\url{https://github.com/leanprover/comparator}} verified that the exported theorem has exactly the type stated in \texttt{SubNLogN/\allowbreak Challenge.lean}, that its proof uses only \texttt{propext}, \texttt{Quot.sound} and \texttt{Classical.choice}, and replayed the proof both in Lean's kernel and in the independent kernel \texttt{nanoda}\footnote{\url{https://github.com/ammkrn/nanoda_lib}}. The same pipeline rejected seven negative controls: three altered statements (exponent $2^{45}$ instead of $2^{46}$; the finite-alphabet conjunct dropped; $\le$ replaced by $<$) and four altered proofs (\texttt{sorry}; an added axiom; an extra axiom used through a lemma; a \texttt{native\_decide} step).
+\end{enumerate}
+
+\paragraph{Availability.}
+The Lean~4 formalization~\cite{Lean26} (including \texttt{SubNLogN/Challenge.lean}, the axiom-check gate modules, and the scripts that check the comment-stripped sources against the recorded digests and scan for \texttt{sorry}, \texttt{axiom}, \texttt{native\_decide}, \texttt{implemented\_by}, \texttt{extern}, and \texttt{unsafe}), the exact-arithmetic Python reference implementation~\cite{Code26} (Appendix~\ref{app:impl}), and the standalone C/GMP implementation~\cite{CGMP26} of the two-dimensional multiplier of~\cite{MS} (Section~\ref{sec:intro-verification}) are available in our \href{https://github.com/lockqueue/intmul}{github repository}. In~\cite{Lean26}, the distributed source snapshot \texttt{00b8a4d2b263} (first 12 hex digits of the SHA-256 of \texttt{MANIFEST.sha256}) has comment-stripped \texttt{.lean} sources byte-identical to commit \texttt{3480d37} and was rebuilt under Lean~4.33.1 and Mathlib \texttt{0df444a3} (\texttt{lake build}, exit~0). That byte-identity was checked by the authors with the comparison mode of \texttt{tools/\allowbreak check\_semantic\_freeze.py}, while the archive's standalone mode re-verifies the shipped tree against the recorded digests \texttt{MANIFEST\_\allowbreak stripped.sha256} and \texttt{SPEC\_LOCK.sha256}.
