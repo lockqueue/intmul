@@ -2,14 +2,14 @@
 Copyright (c) 2026 The Authors. All rights reserved.
 
 Executable reference components for our independent formalization of `[MS]`
-(*Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*,
+(*Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*,
 2026; corresponds to `[MS]` Section 7.1, Listing 1 and the executable Python specification
 of an earlier `[MS]` draft, omitted in the current `[MS]`).
 
-This module provides an executable, machine-verified Lean 4 implementation of the core
+This module provides an executable Lean 4 implementation of the core
 algorithmic components (cf. `[MS]` §§3.5, 6.2, 6.3, 7.1; earlier `[MS]` draft Python specification omitted in current `[MS]`):
 1. Radix-`2^b` chunking (`splitChunks`), polynomial radix evaluation (`evalRadix`), and
-   carry-propagating integer reconstruction (`reconstructChunks`), with machine-checked
+   carry-propagating integer reconstruction (`reconstructChunks`), with formally verified
    proofs that `reconstructChunks b cs = evalRadix (2^b) cs` and
    `reconstructChunks b (splitChunks b k A) = A` whenever `A < (2^b)^k`.
 2. Executable Negacyclic Quotient Ring `ℤ[y]/(y^r + 1)` arithmetic (`negacyclicShiftInt`,
@@ -1094,7 +1094,7 @@ def kroneckerCyclicIntMul (b R q : ℕ) (A B : ℕ) : ℕ :=
   let cyclic := overlapAddCyclic R acyclic
   reconstructFromIntCoeffs b cyclic
 
-/-! ## 4. Machine-Checked Executable Verification Suite (`decide` / `rfl`) -/
+/-! ## 4. Executable Verification Suite (`decide` / `rfl`) -/
 
 /-- **Test 1 (Chunking & Carry-Propagating Reconstruction)**:
 Splitting `A = 0x123456789ABCDEF0` into `R = 8` chunks of `b = 8` bits and reconstructing

@@ -1,22 +1,14 @@
 \section{Comparison with a Bluestein middle transform and additional parameter rows}\label{app:bluestein}
 
-The main text computes the bridge's middle tensor DFT directly over $\C$ via Walsh-layer positional permutations
-(Sections~\ref{sec:walsh}--\ref{sec:direct-fft}), achieving $\kappa=2^{-46}$. An alternative middle transform keeps the
-synthetic-ring framework of~\cite[\S\S6--7]{OAI26} and reduces the power-of-two tensor DFT to a normalized cyclic
-convolution over $\Rr_r=\C[y]/(y^r+1)$ via Bluestein's chirp identity~\cite{Bluestein70} and a last-axis twist. This
-appendix records that Bluestein route in self-contained form, derives its quadratic layout bottleneck
-$\kappa\lesssim(1-\tau)^2/(C_1\tau)$, and tabulates the secondary Walsh and Bluestein parameter rows verified by
-\texttt{tools/h5\_rows\_check.py}.
+This appendix analyzes an alternative middle transform for our fractional-shift bridge and explains why our main text does not use it. In Sections~\ref{sec:walsh}--\ref{sec:direct-fft}, we evaluate the middle power-of-two tensor DFT directly over~$\C$ using Walsh-layer positional permutations, reaching $\kappa=2^{-46}$. Instead, one can keep the synthetic-ring architecture of~\cite[\S\S6--7]{OAI26}, reducing the tensor DFT to a normalized cyclic convolution over $\Rr_r=\C[y]/(y^r+1)$ via Bluestein's chirp identity~\cite{Bluestein70} and a last-axis twist. Recording that Bluestein route on the same bridge isolates why chunk-exchange layouts cap $\kappa$ quadratically at $(1-\tau)^2/(C_1\tau)$, and establishes all secondary comparison rows checked by \texttt{tools/h5\_rows\_check.py}. No result of this appendix is used in the proof of Theorem~\ref{thm:main}, so a first-time reader may skip it entirely.
 
 \subsection{Synthetic transforms and normalized ring convolution}\label{sec:transfer-transform}
 
-For a power of two $r\ge2$ let $\Rr_r=\C[y]/(y^r+1)$ with coefficient norm $\|\sum_{j<r}z_jy^j\|_\infty=\max_j|z_j|$.
-For $t\mid2r$ put $\omega_t=y^{2r/t}$, $(F_t^\mp z)_j=t^{-1}\sum_{u<t}\omega_t^{\mp ju}z_u$ on $\Rr_r^t$, and let $B_t$
-move index $j$ to its $(\lg t)$-bit reversal. For $\mathbf t=(t_1,\dots,t_{d-1})$ with $t_i\in\{r/2,r\}$ and
-$M=\prod_{i<d}t_i$, put $F_{\mathbf t}^\pm=\bigotimes_{i<d}F_{t_i}^\pm$ and $B=\bigotimes_{i<d}B_{t_i}$. Both routes
-share the named-slot layout map $L$ of Lemma~\ref{lem:walsh-layout}, which coincides with that constructed
-in~\cite[proof of Lemma~16, pp.~41--42]{OAI26}; the difference is that Lemma~\ref{lem:transfer16} executes $L$ by
-chunk exchanges (Lemma~\ref{lem:transfer12}) rather than Walsh-layer positional permutations.
+This subsection sets up polynomial-ring transforms over $\Rr_r=\C[y]/(y^r+1)$ when record-address bits are grouped by chunk interchanges rather than by Walsh permutations. For a power of two $r\ge2$, let $\Rr_r=\C[y]/(y^r+1)$ carry the coefficient norm $\|\sum_{j<r}z_jy^j\|_\infty=\max_j|z_j|$. For any divisor $t\mid2r$, set $\omega_t=y^{2r/t}$, define $(F_t^\mp z)_j=t^{-1}\sum_{u<t}\omega_t^{\mp ju}z_u$ on $\Rr_r^t$, and let $B_t$ map each index~$j$ to its $(\lg t)$-bit reversal. For $\mathbf t=(t_1,\dots,t_{d-1})$ with $t_i\in\{r/2,r\}$ and $M=\prod_{i<d}t_i$, put $F_{\mathbf t}^\pm=\bigotimes_{i<d}F_{t_i}^\pm$ and $B=\bigotimes_{i<d}B_{t_i}$.
+
+Both the direct Walsh route and the Bluestein route use the named-slot layout map~$L$ of Lemma~\ref{lem:walsh-layout}, matching the layout in~\cite[proof of Lemma~16, pp.~41--42]{OAI26}. The crucial difference lies in how $L$ is executed on tape. Here Lemma~\ref{lem:transfer16} executes $L$ by width-$K$ chunk exchanges from Lemma~\ref{lem:transfer12} rather than by exact Walsh-layer positional permutations.
+
+Lemma~\ref{lem:transfer16} states the forward and inverse synthetic polynomial transforms across the $d-1$ record axes and bounds their tape cost. We need it to isolate the $O(VqK^{\tau-1})$ chunk-exchange layout term that becomes the binding bottleneck of the Bluestein route. Notice that both directions keep all intermediate records inside the unit disk with total rounding error below $\sqrt2\,\ell\,2^{-q}$.
 
 \begin{lemma}[Synthetic transform interface]\label{lem:transfer16}
 Fix the rational parameters of Proposition~\ref{prop:prop14-param} and its band constants $a_d\le b_d$, $a_r\le b_r$.
@@ -35,24 +27,19 @@ arrays on the $q$-grid in the same format, have error less than $\sqrt2\,\ell\,2
 \end{lemma}
 
 \begin{proof}
-With $b_0=(\ell-1)\bmod K$ and $J_{\rm blk}=(\ell-1-b_0)/K$ as in Lemma~\ref{lem:walsh-layout}, moving the at most
-$(d-1)K$ prefix slots $\mathcal P$ to the front by single-bit moves (Lemma~\ref{lem:transfer-streams}(2)) costs
-$O(VdK)$. Rearranging the remaining $N=(d-1)J_{\rm blk}\le C_\ell q/K$ consecutive $K$-bit chunks into chunk-level-major
-order $\mathcal C$ factors into at most $N-1$ transpositions, each an equal-width chunk exchange of cost $O(VK^\tau)$ by
-Lemma~\ref{lem:transfer12}, executing $L$ (and in reverse $L^{-1}$) in $O(V[dK+qK^{\tau-1}])$.
+\emph{Step 1: Layout rearrangement.}
+Set $b_0=(\ell-1)\bmod K$ and $J_{\rm blk}=(\ell-1-b_0)/K$ as in Lemma~\ref{lem:walsh-layout}. Moving the at most $(d-1)K$ prefix slots $\mathcal P$ to the front via single-bit moves from Lemma~\ref{lem:transfer-streams}(2) costs $O(VdK)$. Rearranging the remaining $N=(d-1)J_{\rm blk}\le C_\ell q/K$ consecutive $K$-bit chunks into chunk-level-major order $\mathcal C$ factors into at most $N-1$ transpositions. Each transposition is an equal-width chunk exchange costing $O(VK^\tau)$ by Lemma~\ref{lem:transfer12}. Hence $L$, and in reverse $L^{-1}$, runs in time $O(V[dK+qK^{\tau-1}])$.
 
-In layout $L$, run the normalized decimation-in-frequency recursion of~\cite[\S6.1, (27)]{OAI26} on all $d-1$ record
-axes in parallel at named slots $v=\ell-1,\dots,0$: at slot $v$, each axis with $\lg t_i>v$ applies $H_0$ on slot $v$
-followed on branch $b_i=1$ by $\omega_{2^{v+1}}^{-k_i}=y^{-(2r/2^{v+1})k_i}$, multiplying across axes to one recordwise
-monomial $y^E$ (a signed cyclic coefficient shift of cost $O(rq)$ per record by Lemma~\ref{lem:transfer-long-record}).
-The at most $1+b_0\le K$ prefix rounds execute their at most $d-1$ factors of $H_0$ exactly with $q+d$ fractional bits
-before one truncation $Q_q$ in total cost $O(VdK)$; the at most $\ell$ chunk rounds ($b_0\le v\le\ell-2$) each invoke
-Proposition~\ref{prop:prop14-param} on $d-1$ consecutive $K$-bit chunks in total cost $O(V\ell d^{\lambda'})$. Since
-monomials are isometries commuting with $Q_q$ and normalized butterfly groups are contractions, the per-round truncation
-errors $<\sqrt2\cdot2^{-q}$ add to $<\sqrt2\,\ell\,2^{-q}$. Reversing the schedule with $H_0$ in place of $2H_0$ and
-inverting each monomial before its butterfly gives $M^{-1}(LBF^-_{\mathbf t})^{-1}=F^+_{\mathbf t}B^{-1}L^{-1}$ because
-$F^+_{\mathbf t}F^-_{\mathbf t}=M^{-1}I$ (\cite[Lemma~15, \S6.1]{OAI26}).
+\emph{Step 2: Parallel butterfly rounds.}
+Once in layout~$L$, we run the normalized decimation-in-frequency recursion of~\cite[\S6.1, (27)]{OAI26} across all $d-1$ record axes in parallel at named slots $v=\ell-1,\dots,0$. At slot~$v$, every axis with $\lg t_i>v$ applies $H_0$ on slot~$v$ and then multiplies branch $b_i=1$ by $\omega_{2^{v+1}}^{-k_i}=y^{-(2r/2^{v+1})k_i}$. Multiplying those factors across axes produces a single recordwise monomial $y^E$. By Lemma~\ref{lem:transfer-long-record}, that monomial is a signed cyclic shift of the $r$ coefficients costing $O(rq)$ per record.
+
+The at most $1+b_0\le K$ prefix rounds evaluate their at most $d-1$ factors of $H_0$ exactly using $q+d$ fractional bits before a single truncation $Q_q$, in total cost $O(VdK)$. Each of the at most $\ell$ chunk rounds for $b_0\le v\le\ell-2$ invokes Proposition~\ref{prop:prop14-param} on $d-1$ consecutive $K$-bit chunks, costing $O(V\ell d^{\lambda'})$ in total.
+
+\emph{Step 3: Error bound and inverse transform.}
+Monomials are isometries that commute with $Q_q$, and normalized butterfly groups are contractions, so the per-round truncation errors below $\sqrt2\cdot2^{-q}$ sum to less than $\sqrt2\,\ell\,2^{-q}$. Reversing the schedule with $H_0$ in place of $2H_0$ and inverting each monomial before its butterfly realizes $M^{-1}(LBF^-_{\mathbf t})^{-1}=F^+_{\mathbf t}B^{-1}L^{-1}$, since $F^+_{\mathbf t}F^-_{\mathbf t}=M^{-1}I$~\cite[Lemma~15, \S6.1]{OAI26}.
 \end{proof}
+
+After transforming along the first $d-1$ axes, corresponding polynomial records in $\Rr_r$ must be multiplied pointwise. Lemma~\ref{lem:transfer17} packs each polynomial product into four $\Theta(rq)$-bit integer multiplications via Kronecker substitution. Unlike our direct complex FFT, which multiplies only $O(q)$-bit scalars, this step requires an inner integer multiplier on $\Theta(rq)$-bit operands.
 
 \begin{lemma}[Packed polynomial products]\label{lem:transfer17}
 Let $r=2^\ell<2^q$ with $q\ge2$, and let $f,g\in\Rr_r$ be disk-grid polynomials at precision $q$. For any independent
@@ -62,11 +49,10 @@ polynomial with error less than $\sqrt2\cdot2^{-q}$ from $fg/r$.
 \end{lemma}
 
 \begin{proof}
-Pack each of the four signed real/imaginary numerator lists (entries in $[-2^q,2^q]$) in base $B_0=2^{4q}$. Every
-ordinary convolution coefficient has modulus at most $r2^{2q}<2^{3q}<B_0/2$, so blockwise balanced-base decoding in
-$O(rq)$ bit operations recovers the exact products, subtraction at lag $r$ reduces modulo $y^r+1$, and shifting by $r$
-and applying $Q_q$ gives a disk-grid output within $\sqrt2\cdot2^{-q}$ of $fg/r$ (since $\|fg/r\|_\infty\le1$).
+Pack each of the four signed real and imaginary numerator lists, whose entries lie in $[-2^q,2^q]$, into base $B_0=2^{4q}$. Every ordinary convolution coefficient has modulus at most $r2^{2q}<2^{3q}<B_0/2$, so carries between blocks cannot overlap. Blockwise balanced-base decoding in $O(rq)$ bit operations therefore recovers the exact ordinary polynomial product. Subtracting the upper half at lag~$r$ reduces modulo $y^r+1$, and dividing by~$r$ followed by $Q_q$ returns a disk-grid output within $\sqrt2\cdot2^{-q}$ of $fg/r$, since $\|fg/r\|_\infty\le1$.
 \end{proof}
+
+Proposition~\ref{prop:transfer18} combines the forward and inverse synthetic transforms with pointwise record products to compute a normalized cyclic convolution over $\Rr_r$. Notice two features that distinguish this ring convolution from our direct tensor FFT: its runtime carries the chunk-exchange term $O(VqK^{\tau-1})$, and its final multiplication by $M$ widens components by $\lg M$ bits while amplifying rounding error by~$M$.
 
 \begin{proposition}[Normalized ring convolution]\label{prop:transfer18}
 Under the hypotheses of Lemma~\ref{lem:transfer16}, the cyclic convolution in the first $d-1$ axes, normalized as
@@ -80,15 +66,12 @@ $\varrho<1$ and $\sqrt2\,M(3\ell+1)2^{-q}\le1-\varrho$, the output is a disk arr
 \end{proposition}
 
 \begin{proof}
-Since $F^+_{\mathbf t}F^-_{\mathbf t}=M^{-1}I$ and $F^-_{\mathbf t}(f*g)=M(F^-_{\mathbf t}f)(F^-_{\mathbf t}g)$
-(\cite[Lemma~15, \S6.1]{OAI26}), applying the forward procedure of Lemma~\ref{lem:transfer16} to $f$ and $g$, multiplying
-corresponding records in the common retained order $LB$ by Lemma~\ref{lem:transfer17}, applying the opposite procedure,
-and multiplying exactly by $M$ (appending $\lg M$ low zero bits) cancels $LB$ and has exact counterpart $(f*g)/(rM)$.
-Because $(u,v)\mapsto uv/r$ is a bilinear contraction on disk arrays, the two forward transforms, the record product and
-the opposite transform accumulate error $<(3\sqrt2\,\ell+\sqrt2)2^{-q}$ before the final multiplication by $M$.
+Recall that $F^+_{\mathbf t}F^-_{\mathbf t}=M^{-1}I$ and $F^-_{\mathbf t}(f*g)=M(F^-_{\mathbf t}f)(F^-_{\mathbf t}g)$ by~\cite[Lemma~15, \S6.1]{OAI26}. We apply the forward procedure of Lemma~\ref{lem:transfer16} to $f$ and~$g$, multiply aligned records in their common order $LB$ using Lemma~\ref{lem:transfer17}, and apply the opposite transform. Appending $\lg M$ low zero bits then multiplies the result exactly by~$M$, canceling the permutation $LB$ to match $(f*g)/(rM)$. Because $(u,v)\mapsto uv/r$ is a bilinear contraction on disk arrays, the two forward transforms, the record product, and the opposite transform accumulate error below $(3\sqrt2\,\ell+\sqrt2)2^{-q}$ prior to scaling by~$M$.
 \end{proof}
 
 \subsection{The power-of-two Bluestein adapter}\label{sec:bridge-E}
+
+This subsection connects the ring convolution of Proposition~\ref{prop:transfer18} to the complex tensor DFT required by our bridge. Lemma~\ref{lem:bridge-E} uses Bluestein's quadratic-phase chirp identity together with a negacyclic twist along the last axis to turn $F^+_{\mathbf t}$ into a single normalized convolution over $\Rr_r$. Doing so satisfies the middle-transform contract of Section~\ref{sec:bridge}, at the price of error factor $\Emid=\Theta(M\ell)$ and bit widening $\delta_{\rm mid}=\lg M$.
 
 \begin{lemma}[Power-of-two Bluestein adapter]\label{lem:bridge-E}
 Let every $t_i$ ($1\le i\le d$) be even and put $a_{\mathbf j}=\exp(\pi i\sum_{i=1}^dj_i^2/t_i)$. Then $a$ is periodic
@@ -108,17 +91,14 @@ contract (Section~\ref{sec:bridge}) with
 \end{lemma}
 
 \begin{proof}
-Since $t_i$ is even, $a_{\mathbf j+t_i\mathbf e_i}/a_{\mathbf j}=e^{2\pi ij_i+\pi it_i}=1$, and
-$R^{-1}a_{\mathbf j}\overline{a_{\mathbf j-\mathbf k}}a_{\mathbf k}=R^{-1}e^{2\pi i\sum_ij_ik_i/t_i}$ proves~\eqref{eq:chirp}.
-For $k'+l'=j+hr$, $\zeta^{k'+l'}(-1)^h=\zeta^j$, verifying the negacyclic twist. Forming $a$ from its $d$
-one-dimensional phase tables (certified to $2v$ in the disk) with componentwise truncations gives
-$\|\hat a-a\|_\infty\le4dv$ and $\|\hat a\|_\infty\le1$. On bridge-normalized input ($\|z\|_\infty\le1/8$), the twisted
-data operand has error at most $(4d+6)v$ and the twisted kernel $\bar a$ at most $(4d+4)v$. By bilinear contraction of
-$\mathcal M_r$ (with norms $\le1/8$ and $\le1$) and Proposition~\ref{prop:transfer18}, the convolution output at width
-$w+\lg M$ has error $<(\sqrt2M(3\ell+1)+8d+10)v\le\frac78$ from a vector of norm $\le1/8$, hence lies in the disk; its
-redundant sign bits are removed, and untwisting plus the output chirp add $<(4d+6)v$, totaling $\Emid v$. Finally,
-$7\sqrt2Mv\le\frac78$ implies $\lg M\le q-4\le P$.
+Because every $t_i$ is even, $a_{\mathbf j+t_i\mathbf e_i}/a_{\mathbf j}=e^{2\pi ij_i+\pi it_i}=1$, and $R^{-1}a_{\mathbf j}\overline{a_{\mathbf j-\mathbf k}}a_{\mathbf k}=R^{-1}e^{2\pi i\sum_ij_ik_i/t_i}$ establishes~\eqref{eq:chirp}. For $k'+l'=j+hr$, we have $\zeta^{k'+l'}(-1)^h=\zeta^j$, which verifies the negacyclic twist along the last axis.
+
+Forming the chirp array~$a$ from its $d$ one-dimensional phase tables, each certified to $2v$ inside the unit disk, with componentwise truncations yields $\|\hat a-a\|_\infty\le4dv$ and $\|\hat a\|_\infty\le1$. On bridge-normalized input satisfying $\|z\|_\infty\le1/8$, the twisted data operand incurs error at most $(4d+6)v$, while the twisted kernel $\bar a$ incurs error at most $(4d+4)v$.
+
+By bilinear contraction of $\mathcal M_r$ on operands of norms at most $1/8$ and~$1$, Proposition~\ref{prop:transfer18} shows that the convolution output at width $w+\lg M$ lies within $(\sqrt2M(3\ell+1)+8d+10)v\le\frac78$ of a vector of norm at most $1/8$. Hence that output remains inside the unit disk, and its redundant sign bits can be stripped cleanly. Untwisting and multiplying by the output chirp add less than $(4d+6)v$, bringing the total error below $\Emid v$. Finally, $7\sqrt2Mv\le\frac78$ implies $\lg M\le q-4\le P$.
 \end{proof}
+
+The next remark verifies that the unit-disk margin hypothesis of Lemma~\ref{lem:bridge-E} holds automatically under the bridge precision schedule of Section~\ref{sec:bridge}.
 
 \begin{remark}[Automatic disk margin under the bridge schedule]\label{rem:bluestein-margin}
 Since $M\le R$, $\ell\le k$, $d\le k$ and $R\ge4$, we have $\sqrt2\,M(3\ell+1)+12d+16\le16R(k+1)$. Under the bridge
@@ -130,22 +110,16 @@ convolution kernel; for $s_i=1$ both forms coincide.)
 
 \subsection{Bluestein cost table and the quadratic layout bottleneck}
 
-Combining Theorem~\ref{thm:bridge-precision}, Lemma~\ref{lem:bridge-D}, Proposition~\ref{prop:transfer18} and
-Lemma~\ref{lem:bridge-E} yields Table~\ref{tab:cost-bluestein} for one bridge call on the Bluestein route, with total
-cost
+This subsection sums the step costs of one Bluestein-backed bridge call and derives the resulting quadratic ceiling on the saving exponent~$\kappa$. Combining Theorem~\ref{thm:bridge-precision}, Lemma~\ref{lem:bridge-D}, Proposition~\ref{prop:transfer18}, and Lemma~\ref{lem:bridge-E} gives the term-by-term accounting in Table~\ref{tab:cost-bluestein}, with total step count
 \begin{equation}\label{eq:cost-B}
   \mathsf T_{\mathrm B}(R,P)=O\bigl(RP\,[dK+PK^{\tau-1}+\ell d^{\lambda'}+d(1+\ell^\tau)+d(\mathsf m(P)+\mathsf m(P^2))
   +\mathsf m(rP)]\bigr).
 \end{equation}
-Notice that the packed ring products of Lemma~\ref{lem:transfer17} have $\Theta(rq)=\Theta(rP)$ bits, where
-$\lg(rP)=\Theta(P^{1-\eps})$, so the row $\mathsf m(rP)$ achieves gap $\eps$ (up to logarithms) only when the inner
-multiplier satisfies $\mathsf m(N)=O(\lg N\,(\lg\lg N)^{O(1)})$ (for instance Sch\"onhage--Strassen~\cite{SS71}). By
-contrast, the Walsh route needs only $\mathsf m(N)=(\lg N)^{O(1)}$ on $O(P^2)$-bit integers.
+Here $\mathsf m(N)=\mathsf M(N)/N$ is the per-bit cost of the independent inner multiplier (Section~\ref{sec:prelim-model}). Notice that the packed ring products of Lemma~\ref{lem:transfer17} multiply integers of $\Theta(rq)=\Theta(rP)$ bits, where $\lg(rP)=\Theta(P^{1-\eps})$. Thus the $\mathsf m(rP)$ term achieves gap~$\eps$ up to logarithms only when the inner multiplier satisfies $\mathsf m(N)=O(\lg N\,(\lg\lg N)^{O(1)})$, such as Sch\"onhage--Strassen multiplication~\cite{SS71}. By contrast, our direct Walsh route multiplies only $O(P^2)$-bit integers and needs only $\mathsf m(N)=(\lg N)^{O(1)}$.
 
 \begin{table}[htbp]
 \centering\small
-\caption{Cost of one bridge call on the Bluestein route, divided by $V=RP$, for $d=\Theta(P^\eps)$,
-$\ell=\Theta(P^{1-\eps})$ and $K=\Theta(P^{\eps c})$ ($q=\Theta(P)$).}\label{tab:cost-bluestein}
+\caption{Step-cost breakdown of one bridge call using the Bluestein middle transform. Costs are normalized by the bit volume $V=RP$ under the scaling $d=\Theta(P^\eps)$, $\ell=\Theta(P^{1-\eps})$, $K=\Theta(P^{\eps c})$, and $q=\Theta(P)$.}\label{tab:cost-bluestein}
 \begin{tabular}{@{}lll@{}}
 \toprule
 operation & normalized cost & gap below $P^1$\\
@@ -161,30 +135,20 @@ chirps, twists, and scalar products & $d\,\mathsf m(P)$ & $1-\eps$, up to logari
 \end{tabular}
 \end{table}
 
-\paragraph{Why Bluestein is quadratically capped.} On the Bluestein route, executing the layout permutation $L$ by
-chunk exchanges introduces the gap $g_{\rm chunk}=\eps c(1-\tau)$. Within Proposition~\ref{prop:prop14-param}, the
-internal basis-change constraint $\tau(1+c/\beta)<\lambda<1$ forces $c<\beta(1-\tau)/\tau$, while the guard constraint
-$\eps C_1<1$ forces $\eps<1/C_1$. Multiplying these three factors yields
+\paragraph{Why Bluestein is quadratically capped.}
+On the Bluestein route, executing the layout permutation~$L$ via chunk exchanges introduces the exponent gap $g_{\rm chunk}=\eps c(1-\tau)$. Inside Proposition~\ref{prop:prop14-param}, the basis-change inequality $\tau(1+c/\beta)<\lambda<1$ forces $c<\beta(1-\tau)/\tau$, while the guard inequality $\eps C_1<1$ forces $\eps<1/C_1$. Multiplying those three factors gives
 \begin{equation}\label{eq:old-bottleneck}
   \kappa<g_{\rm chunk}=\eps c(1-\tau)<\frac{\beta(1-\tau)^2}{C_1\tau}<\frac{(1-\tau)^2}{C_1\tau},
 \end{equation}
-which is \emph{quadratic} in the bit-network deficit $1-\tau$: even with the certified deficit $1-\tau=2^{-40}$, this
-caps $\kappa$ below $(1-\tau)^2/(20\tau)\approx2^{-84.3}$ at $C_1=20$ and below $(1-\tau)^2/(14\tau)\approx2^{-83.8}$ at
-$C_1=14$. On the Walsh route, Theorem~\ref{thm:positional-perm} executes both $L$ and $U=(LB)^{-1}$ in
-$O(V\ell d^{\lambda'})$ steps, eliminating $g_{\rm chunk}$ completely; the binding constraint becomes
-$g_{\rm lay}=\eps(1-\lambda')<(1-\sigma)/C_1$, which is \emph{linear} in the complex-network deficit $1-\sigma$.
+which is \emph{quadratic} in the bit-network deficit $1-\tau$. Even with our certified deficit $1-\tau=2^{-40}$, this inequality caps $\kappa$ below $(1-\tau)^2/(20\tau)\approx2^{-84.3}$ at $C_1=20$ and below $(1-\tau)^2/(14\tau)\approx2^{-83.8}$ at $C_1=14$. On the Walsh route, Theorem~\ref{thm:positional-perm} executes both $L$ and $U=(LB)^{-1}$ in $O(V\ell d^{\lambda'})$ steps, eliminating $g_{\rm chunk}$ altogether so the binding gap becomes $g_{\rm lay}=\eps(1-\lambda')<(1-\sigma)/C_1$, which is \emph{linear} in $1-\sigma$.
 
 \subsection{Additional parameter rows and full exponent comparison}
 
-Let $\xi=2^{-42}$, $\zeta=2^{-40}$ and $u=2^{-51}$. Table~\ref{tab:all-rows} lists all seven verified parameter rows
-across the Walsh and Bluestein routes, alongside the front-end/Bluestein baseline of~\cite[(38)]{OAI26}.
+This final subsection compares concrete certified parameter tuples across both middle-transform architectures and both sets of network constants. Set $\xi=2^{-42}$, $\zeta=2^{-40}$, and $u=2^{-51}$; in this subsection and in Table~\ref{tab:all-rows}, $\zeta$ and $u$ denote these numbers, not the twist root $\zeta=e^{\pi i/r}$ of Lemma~\ref{lem:bridge-E} or the field width~$u$ of Lemma~\ref{lem:transfer12}. Table~\ref{tab:all-rows} collects all seven verified parameter rows across the Walsh and Bluestein routes, starting from the baseline schedule of~\cite[(38)]{OAI26}.
 
 \begin{table}[htbp]
 \centering\footnotesize
-\caption{Full comparison of parameter rows ($\xi=2^{-42}$, $\zeta=2^{-40}$, $u=2^{-51}$). ``Printed'' rows keep the
-structural constants $\beta=\frac12$, $\tau=\sigma=1-2^{-50}$, $C_1=20$ of~\cite[Prop.~14]{OAI26}; ``exposed'' rows use
-Proposition~\ref{prop:prop14-param} and Proposition~\ref{prop:deficits}. The last row is the main theorem
-(Section~\ref{sec:main}, formalized in Lean~4).}\label{tab:all-rows}
+\caption{Side-by-side comparison of seven certified parameter schedules across the Bluestein and direct Walsh routes. With $\xi=2^{-42}$, $\zeta=2^{-40}$, and $u=2^{-51}$, ``printed'' rows hold $\beta=\frac12$, $\tau=\sigma=1-2^{-50}$, and $C_1=20$ fixed as in~\cite[Prop.~14]{OAI26}, whereas ``exposed'' rows invoke Propositions~\ref{prop:deficits} and~\ref{prop:prop14-param}. The bottom row gives Theorem~\ref{thm:main} in Section~\ref{sec:main}, verified in Lean~4.}\label{tab:all-rows}
 \setlength{\tabcolsep}{3.8pt}
 \begin{tabular}{@{}llllllllll@{}}
 \toprule
@@ -203,31 +167,15 @@ Walsh & exposed & $14$ & $\frac1{64}$ & $\frac1{15}$ & $\frac\xi{256}$ & $(1{-}4
 \end{table}
 
 \paragraph{Verification of the secondary rows.}
-\begin{itemize}[leftmargin=*]
-\item \emph{Walsh with printed structural constants ($\kappa=2^{-56}$).} With $\beta=\frac12$, $\tau=\sigma=1-2u$ and
-  $C_1=20$, we have $\sigma+\beta(1-\sigma)=1-u$ and $\tau(1+c/\beta)=(1-2u)(1+u/2)=1-\frac32u-u^2$, so the layer
-  margins are $\lambda-\tau=\frac{127}{128}u$, $\lambda-\tau(1+c/\beta)=\frac{63}{128}u+u^2$, $\lambda'-(1-u)=\frac{u}{64}$,
-  $\lambda'-\lambda=\frac{3u}{128}$, and $1-\eps C_1=\frac1{21}$, with binding gap $g_{\rm lay}=\frac{3u}{64}=3\cdot2^{-57}$
-  against $\kappa=2^{-56}$ (and $g_{\rm axis}=\frac{40}{21}u$). Moreover, \emph{any} admissible choice of free parameters
-  with these fixed structural constants satisfies $\lambda'>\sigma+\beta(1-\sigma)=1-u$ and $\eps<1/C_1=1/20$, so
-  $\kappa<g_{\rm lay}<\frac{u}{20}=\frac85\,2^{-56}<2^{-55}$; thus $2^{-56}$ is the largest exponent of the form $2^{-j}$
-  that our Walsh cost analysis admits with the printed structural constants of~\cite[Prop.~14]{OAI26}.
-\item \emph{Walsh with $C_1=20$ ($\kappa=2^{-47}$).} Using $\tau=1-4\xi$ and $\sigma=1-\xi$ from
-  Proposition~\ref{prop:deficits}, $\tau(1+c/\beta)=(1-4\xi)(1+2\xi)=1-2\xi-8\xi^2$, giving margins
-  $\lambda-\sigma=\frac\xi8$, $\lambda-\tau(1+c/\beta)=\frac98\xi+8\xi^2$, $\lambda'-\lambda=\frac\xi8$ (with
-  $\sigma+\beta(1-\sigma)=\lambda$), $1-\eps C_1=\frac1{21}$, and binding gap $g_{\rm lay}=\frac\xi{28}$ against
-  $\kappa=\frac\xi{32}=2^{-47}$.
-\item \emph{Bluestein rows ($\kappa=2^{-182},2^{-108},2^{-85},2^{-84}$).} At the parameters of~\cite[(38)]{OAI26}, the
-  bridge with Bluestein middle reproduces $\kappa=2^{-182}$ ($g_{\rm chunk}=2^{-181}$, showing that replacing the CRT
-  front end alone does not alter $\kappa$). Retuning $(\eps,c)$ under the printed structural constants gives
-  $\kappa=2^{-108}$ ($g_{\rm chunk}=2^{-107}$), using the $O(d)$ axis exposures of Lemma~\ref{lem:bridge-D} in place of
-  the $O(d^2)$ adjacent swaps of~\cite[\S9]{OAI26}. Exposing $(\beta,\tau,\sigma)$ via
-  Propositions~\ref{prop:prop14-param} and~\ref{prop:deficits} gives $\kappa=2^{-85}$ at $C_1=20$
-  ($\tau(1+c/\beta)=(1-\zeta)(1+\frac{14}{15}\zeta)<1-\frac\zeta{15}<\lambda$, $g_{\rm chunk}=\frac{\zeta^2}{24}$) and
-  $\kappa=2^{-84}$ at $C_1=14$ ($\lambda-\tau(1+c/\beta)=\frac\zeta{480}+\frac{29}{30}\zeta^2>0$, $1-14\eps=\frac1{64}$,
-  $g_{\rm chunk}=\frac{261}{4096}\zeta^2$).
+The primary $\kappa=2^{-46}$ row is checked in Section~\ref{sec:main-rows}. Here we record the exact rational margins for the remaining six rows:
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+\item \emph{Walsh with printed structural constants, $\kappa=2^{-56}$.} Fix $\beta=\frac12$, $\tau=\sigma=1-2u$, and $C_1=20$. Then $\sigma+\beta(1-\sigma)=1-u$ and $\tau(1+c/\beta)=(1-2u)(1+u/2)=1-\frac32u-u^2$. The resulting layer margins are $\lambda-\tau=\frac{127}{128}u$, $\lambda-\tau(1+c/\beta)=\frac{63}{128}u+u^2$, $\lambda'-(1-u)=\frac{u}{64}$, $\lambda'-\lambda=\frac{3u}{128}$, and $1-\eps C_1=\frac1{21}$. The binding gap is $g_{\rm lay}=\frac{3u}{64}=3\cdot2^{-57}$ against $\kappa=2^{-56}$, while the axis gap of~\eqref{eq:gaps} is $g_{\rm axis}=\frac{40}{21}u$. That $2^{-56}$ is the largest exponent of the form $2^{-j}$ admitted under these constants is shown in Remark~\ref{rem:printed-optimal}.
+
+\item \emph{Walsh with $C_1=20$, $\kappa=2^{-47}$.} Using $\tau=1-4\xi$ and $\sigma=1-\xi$ from Proposition~\ref{prop:deficits}, we have $\tau(1+c/\beta)=(1-4\xi)(1+2\xi)=1-2\xi-8\xi^2$. That gives positive margins $\lambda-\sigma=\frac\xi8$, $\lambda-\tau(1+c/\beta)=\frac98\xi+8\xi^2$, $\lambda'-\lambda=\frac\xi8$ with $\sigma+\beta(1-\sigma)=\lambda$, and $1-\eps C_1=\frac1{21}$, yielding binding gap $g_{\rm lay}=\frac\xi{28}$ above $\kappa=\frac\xi{32}=2^{-47}$.
+
+\item \emph{Bluestein rows, $\kappa=2^{-182},2^{-108},2^{-85},2^{-84}$.} At the schedule of~\cite[(38)]{OAI26}, our bridge paired with the Bluestein middle transform reproduces $\kappa=2^{-182}$ with $g_{\rm chunk}=2^{-181}$, confirming that replacing the CRT front end alone leaves $\kappa$ unchanged. Retuning $(\eps,c)$ under the printed structural constants raises the bound to $\kappa=2^{-108}$ with $g_{\rm chunk}=2^{-107}$, using the $O(d)$ axis exposures of Lemma~\ref{lem:bridge-D} in place of the $O(d^2)$ adjacent swaps of~\cite[\S9]{OAI26}.
+
+Exposing $(\beta,\tau,\sigma)$ via Propositions~\ref{prop:deficits} and~\ref{prop:prop14-param} yields $\kappa=2^{-85}$ at $C_1=20$, since $\tau(1+c/\beta)=(1-\zeta)(1+\frac{14}{15}\zeta)<1-\frac\zeta{15}<\lambda$ and $g_{\rm chunk}=\frac{\zeta^2}{24}$. Lowering the guard exponent to $C_1=14$ gives $\kappa=2^{-84}$, with $\lambda-\tau(1+c/\beta)=\frac\zeta{480}+\frac{29}{30}\zeta^2>0$, $1-14\eps=\frac1{64}$, and $g_{\rm chunk}=\frac{261}{4096}\zeta^2$.
 \end{itemize}
-At equal guard exponents, removing the chunk-layout bottleneck via Walsh-layer permutations replaces the quadratic
-cap~\eqref{eq:old-bottleneck} in $1-\tau$ by a binding gap linear in the complex-network deficit $1-\sigma$. This raises
-$\kappa$ from $2^{-85}$ to $2^{-47}$ at $C_1=20$, from $2^{-84}$ to $2^{-46}$ at $C_1=14$, and from $2^{-108}$ to
-$2^{-56}$ at the printed structural constants.
+
+At equal guard exponents, removing the chunk-layout bottleneck through Walsh-layer positional permutations replaces the quadratic ceiling~\eqref{eq:old-bottleneck} in $1-\tau$ by a binding gap linear in $1-\sigma$. Consequently, $\kappa$ rises from $2^{-85}$ to $2^{-47}$ at $C_1=20$, from $2^{-84}$ to $2^{-46}$ at $C_1=14$, and from $2^{-108}$ to $2^{-56}$ under the printed structural constants.

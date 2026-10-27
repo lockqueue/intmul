@@ -7,7 +7,7 @@ import Mathlib.RingTheory.Ideal.Quotient.Operations
 # `[MS]` Section 4.1: Proposition 4.1 — Polynomial-Transform Reduction (`F_{t_1, r} → t_1 F_r`)
 
 This module is part of our independent formalization of `[MS]` Section 4.1 (Proposition 4.1)
-(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*):
+(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*):
 
 1. **Twisted Root Property (`xi_pow_r_eq_neg_one`)**:
    For `ζ = exp(π i / r)` and `ξ_{u_2} = ζ^{2 u_2 - 1}`, we have `ξ_{u_2}^r = -1`, so

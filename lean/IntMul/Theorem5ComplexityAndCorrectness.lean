@@ -6,7 +6,7 @@ import IntMul.Theorem3BidiagonalAndSchedule
 
 This module is part of our independent formalization of the recurrence and rounding identities
 of `[MS]` Section 7 (`[MS]` Theorem 1, §7.2; companion manuscript `[MS]`,
-*Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*):
+*Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*):
 
 1. **Tightened Root Precision `p_0 = 2 b + 2 K_0 + 6` & Exact Integer Recovery (`[MS]` §7.2, proof of Theorem 1, Part 1)**:
    - With `p_0 = 2 b + 2 K_0 + 6`, forward `FastDFT` error `≤ 2 * 2^{-p_0}`, pointwise squaring

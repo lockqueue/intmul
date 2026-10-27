@@ -4,7 +4,7 @@ import IntMul.Preliminaries
 # `[MS]` Section 6.2: Lemma 6.2 & Theorem 6.3 — Overlap-Add & Signed Two's-Complement Kronecker Substitution
 
 This module is part of our independent formalization of `[MS]` Section 6.2 (Lemma 6.2 and Theorem 6.3)
-(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*):
+(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*):
 
 1. **Pre-Folded Filter Width (`effectiveFilterWidth`)**:
    - `W̃_ℓ = min(2 m_{1,ℓ} + 1, r_ℓ) ≤ r_ℓ`.

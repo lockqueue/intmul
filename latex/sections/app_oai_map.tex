@@ -1,21 +1,18 @@
 \section{Statements and notation from \texorpdfstring{\cite{OAI26}}{[OAI26]}}\label{app:oai}
 
-This appendix records the symbol translation between~\cite{OAI26} (version of 23 September 2026) and the present paper,
-and restates the results of~\cite{OAI26} cited as black boxes in Section~\ref{sec:prelim-oai}
-(Facts~\ref{fact:oai-streams}--\ref{fact:oai-networks}) together with the printed form of~\cite[Prop.~14]{OAI26} for
-comparison with Proposition~\ref{prop:prop14-param}.
+This appendix bridges the notation and black-box statements of~\cite{OAI26} to the conventions of the present paper. Throughout, all citations to~\cite{OAI26} refer to its version of 23 September 2026. Several single-letter symbols in~\cite{OAI26} collide with standard parameters of our fractional-shift bridge. In particular, both papers use $R$ and $P$, with different meanings. We first give the complete symbol-renaming dictionary so formulas can be compared across the two papers without ambiguity. Next, we restate the four elementary stream and network results imported as black boxes in Section~\ref{sec:prelim-oai}. Those four statements constitute Facts~\ref{fact:oai-streams} and~\ref{fact:oai-networks}. Finally, we quote the printed butterfly-layer bound of~\cite[Prop.~14]{OAI26} alongside our parameter-exposed Proposition~\ref{prop:prop14-param}. A reader who accepts Facts~\ref{fact:oai-streams}--\ref{fact:oai-networks} from Section~\ref{sec:prelim-oai} may use this appendix solely as a lookup reference.
 
-\paragraph{Notation map.} Table~\ref{tab:oai-renaming} lists every symbol of~\cite{OAI26} that is renamed here to avoid
-collision with the bridge parameters. Headers that concatenate positive integer parameters use the self-delimiting
-code~\cite[(1)]{OAI26}:
+\paragraph{Notation map.}
+Table~\ref{tab:oai-renaming} lists every symbol of~\cite{OAI26} that is renamed in this paper. No mathematical definition changes under this renaming. Only letter choices change so bridge parameters and tape-array parameters stay distinct across Sections~\ref{sec:bridge}--\ref{sec:main} and Appendix~\ref{app:parameter-transfer}. Tape procedures receive headers that concatenate positive integer parameters. Those headers use the self-delimiting binary code of~\cite[(1)]{OAI26}:
 \begin{equation}\label{eq:oai-gamma}
   b_v=\lfloor\log_2v\rfloor+1,\qquad \Gamma(v)=0^{\,b_v-1}\,\mathrm{bin}_{b_v}(v),\qquad |\Gamma(v)|=2b_v-1
   \qquad(v\ge1).
 \end{equation}
+Here $\mathrm{bin}_{b_v}(v)$ writes the positive integer~$v$ in standard binary of exact bit length~$b_v$. Its leading bit is always~$1$. Thus the prefix of $b_v-1$ zeros uniquely determines where $\mathrm{bin}_{b_v}(v)$ begins and ends. Any concatenated header $\Gamma(v_1)\Gamma(v_2)\cdots\Gamma(v_m)$ can therefore be parsed left to right in linear time without extra delimiters.
 
 \begin{table}[htbp]
 \centering\small
-\caption{Symbol correspondence between~\cite{OAI26} and this paper.}\label{tab:oai-renaming}
+\caption{Dictionary translating notation between~\cite{OAI26} and the present paper. Each row gives the symbol in~\cite{OAI26}, our replacement symbol, and the role of both quantities.}\label{tab:oai-renaming}
 \begin{tabular}{@{}>{\raggedright}p{4.0cm}>{\raggedright}p{3.4cm}>{\raggedright\arraybackslash}p{8.1cm}@{}}
 \toprule
 \cite{OAI26} & This paper & Meaning\\
@@ -33,10 +30,11 @@ $\epsilon,\,\log$ & $\eps,\,\ln$ & dimension exponent; natural logarithm ($\lg=\
 
 \subsection{Machine model and elementary stream lemmas}\label{sec:prelim-oai-model}
 
-In~\cite[\S2]{OAI26}, a multitape Turing machine has a fixed finite alphabet and a fixed finite number of
-one-dimensional tapes; an array on $[a_1]\times\dots\times[a_t]$ is stored in lexicographic order (first coordinate
-most significant) with implicit addresses, logical bit volume $V$, and move convention $(fA)(f(x))=A(x)$. The following
-two lemmas of~\cite[\S2.1]{OAI26} constitute Fact~\ref{fact:oai-streams}.
+This subsection restates the tape-array conventions and the two linear-time stream lemmas behind Fact~\ref{fact:oai-streams}. Following~\cite[\S2]{OAI26}, every algorithm runs on a deterministic multitape Turing machine. Each machine has a fixed finite symbol alphabet and a fixed finite number of one-dimensional tapes. Multi-index arrays on a product box $[a_1]\times\dots\times[a_t]$ sit sequentially on a tape in lexicographic order. In that order, the first coordinate is most significant. Array addresses are implicit in the physical position of each entry rather than stored in the record. We write $V$ for the logical bit volume of the active array. When an address permutation~$f$ acts on an array~$A$, we use the push-forward convention $(fA)(f(x))=A(x)$. That rule moves the entry originally at address~$x$ to address~$f(x)$.
+
+The next two propositions reproduce Lemmas~3 and~4 of~\cite[\S2.1]{OAI26}. Together they make up Fact~\ref{fact:oai-streams} in Section~\ref{sec:prelim-oai}.
+
+Proposition~\ref{oai:lem3} covers four basic digit-level and row-stream rearrangements. Each runs in linear bit time $O(V)$ on a fixed number of tapes. We use these operations as the base case for every multi-stream split, merge, and digit move in Appendix~\ref{app:parameter-transfer}. Their $O(V)$ cost already includes counter setup, head resets, and workspace cleanup.
 
 \begin{proposition}[{\cite[Lemma~3, \S2.1]{OAI26}}]\label{oai:lem3}
 Fix a radix $q_{\mathrm{rad}}\ge2$. On an array of volume $V$, each of the following takes $O(V)$ steps on a fixed
@@ -49,6 +47,8 @@ merging; and
 (4)~within each prefix of an array on $[A]\times[R_{\mathrm{row}}]\times[B]$, splitting whole rows cyclically into a
 fixed number $W$ of streams and, when $W\mid R_{\mathrm{row}}$, merging them in any fixed order of the row classes.
 \end{proposition}
+
+Proposition~\ref{oai:lem4} extends those linear-time primitives to controlled modular shifts, rational unit multiplications modulo $q_{\mathrm{rad}}^b$, and fixed-width payload arithmetic. We need it for the triangular matrix shears of Lemma~\ref{lem:transfer-shear} and the eight-shift packed addition of Lemma~\ref{lem:transfer13}. All control fields must precede the target field and occupy $O(b)$ digits. Scanning a fiber of size $q_{\mathrm{rad}}^b$ then absorbs the polynomial-in-$b$ offset work.
 
 \begin{proposition}[{\cite[Lemma~4, \S2.1]{OAI26}}]\label{oai:lem4}
 Fix a prime $q_{\mathrm{rad}}$, a fixed number of control fields, and finitely many rational coefficients with
@@ -64,16 +64,13 @@ cost.
 
 \subsection{Finite-network certificates and printed butterfly layer}
 
-At $h=100$, $v=\binom{h}{3}=161\,700$, $N=v^3$, and $m=h^3=10^6$, \cite[\S3.1]{OAI26} constructs a three-stage
-bit network over $\mathbb F_2$ ($W_b$ wires, neighbor rule $|S\cap T|=1$) and complex network over $\Z[i,1/2]$ ($W_c$
-wires, distinct triples with $|S\cap T|$ even) on two data banks $X_a,Y_a$ ($a\in\binom{[h]}{3}^3$) and per-invocation
-scratch wires. By~\cite[Lemmas~5--6, \S\S3.1--3.3]{OAI26}, the forward-inverse-forward schedule sends
-$(X_a,Y_a)\mapsto(-Y_a,X_a)$, restores all scratch wires from arbitrary initial values, and attaches nested
-nondegenerate subspaces of $\mathcal F=F^{\otimes3}$ ($\dim\mathcal F=m$) whose only decreasing edges lose dimension $h$
-on central wires ($L_b/N=100/539$, $L_c/N=101/539$). Here $F=\Q^h$ under $x^{\mathsf T}(I_h-J_h/9)y$ for the bit
-network (where $I_h$ and $J_h$ are the $h\times h$ identity and all-ones matrices), and $F=\mathbb F_2^h$ under the dot
-product for the complex network. The resulting
-certificates form Fact~\ref{fact:oai-networks}:
+This subsection summarizes the $h=100$ finite linear networks behind Fact~\ref{fact:oai-networks}. It closes with the printed butterfly-layer statement of~\cite[Prop.~14]{OAI26}. At ground-set size $h=100$, one sets $v=\binom{h}{3}=161\,700$, $N=v^3$, and $m=h^3=10^6$. On these parameters, \cite[\S3.1]{OAI26} builds two fixed three-stage linear circuits. Each circuit acts on two primary data banks $X_a,Y_a$ indexed by triples $a\in\binom{[h]}{3}^3$, plus per-invocation scratch wires.
+
+The first circuit is a bit network over $\mathbb F_2$ on $W_b$ wires. Holding two coordinates of~$a$ fixed per stage, its stages connect pairs of wires whose active coordinate sets $S,T$, three-element subsets of $[h]$ as in Fact~\ref{fact:oai-networks}, satisfy the intersection rule $|S\cap T|=1$. The second circuit is a complex network over $\Z[i,1/2]$ on $W_c$ wires. Its stages connect pairs of wires with distinct active coordinate sets $S\ne T$ satisfying $|S\cap T|$ even. By~\cite[Lemmas~5--6, \S\S3.1--3.3]{OAI26}, a three-stage forward-inverse-forward schedule maps the data banks via $(X_a,Y_a)\mapsto(-Y_a,X_a)$. That same schedule restores every scratch wire to its initial value regardless of its starting contents.
+
+To bound the edge cost, \cite[\S\S3.1--3.3]{OAI26} labels every wire with a nondegenerate subspace of $\mathcal F=F^{\otimes3}$, where $\dim\mathcal F=m$. Adjacent subspace labels along circuit edges are nested. Only decreasing edges on central wires lose dimension, each dropping by~$h$. Their total losses $L_b$ and $L_c$, which enter the rank sums $s_b$ and $s_c$ in Proposition~\ref{oai:networks} below, have the exact ratios $L_b/N=100/539$ and $L_c/N=101/539$. For the bit network, the base space is $F=\Q^h$ under the bilinear form $x^{\mathsf T}(I_h-J_h/9)y$. Here $I_h$ is the $h\times h$ identity matrix and $J_h$ is the all-ones matrix. For the complex network, the base space is $F=\mathbb F_2^h$ under the standard dot product.
+
+Proposition~\ref{oai:networks} packages the resulting rank and endpoint certificates of~\cite[Props.~7--8]{OAI26}. In our main text, this statement appears as Fact~\ref{fact:oai-networks}. Part~(a) certifies that the bit network carries every input role to its output role with net frame matrix $I_m$, so it implements the address shear $(H,D)\mapsto(H+D,D)$ of Fact~\ref{fact:oai-networks}, while its edge ranks sum to $s_b<W_b m$. Part~(b) certifies that the complex network applies $(C^{\otimes m})^{\otimes f}$ across all roles using $s_c<W_c m$ translation kernels in total. Those two strict inequalities $s_b<W_b m$ and $s_c<W_c m$ are the sole source of the sub-$n\log n$ time saving.
 
 \begin{proposition}[{\cite[Props.~7--8, \S\S3.4--3.5]{OAI26}}]\label{oai:networks}\label{oai:prop8}
 \begin{enumerate}[label=(\alph*),leftmargin=*]
@@ -93,12 +90,14 @@ certificates form Fact~\ref{fact:oai-networks}:
 \end{enumerate}
 \end{proposition}
 
-By~\cite[(18), \S5.1]{OAI26}, $C^{\otimes D}$ converts to the normalized butterfly layer $H_0^{\otimes D}$ via
+Once $C^{\otimes D}$ is available across $D$ selected bits, a diagonal fourth-root phase conjugation converts it into the normalized butterfly layer $H_0^{\otimes D}$. Specifically, \cite[(18), \S5.1]{OAI26} uses the identity~\eqref{eq:oai-h0}, already used as~\eqref{eq:oai-h0-transfer} in the proof of Lemma~\ref{lem:transfer-phase}:
 \begin{equation}\label{eq:oai-h0}
   H_0^{\otimes D}=b^D\,\mathcal S_D\,C^{\otimes D}\,\mathcal S_D,\qquad
   (\mathcal S_Dz)(x)=i^{x_1+\dots+x_D}z(x),\qquad b^D=(-i/2)^{\lfloor D/2\rfloor}b^{D\bmod2}.
 \end{equation}
-Finally, for comparison with Proposition~\ref{prop:prop14-param}, we record~\cite[Prop.~14]{OAI26} as printed:
+Here $\mathcal S_D$ multiplies each record by an address-dependent power of~$i$, and $b^D$ is a global dyadic Gaussian scalar.
+
+Finally, Proposition~\ref{oai:prop14} records the simultaneous butterfly-layer theorem of~\cite[Prop.~14]{OAI26} with its printed structural constants. Our main proof does not invoke Proposition~\ref{oai:prop14}; instead, Appendix~\ref{app:parameter-transfer} proves the parameter-exposed generalization in Proposition~\ref{prop:prop14-param}. Recording the printed version here lets Section~\ref{sec:main} and Appendix~\ref{app:bluestein} separate the gain of the Walsh route itself, $\kappa=2^{-56}$ at the printed constants, from the later sharpening of the network constants.
 
 \begin{proposition}[{\cite[Prop.~14, \S5.4]{OAI26}}, printed constants]\label{oai:prop14}
  Proposition~\ref{prop:prop14-param} holds as stated in~\cite[Prop.~14]{OAI26} at the fixed structural constants

@@ -13,7 +13,7 @@ Nyquist finish, the entry mover, and the comparator.
 
 There is one column per regime: `u2 < r/2` (fwd), `u2 = r/2` (Nyquist), `u2 > r/2` (bwd). The
 POST header has `t1 = 4`, `r = 8` and `pSub = 2`, so `H = 8`. The column and `alt` are nonzero,
-and the column divisor is positive. `ColumnOK` is not machine-checked here. Each run checks the
+and the column divisor is positive. `ColumnOK` is not formally verified here. Each run checks the
 contract's final stacks exactly:
 * `W0 = blkE (W8.columnSolveBarrett pSub H t1 mt1 r u2 c0 c1 Y alt)`, the contract value;
 * `TR := restT` and `TL := rec.reverse ++ TL`;

@@ -2,27 +2,17 @@
 \setlength{\intextsep}{12.0pt plus 2.0pt minus 2.0pt}
 \section{Preliminaries}\label{sec:prelim}
 
-This section fixes notation (Section~\ref{sec:notation}) and specifies the multitape Turing machine model and
-fixed-point arithmetic conventions (Section~\ref{sec:prelim-model}). It then defines the discrete Fourier transforms
-used in the algorithm (Section~\ref{sec:prelim-dft}) and states as black-box facts the two ingredients from~\cite{OAI26}
-used in our written proofs (Section~\ref{sec:prelim-oai}).
+This section sets up the shared definitions and external facts needed to state and prove the bridge, permutation, and Fourier-transform bounds of Sections~\ref{sec:bridge}--\ref{sec:main}. Section~\ref{sec:notation} collects global notation in Table~\ref{tab:notation}, and Section~\ref{sec:prelim-model} specifies the multitape Turing machine model, tape array layout, and fixed-point rounding rules. Section~\ref{sec:prelim-dft} fixes our normalized discrete Fourier transform conventions and the two-call real convolution identity, while Section~\ref{sec:prelim-oai} records the two black-box facts borrowed from~\cite{OAI26}. A first-time reader may skim Table~\ref{tab:notation} and Section~\ref{sec:prelim-oai} and return to them when cited.
 
 \subsection{Notation}\label{sec:notation}
 
-Logarithms are natural ($\ln$) unless written $\log_2$. Following~\cite{OAI26}, we write
-$\lg n=\max\{\lceil\log_2 n\rceil,1\}$, so $\lg R=\log_2 R$ whenever $R\ge 2$ is a power of two. For a positive integer
-$N$ we write $[N]=\{0,\dots,N-1\}$. For a vector $x$ of complex numbers, $\|x\|_\infty=\max_j|x_j|$ denotes the largest
-complex modulus; for a linear map $A$, $\|A\|_\infty$ is the induced $\ell^\infty$ operator norm, i.e., the maximum
-absolute row sum. For an array of polynomial records in $\Rr_r=\C[y]/(y^r+1)$, $\|\cdot\|_\infty$ denotes the largest
-modulus of any complex coefficient across the array. Table~\ref{tab:notation} collects the global notation of the
-paper.
+We begin by fixing basic conventions for logarithms, index ranges, and $\ell^\infty$ norms used across all sections. Logarithms are natural, written $\ln$, unless written $\log_2$. Following~\cite{OAI26}, we write $\lg n=\max\{\lceil\log_2 n\rceil,1\}$, so $\lg R=\log_2 R$ whenever $R\ge 2$ is a power of two. For a positive integer $N$ we write $[N]=\{0,\dots,N-1\}$. For a complex vector~$x$, $\|x\|_\infty=\max_j|x_j|$ denotes the largest complex modulus, and for a linear map~$A$, $\|A\|_\infty$ is the induced $\ell^\infty$ operator norm, equal to the maximum absolute row sum. For an array of polynomial records in $\Rr_r=\C[y]/(y^r+1)$, $\|\cdot\|_\infty$ denotes the largest modulus of any complex coefficient across the array. Table~\ref{tab:notation} summarizes global symbols.
 
 \begin{table}[!t]
 \centering
 \small
 \renewcommand{\arraystretch}{0.92}
-\caption{Notation used throughout the paper. Bridge-specific quantities are defined in Section~\ref{sec:bridge}, and
-network parameters in Section~\ref{sec:prelim-oai}.}
+\caption{Reference summary of global symbols and parameters used throughout the paper. Bridge-specific quantities are defined in Section~\ref{sec:bridge}, and finite-network parameters in Section~\ref{sec:prelim-oai}.}
 \label{tab:notation}
 \begin{tabular}{@{}>{\raggedright}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.67\textwidth}@{}}
 \toprule
@@ -59,29 +49,15 @@ $S,\ L,\ B,\ K$ & also reused locally (defined at use): suffix range or pre-scal
 
 \subsection{Machine model and fixed-point arithmetic}\label{sec:prelim-model}\label{sec:prelim-grids}
 
-Our complexity bounds refer to the standard multitape Turing machine model of~\cite{SS71,HvdH21,OAI26}: a deterministic
-machine with one fixed finite alphabet and a fixed finite number of one-dimensional tapes. In one step the machine reads
-and writes at most one cell on each tape and moves each head by at most one cell. The running time is the total number
-of steps, charging every sequential scan, head movement, rewind, counter update, and workspace cleanup. The input is
-$x\#y$ with $x,y\in\{0,1\}^n$, and the output is the $2n$-bit binary representation of the product~\cite[\S1]{OAI26}.
+This subsection defines the multitape Turing machine cost model, the sequential tape representation of multidimensional arrays, and the fixed-point complex grids on which the algorithm operates. Our complexity bounds refer to the standard deterministic multitape Turing machine model of~\cite{SS71,HvdH21,OAI26} with one fixed finite alphabet and a fixed finite number of one-dimensional tapes. In each step the machine reads and writes at most one cell per tape and moves each head by at most one cell. The running time is the total number of steps, so every scan, head movement, rewind, counter update, and workspace cleanup is charged. The input is $x\#y$ with $x,y\in\{0,1\}^n$, and the output is the $2n$-bit binary representation of their product~\cite[\S1]{OAI26}.
 
-Following~\cite[\S2]{OAI26}, an array on an address set $[a_1]\times\cdots\times[a_t]$ (with $a_i\ge 1$) is stored in
-lexicographic order with the first coordinate most significant; addresses are implicit in the tape order and are not
-stored per entry. Adjacent spectator fields may be collapsed into a single field whose range is their product. An
-address permutation $f$ moves the entry at address $x$ to $f(x)$, so that $(fA)(f(x))=A(x)$. The \emph{logical bit
-volume} $V$ of an array is the total number of stored data bits; temporary copies and parked streams on work tapes are
-charged in time without replacing $V$ in recursive bounds. Integer parameters in procedure headers are encoded with the
-self-delimiting code $\Gamma(v)=0^{b_v-1}\mathrm{bin}_{b_v}(v)$ of length $2b_v-1$, where $b_v=\lfloor\log_2 v\rfloor+1$
-for $v\ge 1$~\cite[(1)]{OAI26}.
+Following~\cite[\S2]{OAI26}, an array on $[a_1]\times\cdots\times[a_t]$ with $a_i\ge 1$ is stored in lexicographic order with the first coordinate most significant, so addresses are implicit in tape position rather than stored per entry. Adjacent spectator fields, meaning address fields that the current operation leaves untouched, may be collapsed into one field whose range is their product. An address permutation~$f$ moves the entry at address~$x$ to $f(x)$, giving $(fA)(f(x))=A(x)$. The \emph{logical bit volume}~$V$ of an array is its total number of stored data bits; temporary copies on work tapes are charged in running time without replacing~$V$ in recursive bounds. Integer parameters in procedure headers use the self-delimiting code $\Gamma(v)=0^{b_v-1}\mathrm{bin}_{b_v}(v)$ of length $2b_v-1$, where $b_v=\lfloor\log_2 v\rfloor+1$ for $v\ge 1$~\cite[(1)]{OAI26}.
 
 \paragraph{Independent integer multiplier.}
-Ordinary products of $N$-bit integers are delegated to an independent deterministic multiplier of worst-case cost
-$\mathsf M(N)=N\,\mathsf m(N)$ (for instance that of Sch\"onhage and Strassen~\cite{SS71}, with
-$\mathsf m(N)=O(\lg N\lg\lg N)$). It is invoked as a black-box subroutine on dedicated work tapes that are clean on
-return, leaving the caller's other tapes untouched and making no recursive call to the outer algorithm.
+Ordinary products of $N$-bit integers are delegated to an independent deterministic multiplier of worst-case cost $\mathsf M(N)=N\,\mathsf m(N)$, such as Sch\"onhage--Strassen multiplication~\cite{SS71} with $\mathsf m(N)=O(\lg N\lg\lg N)$. It runs as a black-box subroutine on dedicated work tapes that are clean on return, leaving the caller's other tapes untouched and making no recursive call to Algorithm~1.
 
 \paragraph{Grids, rounding, and faithful tables.}
-Stored complex numbers lie on dyadic fixed-point grids, and our error analysis uses two rounding operators.
+All stored complex numbers lie on dyadic fixed-point grids. The next definition fixes the grid $\Cg_P$ and disk grid $\mathbb{D}_P$ at an arbitrary integer precision $P\ge 0$, and specifies how records of $r$ complex numbers in $\mathbb{D}_q$ are stored in two's-complement binary at precision $q\ge 0$. It also introduces the two rounding operators, truncation toward zero $Q_P$ and nearest rounding $\Quant_P$, whose bounds~\eqref{eq:rounding} govern where each is used below.
 
 \begin{definition}[Fixed-point grids and rounding]\label{def:grid}
 For an integer precision $P\ge 0$, define the \emph{fixed-point grid} $\Cg_P=\{2^{-P}(a+ib):a,b\in\Z\}$ (also called
@@ -103,17 +79,11 @@ For every $z\in\C$ and integer $P\ge 0$,
 \begin{equation}\label{eq:rounding}
   |Q_P(z)-z|<\sqrt2\cdot 2^{-P},\qquad |Q_P(z)|\le |z|,\qquad |\Quant_P(z)-z|\le\tfrac{\sqrt2}{2}\cdot 2^{-P}.
 \end{equation}
-In particular, $Q_q$ maps the closed unit disk into $\mathbb{D}_q$, so any exact disk-preserving operator followed by
-$Q_q$ keeps every stored coefficient in $\mathbb{D}_q$ (whereas nearest rounding can leave the unit disk near $\pm 1$).
-Conversely, inside the bridge's spreading and deconvolution stages, where norms are controlled explicitly, $\Quant_q$
-halves the per-step rounding error. Precomputed transcendental entries (filter taps, deconvolution parameters, and unit
-phases) are never assumed to be exact nearest roundings. They are \emph{faithful} approximations computed by truncated
-rational series with certified error at most $2^{-q}$ for real entries and $2\cdot 2^{-q}$ for complex taps and
-disk-valued unit phases.
+In particular, $Q_q$ maps the closed unit disk into $\mathbb{D}_q$, so any exact disk-preserving operator followed by $Q_q$ keeps every stored coefficient inside $\mathbb{D}_q$, whereas nearest rounding can step outside the unit disk near $\pm 1$. By contrast, inside the bridge's spreading and deconvolution stages, where norms are tracked explicitly, $\Quant_q$ halves the per-step rounding error. Precomputed transcendental entries for filter taps, solver parameters, and unit phases are never assumed to be exact nearest roundings. Instead, they are \emph{faithful} approximations computed by truncated rational series with certified error at most $2^{-q}$ for real entries and $2\cdot 2^{-q}$ for complex taps and disk-valued unit phases.
 
 \subsection{Discrete Fourier transforms}\label{sec:prelim-dft}\label{sec:prelim-oai-transform}
 
-We fix the sign and normalization of the complex transforms and recall the convolution identity used at the top level.
+This subsection fixes the normalization and sign convention of our one-dimensional and multidimensional Fourier transforms and records the identity that recovers a real cyclic convolution from two forward transforms. Dividing by the transform length~$R$ in the definition below ensures that every exact transform is an $\ell^\infty$ contraction, keeping intermediate entries bounded without rescaling across dimensions.
 
 \begin{definition}[Normalized transforms]\label{def:dft}
 For an integer $R\ge 1$, the normalized positive one-dimensional DFT $F_R\colon\C^R\to\C^R$ is
@@ -126,48 +96,22 @@ $[t_1]\times\cdots\times[t_d]$ via
 \]
 \end{definition}
 
-By the triangle inequality, $\|F_R\|_\infty\le 1$ and $\|F_{\mathbf t}\|_\infty\le 1$. The cyclic convolution
-$(a\circledast b)_j=\sum_{l\in[R]}a_l b_{(j-l)\bmod R}$ satisfies $F_R(a\circledast b)=R\,(F_R a)\odot(F_R b)$, where
-$\odot$ denotes entrywise multiplication. For real vectors $a,b\in\R^R$ and $z=a+ib$, the \emph{two-call
-identity} (cf.~\cite{MS}) recovers $a\circledast b$ from two forward transforms of length $R$:
+By the triangle inequality, $\|F_R\|_\infty\le 1$ and $\|F_{\mathbf t}\|_\infty\le 1$. The cyclic convolution $(a\circledast b)_j=\sum_{l\in[R]}a_l b_{(j-l)\bmod R}$ satisfies $F_R(a\circledast b)=R\,(F_R a)\odot(F_R b)$, where $\odot$ denotes entrywise multiplication. For real vectors $a,b\in\R^R$ and $z=a+ib$, the \emph{two-call identity} (cf.~\cite{MS}) recovers $a\circledast b$ from two forward transforms of length~$R$:
 \begin{equation}\label{eq:two-call}
   a\circledast b=-\frac{R^2}{2}\,\mathrm{Im}\Bigl(F_R\bigl(\overline{(F_R z)\odot(F_R z)}\bigr)\Bigr).
 \end{equation}
-Indeed, $\sum_{u\in[R]}e^{2\pi i(j-k)u/R}$ equals $R$ for $j=k$ and $0$ otherwise, so
-$F_R(\overline{F_R w})=R^{-1}\overline w$ for every $w\in\C^R$; applying this to
-$w=z\circledast z=(a\circledast a-b\circledast b)+2i(a\circledast b)$, for which
-$(F_R z)\odot(F_R z)=R^{-1}F_R w$, gives
-$F_R(\overline{(F_R z)\odot(F_R z)})=R^{-2}\overline w=R^{-2}\bigl((a\circledast a-b\circledast b)-2i(a\circledast b)\bigr)$,
-whose imaginary part is $-2R^{-2}(a\circledast b)$.
+Indeed, $\sum_{u\in[R]}e^{2\pi i(j-k)u/R}$ equals $R$ for $j=k$ and $0$ otherwise, so $F_R(\overline{F_R w})=R^{-1}\overline w$ for every $w\in\C^R$. Applying this relation to $w=z\circledast z=(a\circledast a-b\circledast b)+2i(a\circledast b)$, for which $(F_R z)\odot(F_R z)=R^{-1}F_R w$, gives $F_R(\overline{(F_R z)\odot(F_R z)})=R^{-2}\overline w$, whose imaginary part is $-2R^{-2}(a\circledast b)$.
 
-For completeness, and for the Bluestein comparison in Appendix~\ref{app:bluestein}, we also record the synthetic
-transforms of~\cite[\S6]{OAI26} over the negacyclic ring $\Rr_r=\C[y]/(y^r+1)$ ($r=2^\ell\ge 2$). Multiplication by $y$
-in $\Rr_r$ is an $\ell^\infty$ isometry. For any power of two $t\mid 2r$, setting $\omega_t=y^{2r/t}\in\Rr_r$ defines
-contractions $F_t^\mp\colon\Rr_r^t\to\Rr_r^t$ by $(F_t^\mp z)_j=t^{-1}\sum_{k<t}\omega_t^{\mp jk}z_k$ satisfying
-$F_t^+ F_t^-=t^{-1}I$. With $B_t$ the permutation sending index $j\in[t]$ to its $(\lg t)$-bit binary reversal, in-place
-decimation in frequency and its reverse compute $B_t F_t^-$ and $F_t^+ B_t^{-1}$; for $\mathbf t'=(t_1,\dots,t_{d-1})$
-with each $t_i\mid 2r$ we write $F_{\mathbf t'}^\pm=\bigotimes_{i=1}^{d-1}F_{t_i}^\pm$ and
-$B=\bigotimes_{i=1}^{d-1}B_{t_i}$. Our direct complex tensor FFT in Section~\ref{sec:direct-fft} makes no use of ring
-products or synthetic transforms in $\Rr_r$, retaining $\Rr_r$ solely to specify the contiguous $r$-coefficient record
-format.
+For completeness, and only for the Bluestein comparison in Appendix~\ref{app:bluestein}, we also record the synthetic transforms of~\cite[\S6]{OAI26}; a first-time reader may skip this paragraph. Over the negacyclic ring $\Rr_r=\C[y]/(y^r+1)$ with $r=2^\ell\ge 2$, multiplication by~$y$ is an $\ell^\infty$ isometry. For any power of two $t\mid 2r$, setting $\omega_t=y^{2r/t}\in\Rr_r$ defines contractions $F_t^\mp\colon\Rr_r^t\to\Rr_r^t$ by $(F_t^\mp z)_j=t^{-1}\sum_{k<t}\omega_t^{\mp jk}z_k$ satisfying $F_t^+ F_t^-=t^{-1}I$. With $B_t$ denoting $(\lg t)$-bit binary reversal on $[t]$, in-place decimation in frequency and its reverse compute $B_t F_t^-$ and $F_t^+ B_t^{-1}$. For $\mathbf t'=(t_1,\dots,t_{d-1})$ with $t_i\mid 2r$, we write $F_{\mathbf t'}^\pm=\bigotimes_{i=1}^{d-1}F_{t_i}^\pm$ and $B=\bigotimes_{i=1}^{d-1}B_{t_i}$. Our direct complex tensor FFT in Section~\ref{sec:direct-fft} uses no ring products or synthetic transforms in $\Rr_r$, keeping $\Rr_r$ only to specify the contiguous $r$-coefficient record format.
 
 \paragraph{Motivation from two-dimensional fractional shifts.}
-In dimension two ($R=t_1 r$ with $j=j_1+t_1 j_2$ and $u=u_2+r u_1$), the Cooley--Tukey decomposition expresses
-$(F_R x)_{u_2+r u_1}$ through the inner sums $\sum_{j_2\in[r]}x_{j_1+t_1 j_2}e^{2\pi i(j_2+j_1/t_1)u_2/r}$, reading the
-twiddle factor $e^{2\pi i j_1 u_2/(t_1 r)}$ as a uniform fractional shift of row $j_1$ by $j_1/t_1$ along the second
-axis~\cite{MS}. Spreading each row by a sinc-Gaussian filter shifted by $j_1/t_1$ and applying Poisson summation
-relates $F_{t_1,r}$ of the spread array on the \emph{same} $t_1\times r$ grid to a two-alias cyclic mixture of $F_R x$
-along each column. With a real kernel, however, the two retained alias weights coincide at the Nyquist column
-$u_2=r/2$, requiring a separate alternating-sum identity in~\cite{MS} and ruling out cycle-length-independent
-conditioning in higher dimensions. Section~\ref{sec:bridge} resolves both issues for general $d\ge 2$ via a negative
-half-bin phase carrier and a descending multi-axis spreading schedule.
+In dimension two ($R=t_1 r$), Section~\ref{sec:overview-bridge} read the Cooley--Tukey twiddle factor as a fractional shift of row~$j_1$ by $j_1/t_1$~\cite{MS} and spread each row by a sinc-Gaussian filter. Applying Poisson summation then relates $F_{t_1,r}$ of the spread array, on the same $t_1\times r$ grid, to a cyclic alias mixture of $F_R x$ along each column in which two aliases dominate. With a real kernel the two retained alias weights coincide at the Nyquist column $u_2=r/2$; \cite{MS} handles this by a separate alternating-sum identity, and the coincidence prevents cycle-length-independent conditioning in higher dimensions. Section~\ref{sec:bridge} removes both obstacles for general $d\ge 2$ via a negative half-bin carrier and descending axis spreading.
 
 \subsection{Ingredients from \texorpdfstring{\cite{OAI26}}{[OAI26]}}\label{sec:prelim-oai}
 
-Our written proofs use two results of~\cite{OAI26} as black boxes: its linear-time elementary tape stream primitives and
-its two fixed finite linear networks at $h=100$ together with their algebraic certificates. Appendix~\ref{app:oai}
-provides the symbol-renaming map from~\cite{OAI26} (in particular, its prefix range $P$ becomes $A$, its fixed radix
-$q$ becomes $q_{\mathrm{rad}}$, and its box size $T$ corresponds to $R$) along with full restatements.
+This subsection states the two results from~\cite{OAI26} that our written proofs use as black boxes, and summarizes the general-parameter tape procedures derived from them in Appendix~\ref{app:parameter-transfer}. Appendix~\ref{app:oai} restates the borrowed statements in full and records the symbol-renaming map from~\cite{OAI26}: its prefix range~$P$ becomes~$A$, its fixed radix~$q$ becomes $q_{\mathrm{rad}}$, and its box size~$T$ corresponds to~$R$.
+
+First, Fact~\ref{fact:oai-streams} packages five linear-time sequential tape-stream primitives on arrays of bit volume~$V$. These primitives cover digit permutations, stream splits and merges, cyclic row distributions into $W$ role streams, prime-radix modular shifts, and exact fixed-width binary arithmetic.
 
 \begin{fact}[Elementary tape operations~{\cite[Lemmas~3--4]{OAI26}}]\label{fact:oai-streams}
 Fix an integer radix $q_{\mathrm{rad}}\ge 2$. On a stored array of logical bit volume $V$ on a fixed number of
@@ -191,6 +135,8 @@ clearing visited workspace):
     multiplication or division by a power of two when guard bits prevent overflow or inexact truncation.
 \end{enumerate}
 \end{fact}
+
+Second, Fact~\ref{fact:oai-networks} states the finite algebraic certificates of the two fixed linear circuits at $h=100$ and $m=h^3=10^6$. The strict inequalities $s_b<W_b m$ and $s_c<W_c m$, which say that each network's recursive rank sum falls short of the trivial product of its role count and the dimension~$m$, are the sole source of the sub-$n\log n$ exponent saving.
 
 \begin{fact}[Finite linear networks with a rank deficit~{\cite[Props.~7--8]{OAI26}}]\label{fact:oai-networks}
 At ground-set parameter $h=100$ and dimension $m=h^3=10^6$, there exist two fixed finite linear circuits (over the
@@ -219,28 +165,14 @@ arbitrary initial values on all auxiliary scratch roles:
 \end{enumerate}
 \end{fact}
 
+\paragraph{What the written proof depends on.}
+No result of~\cite{HvdH21} is used anywhere in our proofs. Our written proof of Theorem~\ref{thm:main} imports only Facts~\ref{fact:oai-streams} and~\ref{fact:oai-networks}, corresponding to~\cite[Lemmas~3--4 and Props.~7--8]{OAI26}, as black boxes. Every other step is proved in Sections~\ref{sec:bridge}--\ref{sec:main} or re-derived in Appendix~\ref{app:parameter-transfer} by following~\cite[\S\S4--5]{OAI26} with all exponents and guard parameters exposed. Lemmas~15--21 and Proposition~18 of~\cite{OAI26}, covering synthetic ring transforms, chunk-swap layout, packed products, ring convolution, Gaussian resampling, and Bluestein's chirp, are unused on the main route and appear only for comparison in Appendix~\ref{app:bluestein}. The Lean~4 proof of Theorem~\ref{thm:lean} uses neither black box, constructing and verifying both $h=100$ networks, their algebraic certificates, and all Turing machine stream procedures from scratch.
+
 \paragraph{Parameter-exposed tape procedures.}
-As printed, \cite[Lemma~12 and Prop.~14]{OAI26} fix $\tau=\sigma=1-2^{-50}$, $\beta=\tfrac12$, and $C_1=20$. In
-Appendix~\ref{app:parameter-transfer} we follow~\cite[\S\S4--5]{OAI26} with all structural parameters exposed, deriving
-from Facts~\ref{fact:oai-streams} and~\ref{fact:oai-networks} (and Lemma~\ref{lem:transfer-long-record} for long-record
-address scans):
+As printed, \cite[Lemma~12 and Prop.~14]{OAI26} fix $\tau=\sigma=1-2^{-50}$, $\beta=\tfrac12$, and $C_1=20$. In Appendix~\ref{app:parameter-transfer} we follow~\cite[\S\S4--5]{OAI26} with all structural parameters exposed, deriving two procedures from Facts~\ref{fact:oai-streams} and~\ref{fact:oai-networks} together with Lemma~\ref{lem:transfer-long-record} for long-record address scans:
 \begin{itemize}[nosep,leftmargin=*]
-  \item \emph{Arbitrary-width address interchange} (Lemma~\ref{lem:transfer12}): for every fixed rational $\tau\in(0,1)$
-    with $s_b/W_b<m^\tau$, two disjoint $u$-bit address fields are interchanged across arbitrary spectator fields in
-    $O(V u^\tau)$ steps (and in $O(V(1+u^\tau))$ steps when their widths differ by one bit).
-  \item \emph{Simultaneous butterfly layer} (Proposition~\ref{prop:prop14-param}, via packed selected-bit addition,
-    Lemma~\ref{lem:transfer13}): put $B_{\mathrm{net}}=s_c+64(W_c+m+1)^3$, $C_0=128\,m\,B_{\mathrm{net}}^2$, and guard
-    degree $\nu_{\mathrm{net}}=\min\{j\ge 1:m^j\ge B_{\mathrm{net}}\}=11$ (Appendix~\ref{app:parameter-transfer},
-    \eqref{eq:walsh-guard-constants}). Let $\tau,\sigma\in(0,1)$ be any fixed rationals with $s_b/W_b<m^\tau$ and
-    $s_c/W_c<m^\sigma$, let $\beta\in(0,1)$ be a leaf exponent and $C_1\ge\nu_{\mathrm{net}}+3=14$ a guard exponent with
-    $\eps C_1<1$, and let $c,\lambda,\lambda'$ be exponents satisfying $\max\{\tau,\sigma\}<\lambda<1$,
-    $\tau(1+c/\beta)<\lambda$, and $\max\{\lambda,\sigma+\beta(1-\sigma)\}<\lambda'<1$. For any such fixed parameters,
-    applying $H_0$ simultaneously to bit $\rho\in[K]$ ($K=\lfloor d^c\rfloor$) of $D\le d$ consecutive $K$-bit chunks of
-    disk-grid records in $\Rr_r$ at grid precision $q$ evaluates the exact layer $H$ using
-    $\Delta=\lceil C_0 d^{C_1}\rceil=o(q)$ internal guard bits and truncates once. It returns $Q_q(Hz)\in\mathbb{D}_q$
-    with $\|Q_q(Hz)-Hz\|_\infty<\sqrt2\cdot 2^{-q}$ in $O(V d^{\lambda'})$ steps.
+  \item \emph{Arbitrary-width interchange} (Lemma~\ref{lem:transfer12}): for every fixed rational $\tau\in(0,1)$ with $s_b/W_b<m^\tau$, two disjoint $u$-bit address fields are interchanged across arbitrary spectator fields in $O(V u^\tau)$ steps, and in $O(V(1+u^\tau))$ steps when their widths differ by one bit.
+
+  \item \emph{Simultaneous butterfly layer} (Proposition~\ref{prop:prop14-param}, via packed selected-bit addition in Lemma~\ref{lem:transfer13}). Fix rational exponents $\tau,\sigma,\beta,c,\eps,\lambda,\lambda'$ and an integer guard exponent $C_1\ge\nu_{\mathrm{net}}+3=14$ with $\eps C_1<1$ satisfying the network bounds and admissibility constraints~\eqref{eq:walsh-layer-a}--\eqref{eq:walsh-layer-b} of Proposition~\ref{prop:prop14-param}, with $B_{\mathrm{net}},\nu_{\mathrm{net}},C_0$ as in~\eqref{eq:walsh-guard-constants}. Under the size bands~\eqref{eq:walsh-layer-bands} with $K=\lfloor d^c\rfloor$, the layer applies $H_0$ simultaneously to one common bit offset of $D\le d$ consecutive $K$-bit address chunks on a disk array of $\Rr_r$-records at grid precision~$q$. It evaluates the exact layer~$H$ inside $\Delta=\lceil C_0 d^{C_1}\rceil=o(q)$ internal guard bits, truncates once, and returns the disk array $Q_q(Hz)$ with $\|Q_q(Hz)-Hz\|_\infty<\sqrt2\cdot 2^{-q}$ in $O(V d^{\lambda'})$ steps.
 \end{itemize}
-Using the rational bound $\ln 10^6<14$ in place of $\ln 10^6<20$, Proposition~\ref{prop:deficits} certifies the sharper
-network exponents $\tau=1-2^{-40}$ and $\sigma=1-2^{-42}$ from the integers in Fact~\ref{fact:oai-networks}.
-Independently, the base-$10$ comparison $m^{10}<B_{\mathrm{net}}<m^{11}$ yields $\nu_{\mathrm{net}}=11$, certifying the
-guard exponent $C_1=\nu_{\mathrm{net}}+3=14$ (cf.~\cite[\S5.4]{OAI26}).
+Using the rational bound $\ln 10^6<14$ in place of $\ln 10^6<20$, Proposition~\ref{prop:deficits} certifies the sharper network exponents $\tau=1-2^{-40}$ and $\sigma=1-2^{-42}$ from the integers in Fact~\ref{fact:oai-networks}. Independently, the base-$10$ comparison $m^{10}<B_{\mathrm{net}}<m^{11}$ gives $\nu_{\mathrm{net}}=11$, certifying guard exponent $C_1=\nu_{\mathrm{net}}+3=14$ as noted in~\cite[\S5.4]{OAI26}.

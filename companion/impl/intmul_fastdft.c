@@ -4,12 +4,12 @@
  * synthetic-FFT integer multiplication algorithm of:
  *   Piaoyang Cui, Yiming Liu, and David P. Woodruff,
  *   "Integer multiplication in O(n log n) time on a single two-dimensional
- *   grid, with a machine-checked proof"
+ *   grid, with a formally verified proof"
  *   (2026; companion manuscript),
  * accompanying:
  *   Piaoyang Cui, Yiming Liu, and David P. Woodruff,
  *   "A simpler algorithm for integer multiplication below n log n, with a
- *   machine-checked proof" (2026).
+ *   formally verified proof" (2026).
  *
  * Implements both the plain-Gaussian kernel (`algo=0`) and the improved
  * windowed sinc-Gaussian kernel (`algo=1`), using a real kernel and solving

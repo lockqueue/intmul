@@ -9,7 +9,7 @@ import Mathlib.Tactic
 # [MS] Section 3: Preliminaries, Computation Model, Fixed-Point Arithmetic, Normalized DFTs, and Lemma 3.5
 
 This module is part of our independent formalization of `[MS]` Section 3
-(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*):
+(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*):
 
 1. **Fixed-Point Complex Arithmetic (`[MS]` §3.2, Definition 3.1, eq. (4))**:
    - Grid spacing `2^{-(p+2)}` for precision parameter `p`.

@@ -30,7 +30,7 @@ set_option backward.isDefEq.respectTransparency false
 /-!
 # Windowed Sinc-Gaussian Fractional-Shift Integer Multiplication (`IntMul`)
 
-Umbrella module for the machine-checked Lean 4 formalization of the
+Umbrella module for the Lean 4 formalization of the
 windowed sinc-Gaussian fractional-shift integer multiplication algorithm via the
 polynomial transform (`syntheticFFT` in this development), establishing
 Theorem 2 (`thm:lean`) as described in Section 8 (`sec:lean`) of the paper.

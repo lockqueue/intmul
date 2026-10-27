@@ -1,9 +1,9 @@
-# Lean 4 development: integer multiplication below n log n (snapshot `00b8a4d2b263`, from commit `3480d37`)
+# Lean 4 development: integer multiplication below n log n (snapshot `b706618497aa`, from commit `3480d37`)
 
 This archive contains the Lean 4 formalization described in Section 8 ("Formal verification in Lean 4") of the paper
-*A simpler algorithm for integer multiplication below n log n, with a machine-checked proof* (2026).
+*A simpler algorithm for integer multiplication below n log n, with a formally verified proof* (2026).
 
-It is a comment- and documentation-updated snapshot (`00b8a4d2b263`, the first 12 hex digits of the SHA-256 of
+It is a comment- and documentation-updated snapshot (`b706618497aa`, the first 12 hex digits of the SHA-256 of
 `MANIFEST.sha256`) derived from commit `3480d37`. Every library `.lean` file in this archive (`2,011` library files
 total: `1,062` files / `299,120` lines in `SubNLogN/**`, and `949` files / `184,759` lines across `IntMul`, `IntMulTM`,
 `WP`, `Contracts`, `LevelSync`, `IntMul.lean`, and `AxiomCheck.lean`) has **byte-identical comment-stripped source** to
@@ -37,7 +37,7 @@ License: Apache License 2.0 (see `LICENSE`).
 - **Independent `[MS]` multiplier formalization**: The libraries `IntMul`, `IntMulTM`, `WP`, `Contracts`, and
   `LevelSync` (together with `IntMul.lean` and `AxiomCheck.lean`; `949` files, `184,759` lines; headline
   `IntMulTM.intMul_TM2_nlogn`) form an independent Lean 4 formalization of the two-dimensional multiplier of `[MS]`
-  (*Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*, 2026),
+  (*Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*, 2026),
   developed for this paper and kernel-checked as part of it; `[MS]` distributes its own, separate Lean development
   (headline `IntMul.tmIntMul_evalsToInTime_n_log_n`).
 - **Numbering guide**: Docstrings cite the numbering of the current versions of both papers, while Lean identifiers and
@@ -110,7 +110,7 @@ limit via `mmap`ed `.olean` files, cap worker fan-out with `LEAN_NUM_THREADS=16 
   of comment-stripped `.lean` sources against commit `3480d37` using its comparison mode).
 - `MANIFEST.sha256` (`sha256sum -c MANIFEST.sha256`) records the SHA-256 of every `.lean` source file, build
   configuration file, `LICENSE`, `SPEC_LOCK.sha256`, `VERIFICATION_escape_scan.md`, `tools/*` script, and `replay/*`
-  file (`2,076` entries total); its own SHA-256 begins with `00b8a4d2b263`.
+  file (`2,076` entries total); its own SHA-256 begins with `b706618497aa`.
 - External kernel-replay checks (`leanchecker` on all modules and on the full import closures of both headline modules; `comparator` with `nanoda`, including seven negative controls) were executed on this snapshot; commands, tool versions and logs are in `replay/`.
 
 ## Not included

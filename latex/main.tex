@@ -12,6 +12,12 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing,fit,backgrounds,shapes.geometric}
 \usepackage{microtype}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algtext*{EndProcedure}
+\algtext*{EndFor}
+\algrenewcommand{\textproc}{\textsf}
+\algrenewcommand{\algorithmiccomment}[1]{\hfill\mbox{\footnotesize$\triangleright$~#1}}
 \usepackage{hyperref}
 \usepackage{fancyvrb}
 % Unicode symbols occurring in the quoted Lean statement (pdflatex + inputenc utf8).
@@ -31,7 +37,7 @@
   linkcolor=blue!60!black,
   citecolor=green!50!black,
   urlcolor=blue!70!black,
-  pdftitle={A simpler algorithm for integer multiplication below n log n, with a machine-checked proof},
+  pdftitle={A simpler algorithm for integer multiplication below n log n, with a formally verified proof},
   pdfauthor={Piaoyang Cui, Yiming Liu, David P. Woodruff}
 }
 \AtBeginEnvironment{table}{\setlength{\belowcaptionskip}{6pt}}
@@ -74,7 +80,7 @@
 \newcommand{\tw}{\omega}
 \DeclareMathOperator{\Emid}{E_{mid}}
 
-\title{\textbf{A simpler algorithm for integer multiplication\\below $n\log n$, with a machine-checked proof}\thanks{This work was carried out with substantial assistance from Gemini~4 agents, including proof development, auditing, and the Lean~4 formalization; see Section~\ref{sec:intro-verification}.}}
+\title{\textbf{A simpler algorithm for integer multiplication\\below $n\log n$, with a formally verified proof}\thanks{This work was carried out with substantial assistance from Gemini~4 agents, including proof development, auditing, and the Lean~4 formalization; see Section~\ref{sec:intro-verification}.}}
 \author{%
   \begin{tabular}[t]{@{}c@{}}
     Piaoyang Cui\thanks{Authors are listed in alphabetical order.}\\[0.4ex]

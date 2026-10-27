@@ -1,5 +1,9 @@
 \section{Multitape routing proofs}\label{app:routing}
 
+This appendix proves the multitape Turing machine time bounds of Lemma~\ref{lem:routing} for matrix transposition and odd-stride column routing. These two data-movement subroutines connect the row-wise spreading and polynomial-transform stages to the column-wise deconvolution stage at every recursion level. Readers familiar with multi-pass merge and transpose schedules on multitape Turing machines may skip directly to Appendix~\ref{app:deferred}.
+
+\medskip\noindent\emph{Proof idea.} Both routing tasks reduce to $\log_2 t_1$ sequential passes over contiguous fixed-width records using two auxiliary tapes and an amortized-$O(1)$ binary counter. Matrix transposition repeatedly splits and interleaves sub-columns of doubling length $2^s$, whereas odd-stride column routing first transposes into column-major order, tags each record with its destination index $u_1 = (2u_2 - 1)v_1 \bmod t_1$, and runs bottom-up merge sort across all columns in parallel.
+
 \begin{proof}[Proof of Lemma~\ref{lem:routing}]
 We first record the amortized cost of binary record counters and then prove parts (i) and (ii) in turn.
 

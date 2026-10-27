@@ -3,13 +3,13 @@
 Standalone C/GMP/MPFR implementation and empirical benchmark suite for the
 **two-dimensional $O(n \log n)$ fractional-shift synthetic-FFT integer
 multiplication algorithm** of `[MS]`
-(*Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*,
+(*Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*,
 Piaoyang Cui, Yiming Liu, and David P. Woodruff, 2026; companion manuscript),
 accompanying the paper:
 
 > Piaoyang Cui, Yiming Liu, and David P. Woodruff,
 > *A simpler algorithm for integer multiplication below $n\log n$, with a
-> machine-checked proof* (2026).
+> formally verified proof* (2026).
 
 ---
 
@@ -26,7 +26,7 @@ accompanying the paper:
   alternating-sum identity on row $j_1 = t_1 / 2$.
 * **What is NOT implemented here**: this code does **not** implement the
   sub-$n\log n$ **Algorithm 1** of *A simpler algorithm for integer
-  multiplication below $n\log n$, with a machine-checked proof*, does **not**
+  multiplication below $n\log n$, with a formally verified proof*, does **not**
   implement the $d$-dimensional fractional-shift bridge ($d > 2$) or the
   negative half-bin complex phase carrier $e^{-\pi i s / t_a}$ (which eliminates
   the Nyquist special case in that paper), and does **not** implement the
@@ -251,30 +251,30 @@ Slowdown ratios are those printed by the program from unrounded timings; recompu
   inputs $(2^n - 1)^2$ that maximize carries) bit for bit against GMP `mpz_mul`;
   every `./intmul_fastdft mul` run likewise checks `mpz_cmp(result, ref) == 0`
   against `mpz_mul`.
-* **Relationship to machine-checked Lean 4 proofs**: This C implementation is
+* **Relationship to formally verified Lean 4 proofs**: This C implementation is
   not formally verified. The companion manuscript [MS] ships its own Lean 4
   development, whose headline theorem `IntMul.tmIntMul_evalsToInTime_n_log_n`
   proves that a concrete multi-stack Turing machine implementing this algorithm
   multiplies n-bit integers within O(n log n) steps. Separately, the
   development accompanying *A simpler algorithm for integer multiplication
-  below n log n, with a machine-checked proof* contains an independent
+  below n log n, with a formally verified proof* contains an independent
   formalization of the same two-dimensional multiplier
   (`IntMulTM.intMul_TM2_nlogn`), used there as the inner multiplier of the
-  machine-checked O(n(log n)^{1-2^{-46}}) bound.
+  formally verified O(n(log n)^{1-2^{-46}}) bound.
 * **References**:
   1. Piaoyang Cui, Yiming Liu, and David P. Woodruff, *A simpler algorithm for
-     integer multiplication below $n\log n$, with a machine-checked proof*,
+     integer multiplication below $n\log n$, with a formally verified proof*,
      2026.
   2. `[MS]` Piaoyang Cui, Yiming Liu, and David P. Woodruff,
-     *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*,
+     *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*,
      2026; companion manuscript.
-  3. Machine-checked Lean 4 developments: the Lean 4 formalization accompanying
+  3. Formally verified Lean 4 developments: the Lean 4 formalization accompanying
      `[MS]` (`IntMul.tmIntMul_evalsToInTime_n_log_n`), and the independent
      `SubNLogN` Lean 4 formalization (`SubNLogN/Challenge.lean`,
      `IntMulTM.intMul_TM2_nlogn`) together with the exact-arithmetic
      Python 3.13 reference implementation of Algorithm 1 accompanying
      *A simpler algorithm for integer multiplication below $n\log n$, with a
-     machine-checked proof*.
+     formally verified proof*.
   4. Benchmark details and raw logs: [`bench/BENCHMARK.md`](bench/BENCHMARK.md),
      [`bench/MACHINE.txt`](bench/MACHINE.txt), and
      [`bench/logs/`](bench/logs/).

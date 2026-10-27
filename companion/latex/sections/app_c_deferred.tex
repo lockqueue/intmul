@@ -1,6 +1,12 @@
 \section{Deferred error and filter calculations}\label{app:deferred}
 
+This appendix collects the routine fixed-point rounding and integral-tail calculations deferred from Sections~\ref{sec:deconv} and~\ref{sec:spread-and-error}. Together they establish the column-solver rounding bound of Lemma~\ref{lem:solver-err} and the sinc-Gaussian filter norm, tail, and folding bounds of Lemma~\ref{lem:filter-norms}. Readers who accept those two numerical lemmas from the main text may skip this appendix on a first reading.
+
 \subsection{Proof of Lemma~\ref{lem:solver-err}}\label{app:solver-err-proof}
+
+This subsection bounds the fixed-point rounding error accumulated across the two-pass cyclic column solver and the Nyquist column solver.
+
+\medskip\noindent\emph{Proof idea.} On non-Nyquist columns, the exact recurrence ratio satisfies $|\rho| < 1$ and its rounded table value satisfies $|\hat{\rho}| \le 1 + \frac{1}{4}u$. Unrolling $t_1$ steps therefore amplifies local rounding errors by at most $(1 + \frac{1}{4}u)^{t_1} < 1.0001$ and accumulates $O(t_1^2 u \mathcal{M}_Y)$ total error across the prefix and second passes. At the Nyquist column $u_2 = r/2$, the alternating sums are exact on the child grid and only the initial scaling and final division round, giving an $O(t_1 u \mathcal{M}_Y)$ bound.
 
 \begin{proof}[Proof of Lemma~\ref{lem:solver-err}]
 By \eqref{eq:faithful-table}, on $\Cg_{q_{\mathrm{child}}}$ each real table entry has error $\le \frac{1}{4} u = 0.25 u$, while each complex rounded product $\RM_{q_{\mathrm{child}}}$ has error $\le \frac{\sqrt{2}}{8} u < 0.177 u$.
@@ -37,6 +43,10 @@ Since $5t_1 \le 2.5\,t_1^2$ for $t_1 \ge 2$, both cases are below $2.5\,t_1^2\,u
 \end{proof}
 
 \subsection{Proof of Lemma~\ref{lem:filter-norms}}\label{app:filter-norms-proof}
+
+This subsection proves the $\ell_1$ norm bound, the spatial truncation tail bound, and the folded-table quantization bound for the windowed sinc-Gaussian row filters.
+
+\medskip\noindent\emph{Proof idea.} Part~1 bounds the two central taps by a convexity--concavity split at the unique inflection point on $[0, 1/2]$ and compares the paired outer taps with an exponential integral to obtain the logarithmic $\ell_1$ bound. Part~2 bounds the exterior taps $|d| > m_{1,\ell}$ by separating one negative boundary term and dominating the rest by a Gaussian tail integral. Part~3 applies Poisson summation and Parseval's identity on $\Z_{r_\ell}$ to bound the periodic folded filter, then adds the guard-precision summation and final rounding errors.
 
 \begin{proof}[Proof of Lemma~\ref{lem:filter-norms}]
 \textbf{Part 1.} For $j_1 = 0$, $\kappa^{(0)}_0 = 1$ and $\kappa^{(0)}_d = 0$ for all $d \ne 0$, so $\|\kappa^{(0)}\|_1 = 1$. For $1 \le j_1 < t_{1,\ell}$, let $\delta := j_1 / t_{1,\ell} \in (0, 1)$. For $d \in \{0, -1\}$, $|\kappa^{(j_1)}_0| + |\kappa^{(j_1)}_{-1}| \le \sinc(\delta) + \sinc(1 - \delta) = \frac{\sin(\pi\delta)}{\pi\delta(1-\delta)}$. On $[0, 1]$, let $h(\delta) := \sin(\pi\delta) - 4\delta(1-\delta)$. By symmetry $h(\delta) = h(1-\delta)$, it suffices to consider $\delta \in [0, 1/2]$, where $h(0) = h(1/2) = 0$, $h'(0) = \pi - 4 < 0$, $h'(1/2) = 0$, and $h''(\delta) = -\pi^2\sin(\pi\delta) + 8$ decreases from $8 > 0$ at $\delta = 0$ to $8 - \pi^2 < 0$ at $\delta = 1/2$, vanishing at a unique $\delta_* \in (0, 1/2)$. On $[\delta_*, 1/2]$, $h$ is concave with $h(1/2) = h'(1/2) = 0$, so $h(\delta) \le h(1/2) + h'(1/2)(\delta - 1/2) = 0$, and in particular $h(\delta_*) \le 0$. On $[0, \delta_*]$, $h$ is convex, so $h(\delta) \le \max(h(0), h(\delta_*)) \le 0$. Hence $\sin(\pi\delta) \le 4\delta(1-\delta)$ on $[0, 1]$ and the two central terms sum to at most $4/\pi$. For $d \ge 1$ and $d \le -2$, pairing $d = k \ge 1$ with $d = -1-k$ gives $|\kappa^{(j_1)}_k| + |\kappa^{(j_1)}_{-1-k}| \le \frac{2}{\pi k} e^{-\pi k^2 / \alpha_\ell^2}$. Since $k \mapsto \frac{1}{k} e^{-\pi k^2 / \alpha_\ell^2}$ is decreasing on $[1, \infty)$,

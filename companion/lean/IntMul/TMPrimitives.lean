@@ -20,7 +20,7 @@ Appendix A.2 (`app:tape-schedule`)):
      stacks) with stack alphabet `Bool` (8 binary stacks), so `encodeInputBits n A B` and
      `encodeNatBits (2 * n) (A * B)` reside on stack `k₀ = kIO` via `Turing.initList`/`Turing.haltList`.
    - Formal uniformity predicate `IsUniformFinTM2 tm maxLabels maxStates maxAlpha` (`|Λ| ≤ maxLabels`,
-     `|σ| ≤ maxStates`, `∀ k, |Γ k| ≤ maxAlpha`) and machine-checked finite-control and alphabet
+     `|σ| ≤ maxStates`, `∀ k, |Γ k| ≤ maxAlpha`) and finite-control and alphabet
      capacity bounds (`cannot_store_n_bits_in_uniform_state` and `uniform_push_range_card_le`)
      proving that no uniform `FinTM2` can injectively encode an $N$-bit input buffer into
      `Option tm.Λ × tm.σ` once `(maxLabels + 1) * maxStates < 2 ^ N`.

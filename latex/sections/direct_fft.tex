@@ -1,12 +1,19 @@
 \section{Direct tensor FFT}\label{sec:direct-fft}
 
-We now compute the middle transform of the bridge directly as a complex tensor FFT, using the simultaneous butterfly
-layers of Proposition~\ref{prop:prop14-param} for the record axes and the exact positional permutations of
-Theorem~\ref{thm:positional-perm} for the layout and natural-order restoration. At grid precision~$q$, its error is less
-than $12\ell\cdot2^{-q}$, where $r=2^\ell$ is the length of the last axis (Theorem~\ref{thm:direct-fft}), requiring no
-Bluestein chirp, no ring convolution in~$\Rr_r$, no $M$-amplified error factor and no output widening
-(Corollary~\ref{cor:walsh-middle}).
+This section implements the middle transform of the fractional-shift bridge directly as a complex tensor FFT
+$F_{\mathbf t}$ on the $q$-grid. We store the last coordinate as a contiguous record of $r=2^\ell$ complex coefficients
+and transform that last axis inside each record. We then run decimation-in-frequency rounds across all $d-1$
+record-address axes in parallel, combining the simultaneous butterfly layers of Proposition~\ref{prop:prop14-param} with
+the exact positional permutations of Theorem~\ref{thm:positional-perm}.
 
+For Theorem~\ref{thm:main}, computing this
+tensor transform directly over $\C$ achieves additive error below $12\ell\cdot 2^{-q}$ with zero output widening. It
+needs no Bluestein chirp and no polynomial-ring convolution in~$\Rr_r$, and its error does not grow with the number
+$M=R/r$ of records, as it does on the Bluestein route of Appendix~\ref{app:bluestein}. A first-time
+reader willing to take the middle transform as a black box needs only Theorem~\ref{thm:direct-fft} for the direct tensor
+FFT and Corollary~\ref{cor:walsh-middle} for its bridge interface, and may skip directly to Section~\ref{sec:main}.
+
+\paragraph{Parameters and conventions.}
 Throughout this section, let
 \[
   t_d=r=2^\ell,\qquad t_i\in\{2^{\ell-1},2^{\ell}\}\ (1\le i<d),\qquad R=t_1\cdots t_d,\qquad M=R/r,\qquad m_0=\lg M .
@@ -15,14 +22,18 @@ The last coordinate is stored as the contiguous length-$r$ coefficient list of e
 the record format, and no multiplication in that ring is performed. The exact transform is the normalized positive
 tensor DFT $F^+_{\mathbf t}=F_{\mathbf t}$ of Definition~\ref{def:dft}. Stored arrays lie on the $q$-grid $\Cg_q$ with
 component width $q+2\le w\le C_wq$. Scalar integer products are delegated to an independent multiplier of cost
-$\mathsf M(N)=N\,\mathsf m(N)$ on $N$-bit integers (for instance Sch\"onhage--Strassen~\cite{SS71}), never to a
-recursive call of the algorithm of this paper.
+$\mathsf M(N)=N\,\mathsf m(N)$ on $N$-bit integers, such as Sch\"onhage--Strassen~\cite{SS71}, and never to a recursive
+call of the algorithm of this paper.
 
 \subsection{Phases and scalar products}\label{sec:direct-fft-phases}
 
-The error analysis of Theorem~\ref{thm:direct-fft} requires every round to start from a disk array, so both scalar
-primitives preserve the closed unit disk: phases (Lemma~\ref{lem:phase-table}) and complex products
-(Lemma~\ref{lem:disk-product}).
+This subsection builds the two scalar primitives needed in every FFT round, ensuring that both keep all intermediate
+complex numbers inside the closed unit disk.
+
+Because the simultaneous butterfly layer requires disk-array inputs at every round, approximate roots of unity cannot
+exceed modulus~$1$ by even a single grid unit. The next lemma constructs a $2r$-entry table of $2r$-th roots of unity on
+the $q$-grid by rational series evaluation followed by slight inward shrinking. Each entry has modulus at most~$1$,
+error below $2\cdot 2^{-q}$, and deterministic evaluation cost $O(q^3)$ bit operations.
 
 \begin{lemma}[Disk-valued phases]\label{lem:phase-table}
 For every precision $q\ge8$ and $r=2^\ell$ with $\ell\le q$, the $2r$ phases $\theta_j=e^{\pi ij/r}$, $0\le j<2r$, have
@@ -34,21 +45,26 @@ The fourth roots of unity are returned exactly. Each entry costs $O(q^3)$ bit op
 bits, on a fixed number of tapes.
 \end{lemma}
 
+\emph{Proof idea.} Using trigonometric symmetries, we reduce the angle to $[-\pi/4,\pi/4]$, approximate $\pi$ via
+Machin's formula, and sum alternating Taylor series for cosine and sine at $S=2(q+5)+O(\lg q)$ fractional bits.
+On non-axis angles, multiplying by $1-2^{-q-3}$ before truncating toward zero keeps the modulus at most~$1$ and the
+total error under $2\cdot 2^{-q}$.
+
 \begin{proof}
 Put $u_0=2^{-q}$ and $b=q+5$. We compute with dyadic numbers of $S=2b+8\lceil\lg b\rceil+64$ fractional bits, rounding
-each product and quotient once (error at most $2^{-S}$), as in Lemma~\ref{lem:bridge-C}(iii) and
-Appendix~\ref{app:deferred}; exact products before a rounding use at most $2S$ fractional bits. We evaluate $\theta_j$
+each product and quotient once with error at most $2^{-S}$, as in part~(iii) of Lemma~\ref{lem:bridge-C} and
+Appendix~\ref{app:deferred}. Exact products before a rounding use at most $2S$ fractional bits. We evaluate $\theta_j$
 by rational series to within $u_0/16$, then shrink the result slightly and truncate it into the disk.
 
-\emph{Reduction.} Reduce the dyadic rational $\rho=j/r$ exactly modulo $2$ and then, by the symmetries of sine and
-cosine, to $|\rho|\le\frac14$. The symmetries contribute only a sign, a conjugation or a factor $\pm i$, which act
-exactly; the four exact fourth roots of unity are recognized directly from the index.
+\emph{Reduction.} Reduce the dyadic rational $\rho=j/r$ without error modulo~$2$ and then, by the symmetries of sine and
+cosine, to $|\rho|\le\frac14$. The symmetries contribute only a sign, a conjugation, or a factor $\pm i$, which act
+without error; the four fourth roots of unity are recognized directly from the index.
 
 \emph{The angle.} Machin's identity $\pi=16\arctan\frac15-4\arctan\frac1{239}$, summed to $N=4S$ terms with one rounded
-division per term, gives $\tilde\pi$ with $|\tilde\pi-\pi|\le21N2^{-S}$ (its tails are below $20\cdot5^{-2N-1}$). Since
-$\rho$ is dyadic with denominator dividing $r=2^\ell$, the product $x=\tilde\pi\rho$ is formed exactly on the grid of
-$S+\ell$ fractional bits and rounded once to $S$ fractional bits, adding at most $2^{-S}$. Thus $|x|<1$ and
-$|x-\pi\rho|\le(21N+1)2^{-S}$.
+division per term, gives $\tilde\pi$ with $|\tilde\pi-\pi|\le21N2^{-S}$, since the omitted series tails lie below
+$20\cdot5^{-2N-1}$. Because $\rho$ is dyadic with denominator dividing $r=2^\ell$, the product $x=\tilde\pi\rho$ is
+formed without error on the grid of $S+\ell$ fractional bits and rounded once to $S$ fractional bits, adding at most
+$2^{-S}$. Thus $|x|<1$ and $|x-\pi\rho|\le(21N+1)2^{-S}$.
 
 \emph{Series.} Sum $\cos x$ and $\sin x$ as the alternating Taylor polynomials $\sum_{n<N}(-1)^nT_n$, with $T_0=1$ and
 $T_n=T_{n-1}x^2/((2n)(2n-1))$ for the cosine, and $T_0=x$ and $T_n=T_{n-1}x^2/((2n)(2n+1))$ for the sine. Because the
@@ -69,6 +85,10 @@ $|\tilde\theta_j-\theta_j|<(\sqrt2+\frac14)u_0<2u_0$.
 takes $O(q^3)$ bit operations per entry without any transcendental oracle.
 \end{proof}
 
+Multiplying a disk-grid coefficient by a disk-valued phase must likewise remain inside the unit disk without
+intermediate rounding drift. The next lemma shows that forming the complex product without rounding at precision $2q$
+and truncating once toward zero preserves $\mathbb D_q$ with error below $\sqrt2\cdot 2^{-q}$.
+
 \begin{lemma}[Disk-preserving products]\label{lem:disk-product}
 If $a,b\in\Cg_q$ satisfy $|a|,|b|\le1$, then $Q_q(ab)$ is computed by four exact products of $O(q)$-bit integers and
 $O(q)$ further work, lies in the disk $\mathbb D_q$, and satisfies $|Q_q(ab)-ab|<\sqrt2\cdot2^{-q}$.
@@ -76,18 +96,19 @@ $O(q)$ further work, lies in the disk $\mathbb D_q$, and satisfies $|Q_q(ab)-ab|
 
 \begin{proof}
 Write $a=a_0+ia_1$ and $b=b_0+ib_1$, form $(a_0b_0-a_1b_1)+i(a_0b_1+a_1b_0)$ exactly on the $2q$-bit fractional grid
-(without rounding real products separately), and truncate both components toward zero by $Q_q$. Since $|ab|\le1$,
+without rounding the four real products separately, and truncate both components toward zero by $Q_q$. Since $|ab|\le1$,
 \eqref{eq:walsh-truncation} gives both claims.
 \end{proof}
 
 \subsection{The decimation-in-frequency schedule and its positional maps}\label{sec:direct-fft-layout}
 
-The decimation-in-frequency (DIF) recursion runs on all $d-1$ record axes in parallel, one bit level per round. A
-positional map $L$ groups their address slots into $K$-bit chunks so that each chunk round is a single call of
-Proposition~\ref{prop:prop14-param}, and a second positional map $U$ restores natural frequency order
-(Lemma~\ref{lem:walsh-layout}).
+This subsection defines the two positional maps $L$ and~$U$ of the direct tensor FFT and checks that the chunk rounds
+between them have the layer shape required by Proposition~\ref{prop:prop14-param}.
 
-For a transform of even length $u$, one positive normalized DIF step applies $H_0$ followed, on the branch $b=1$, by
+The decimation-in-frequency (DIF) recursion runs on all $d-1$ record axes in parallel, one bit level per round. A
+positional map $L$ groups their address slots into $K$-bit chunks so that each bulk chunk round becomes a single call to
+Proposition~\ref{prop:prop14-param}, and a second positional map $U$ restores natural frequency order afterwards. For a
+transform of even length $u$, one positive normalized DIF step applies $H_0$ followed, on the branch $b=1$, by
 multiplication by $e^{2\pi ij/u}$:
 \begin{equation}\label{eq:dif}
   (F^+_uz)_{2v+b}=\frac{1}{u/2}\sum_{j<u/2}e^{2\pi ivj/(u/2)}\,e^{2\pi ibj/u}\,\frac{z_j+(-1)^bz_{j+u/2}}2,\qquad
@@ -96,6 +117,7 @@ multiplication by $e^{2\pi ij/u}$:
 Successive address slots from high to low thus receive frequency bits from low to high, so the completed DIF recursion
 produces bit-reversed frequency order.
 
+\paragraph{Named slots and chunked layout.}
 Following the named-slot arrangement of~\cite[Lemma~16]{OAI26}, put $a_i=\lg t_i$ for $1\le i\le d-1$, and name the
 address slots of record axis~$i$ from most to least significant by $(i,a_i-1),\dots,(i,0)$. Let
 $b_0=(\ell-1)\bmod K$ and $J_{\rm blk}=(\ell-1-b_0)/K$. The original slot list is
@@ -113,6 +135,11 @@ empty sublists being omitted. Let $L$ be the positional map moving each named sl
 its position in $\mathcal P\Vert\mathcal C$, and let $B$ be the per-axis bit reversal $(i,v)\mapsto(i,a_i-1-v)$ on
 $\mathcal O$.
 
+Once the address slots are reordered into $\mathcal P\Vert\mathcal C$, every bulk DIF round across the $d-1$ record axes
+acts on a common bit offset $\rho$ of $d-1$ consecutive $K$-bit chunks, matching the input layout of
+Proposition~\ref{prop:prop14-param}. The next lemma verifies this layer shape and shows that applying $U=(LB)^{-1}$
+after the rounds untangles both the layout permutation~$L$ and the DIF bit reversal~$B$.
+
 \begin{lemma}[Layout and natural-order restoration]\label{lem:walsh-layout}
 In a round at named slot $v$ with $b_0\le v\le\ell-2$, the selected positions in $\mathcal P\Vert\mathcal C$ are bit
 $\rho=(v-b_0)\bmod K$, counted from the least significant end, of $D=d-1$ consecutive $K$-bit chunks. With $n_P$ and
@@ -128,6 +155,11 @@ frequency order is restored by the positional map
 Both $L$ and $U$ are compiled in time polynomial in~$q$ and executed exactly by Theorem~\ref{thm:positional-perm}.
 \end{lemma}
 
+\emph{Proof idea.} Stripping the top bit of length-$2^\ell$ axes and the lowest $b_0$ bits into $\mathcal P$ leaves an
+exact multiple of $K$ bits per record axis. The list $\mathcal C$ interleaves those remaining bits block by block so
+that slot~$v$ lands at a common chunk offset~$\rho$, and conjugating the per-axis DIF recursion by $L$ produces
+$LBF^+_{\mathbf t_{<d}}$, which $U=(LB)^{-1}$ inverts.
+
 \begin{proof}
 \emph{The layout.} The prefix $\mathcal P$ removes the extra top slot of each axis of length $2^\ell$ and the lowest
 $b_0$ slots of all $d-1$ record axes. The remaining $\ell-1-b_0=J_{\rm blk}K$ slots of each record axis split into
@@ -142,9 +174,13 @@ as spectators of lengths $n_P$ and~$n_S$.
 order~$B$. Relocating the named slots by $L$ conjugates each physical round by $L$, so executing the rounds in layout
 $L$ after applying $L$ to the original-order input computes $LBF^+_{\mathbf t_{<d}}$, proving~\eqref{eq:unshuffle}.
 
-\emph{Compilation.} The slot lists have $m_0=O(q)$ entries, so computing ranks, compositions and inverses (forming $U$ as
-$(L\circ B)^{-1}$) takes time polynomial in~$q$.
+\emph{Compilation.} The slot lists have $m_0=O(q)$ entries, so computing ranks, compositions, and inverses to form $U$ as
+$(L\circ B)^{-1}$ takes time polynomial in~$q$.
 \end{proof}
+
+The next remark gives a small example showing that the two factors of $U$ in~\eqref{eq:unshuffle} do not commute, and
+records that executing $L$ by chunk exchanges, as in~\cite{OAI26}, would reintroduce the cost term that
+Theorem~\ref{thm:positional-perm} avoids.
 
 \begin{remark}\label{rem:walsh-unshuffle}
 In general $B^{-1}L^{-1}\ne L^{-1}B^{-1}$, and~\eqref{eq:unshuffle} requires the former: for two record axes of bit
@@ -156,9 +192,12 @@ cost term $qK^{\tau-1}$; here $L$ and $U$ are executed instead by Theorem~\ref{t
 
 \subsection{One combined twiddle per record}\label{sec:direct-fft-twiddle}
 
-In a record-axis round each participating axis contributes a twiddle factor. Combining them into a single phase per
-record ensures that a round incurs only one phase approximation and one complex multiplication error per coefficient,
-regardless of~$d$.
+This subsection combines the up to $d-1$ per-axis twiddle factors of a parallel DIF round into a single root-of-unity
+phase per record, so that rounding error does not grow with the dimension~$d$.
+
+Adding their angles exactly, as one integer index into the phase table, before touching the record coefficients ensures
+that a round incurs only one phase approximation and one complex multiplication error per coefficient, regardless
+of~$d$.
 
 At named slot $v$, each participating record axis $i$ has current subproblem length $u_i=2^{v+1}$. For a record address
 $x$, reading the named-slot table gives its current branch bit $b_i=x_{(i,v)}$ and its unprocessed lower index
@@ -173,14 +212,20 @@ every $u_i$ divides $r=2^\ell$, the integer
 \[
   J(x)=\sum_{i\ \mathrm{participating}}\frac{r}{u_i}\,b_ij_i^{<v}\bmod r
 \]
-is computed exactly, and the round multiplies every coefficient of record~$x$ by the single phase entry
+is computed without error, and the round multiplies every coefficient of record~$x$ by the single phase entry
 $\tilde\theta_{2J(x)}$ from Lemma~\ref{lem:phase-table}.
 
 \subsection{The direct tensor FFT}\label{sec:direct-fft-thm}
 
-Theorem~\ref{thm:direct-fft} combines the last-axis FFT, the record-axis rounds, and the exact layout permutations. Each
-of the $\ell$ last-axis levels and at most $\ell$ record-axis rounds adds error below $6\cdot2^{-q}$, while $L$ and $U$
-are exact.
+This subsection assembles the intra-record transform, the layout permutations, and the parallel record-axis rounds into
+the complete direct tensor FFT and bounds its error and running time.
+
+Under the parameter regime below, on a tensor~$z$ of the shape fixed above ($t_d=r,\ t_i\in\{r/2,r\}$) with disk-grid
+entries in natural tensor order, four sequential stages approximate $F^+_{\mathbf t}z$ directly on the $q$-grid without
+widening the component width. First comes an intra-record DIF transform on the last axis, then the layout
+permutation~$L$, then at most $\ell$ parallel record-axis butterfly-and-twiddle rounds, and finally the restoring
+permutation $U=(LB)^{-1}$. Each of the $\ell$ last-axis levels and at most $\ell$ record-axis rounds adds error below
+$6\cdot 2^{-q}$, and the two positional permutations add none, so the total error stays under $12\ell\cdot 2^{-q}$.
 
 \begin{theorem}[Direct complex tensor FFT]\label{thm:direct-fft}
 Assume the parameter family of Proposition~\ref{prop:prop14-param} at grid precision~$q$. Suppose $q\ge8$, $d\ge2$,
@@ -199,44 +244,58 @@ in
 steps, where $V=2Rw=\Theta(Rq)$.
 \end{theorem}
 
+\emph{Proof idea.} The last-axis transform acts inside each length-$r$ record and commutes with record-level operations,
+so Lemma~\ref{lem:walsh-layout} identifies the exact composition of the four stages with $F^+_{\mathbf t}$. One
+precomputed $2r$-entry phase table supplies all twiddles via sequential tape scans, while bulk record-axis rounds call
+Proposition~\ref{prop:prop14-param} and the few remaining prefix rounds apply $H_0$ sequentially at extra precision
+before a single truncation. Because every stage keeps entries in the unit disk $\mathbb D_q$ and each exact round
+contracts $\|\cdot\|_\infty$, local errors below $6\cdot 2^{-q}$ per level add linearly across $\ell$ last-axis levels
+and at most $\ell$ record-axis rounds.
+
 \begin{proof}
 The procedure executes four stages sequentially:
 \begin{enumerate}[label=(\roman*),leftmargin=*]
   \item Apply a normalized positive DIF FFT on every length-$r$ contiguous record, followed by bit-reversal restoration
     inside each record.
-  \item Apply the positional map $L$ on the record addresses (Theorem~\ref{thm:positional-perm}).
-  \item Run record-axis rounds at named slots $v=\ell-1,\dots,0$ (at $v=\ell-1$ only axes of length $r$ participate).
-    Chunk rounds ($b_0\le v\le\ell-2$) call Proposition~\ref{prop:prop14-param} with $D=d-1$, prefix rounds ($v=\ell-1$
-    and $v<b_0$) apply exact individual butterflies before a single truncation, and each completed butterfly round is
-    followed by the combined twiddle multiplication of Section~\ref{sec:direct-fft-twiddle}.
-  \item Apply the restoring positional map $U=(LB)^{-1}$ on the record addresses (Theorem~\ref{thm:positional-perm}).
+
+  \item Apply the positional map $L$ on the record addresses via Theorem~\ref{thm:positional-perm}.
+
+  \item Run record-axis rounds at named slots $v=\ell-1,\dots,0$, where at $v=\ell-1$ only axes of length $r$
+    participate. Chunk rounds with $b_0\le v\le\ell-2$ call Proposition~\ref{prop:prop14-param} with $D=d-1$, while
+    prefix rounds with $v=\ell-1$ or $v<b_0$ apply exact individual butterflies before a single truncation. Each
+    completed butterfly round is followed by the combined twiddle multiplication of Section~\ref{sec:direct-fft-twiddle}.
+
+  \item Apply the restoring positional map $U=(LB)^{-1}$ on the record addresses via Theorem~\ref{thm:positional-perm}.
 \end{enumerate}
 Because the last-axis transform acts within records and commutes with record-axis operations and record permutations,
 \eqref{eq:dif} and Lemma~\ref{lem:walsh-layout} show that the exact counterpart of the four stages is
 $F^+_{\mathbf t}$.
 
-\emph{Phase table.} One master $2r$-entry phase table (Lemma~\ref{lem:phase-table}) serves all rounds. Building it once
-costs $rq^{O(1)}=o(V)$, since $M\ge r/2$ and $r$ exceeds every fixed polynomial in~$q$ under the band $r\ge2^{a_rq/d}$
-with $d\le b_dq^\eps$. Every subsequent table lookup is a charged sequential scan, so no random access is assumed.
+\emph{Phase table.} One master $2r$-entry phase table from Lemma~\ref{lem:phase-table} serves all rounds. Building it
+once costs $rq^{O(1)}=o(V)$, since $M\ge r/2$ and $r$ exceeds every fixed polynomial in~$q$ under the band
+$r\ge2^{a_rq/d}$ with $d\le b_dq^\eps$. Every subsequent table lookup is a charged sequential scan, so no random access
+is assumed.
 
 \emph{Last axis.} At a DIF level of block length~$u$, stream the two halves of each block onto aligned tapes, form each
-half-sum and half-difference exactly and truncate to $\Cg_q$ by $Q_q$, and multiply the $b=1$ branch by its stage phase
-via Lemma~\ref{lem:disk-product}. One scan of the master table extracts the stage table
+half-sum and half-difference without error, and truncate to $\Cg_q$ by $Q_q$. Multiply the $b=1$ branch by its stage
+phase via Lemma~\ref{lem:disk-product}. One scan of the master table extracts the stage table
 $(\tilde\theta_{(2r/u)j})_{j<u/2}$, which is replayed with a local rewind across the blocks of each record. Splits,
-merges and the final bit reversal on the $\ell$ intra-record bit positions are elementary streams
-(Lemma~\ref{lem:transfer-streams}); this intra-record reversal is separate from~$U$. Each level costs
+merges, and the final bit reversal on the $\ell$ intra-record bit positions are elementary streams by
+Lemma~\ref{lem:transfer-streams}; this intra-record reversal is separate from~$U$. Each level costs
 $O(rq+r\,\mathsf M(q+2))$ per record, and the intra-record bit reversal costs $O(rq\ell)$ per record.
 
 \emph{Record axes.} In each chunk round, Lemma~\ref{lem:walsh-layout} gives the layer shape, and setting
 $C_M=C_\ell+1$ and $C_{\rm desc}=32(C_\ell+C_w+1)$ satisfies the header hypotheses of
-Proposition~\ref{prop:prop14-param}: there are $2^{m_0}$ records with $m_0\le d\ell\le C_\ell q$, so
+Proposition~\ref{prop:prop14-param}. Indeed, there are $2^{m_0}$ records with $m_0\le d\ell\le C_\ell q$, so
 $\lg(2\cdot2^{m_0})\le(C_\ell+1)q$, and the nine-field header has length at most $2(C_\ell+1)q+O(\lg q)\le C_{\rm desc}q$
-for large~$q$. In each prefix round, the at most $d-1$ participating $H_0$ factors are applied sequentially and exactly
-before one truncation $Q_q$: intermediate values lie in the disk on denominator exponent at most $q+d-1$, and temporary
-sums have modulus at most~$2$, requiring $q+d+O(1)=O(q)$ bits. In both kinds of round, for each record~$x$, the index
-$J(x)$ is computed in time polynomial in~$q$, $\tilde\theta_{2J(x)}$ is fetched by one scan of the master table, and
-every coefficient of the record is multiplied by $\tilde\theta_{2J(x)}$ via Lemma~\ref{lem:disk-product}. The per-record
-address and scan overhead is $O(V)$ by Lemma~\ref{lem:transfer-long-record}. Every record-axis round thus implements
+for large~$q$. In each prefix round, the at most $d-1$ participating $H_0$ factors are applied sequentially without
+rounding before one truncation $Q_q$. Intermediate values lie in the disk on denominator exponent at most $q+d-1$, and
+temporary sums have modulus at most~$2$, requiring $q+d+O(1)=O(q)$ bits.
+
+In both kinds of record-axis round, for each record~$x$, the index $J(x)$ is computed in time polynomial in~$q$, and
+$\tilde\theta_{2J(x)}$ is fetched by one scan of the master table. Every coefficient of the record is then multiplied by
+$\tilde\theta_{2J(x)}$ via Lemma~\ref{lem:disk-product}, with total address and scan overhead $O(V)$ by
+Lemma~\ref{lem:transfer-long-record}. Every record-axis round thus implements
 \begin{equation}\label{eq:round-protocol}
   z\mapsto Q_q\bigl(\tilde D\,Q_q(Hz)\bigr),
 \end{equation}
@@ -246,19 +305,19 @@ between arbitrary inputs. The error analysis below therefore compares each compu
 contraction $D_\zeta H$ on disk inputs.}
 
 \emph{Error.} Put $u_0=2^{-q}$, let $z$ be a disk array, and set $z'=Q_q(Hz)$. By~\eqref{eq:walsh-truncation},
-Lemma~\ref{lem:phase-table} and Lemma~\ref{lem:disk-product},
+Lemma~\ref{lem:phase-table}, and Lemma~\ref{lem:disk-product},
 \begin{align*}
   \|Q_q(\tilde Dz')-D_\zeta Hz\|_\infty
   &\le\|Q_q(\tilde Dz')-\tilde Dz'\|_\infty+\|(\tilde D-D_\zeta)z'\|_\infty+\|D_\zeta(z'-Hz)\|_\infty\\
   &<(\sqrt2+2+\sqrt2)u_0<6u_0 .
 \end{align*}
-The same $6u_0$ bound holds for each last-axis level (its $b=0$ branch incurs one truncation, its $b=1$ branch two
-truncations and one phase error). Every computed intermediate array entering a round is a disk array, because $H_0$
-layers preserve the disk, $Q_q$ does not increase modulus, $|\tilde\theta_j|\le1$, and positional maps permute values.
-Since every exact round $A$ is a contraction in $\|\cdot\|_\infty$, for computed input $x$ and ideal input $x_0$ we have
-$\|\widehat Ax-Ax_0\|_\infty\le\|\widehat Ax-Ax\|_\infty+\|x-x_0\|_\infty$. Summing the local bound $6u_0$ over $\ell$
-last-axis levels and at most $\ell$ record-axis rounds (with $L$ and $U$ exact by Theorem~\ref{thm:positional-perm})
-gives~\eqref{eq:direct-fft-error}.
+The same $6u_0$ bound holds for each last-axis level, whose $b=0$ branch incurs one truncation and whose $b=1$ branch
+incurs two truncations and one phase error. Every computed intermediate array entering a round is a disk array, because
+$H_0$ layers preserve the disk, $Q_q$ does not increase modulus, $|\tilde\theta_j|\le1$, and positional maps permute
+values. Since every exact round $A$ is a contraction in $\|\cdot\|_\infty$, for computed input $x$ and ideal input $x_0$
+we have $\|\widehat Ax-Ax_0\|_\infty\le\|\widehat Ax-Ax\|_\infty+\|x-x_0\|_\infty$. Summing the local bound $6u_0$ over
+$\ell$ last-axis levels and at most $\ell$ record-axis rounds, while $L$ and $U$ act without error by
+Theorem~\ref{thm:positional-perm}, gives~\eqref{eq:direct-fft-error}.
 
 \emph{Time.} The at most $b_0+1\le K$ prefix rounds cost $O(VdK)$, and the at most $\ell$ chunk rounds cost
 $O(V\ell d^{\lambda'})$. Scalar complex products across the last-axis FFT and the record-axis twiddles cost
@@ -269,9 +328,13 @@ subroutines run sequentially on a fixed number of tapes and clean their workspac
 
 \subsection{Interface with the bridge}\label{sec:direct-fft-bridge}
 
-Corollary~\ref{cor:walsh-middle} instantiates Theorem~\ref{thm:direct-fft} as the middle transform of the fractional-shift
-bridge (Theorem~\ref{thm:bridge-precision}), where $p$ is the target precision, $P$ is the bridge's internal working
-precision, and $q=P+2$ is its grid precision, with component width $w=q+2$.
+This subsection specializes the direct tensor FFT to the grid precision of the fractional-shift bridge and verifies that
+it fulfills the middle-transform contract.
+
+Instantiating Theorem~\ref{thm:direct-fft} at the bridge's grid precision $q=P+2$ and component width $w=q+2$, where $P$
+is the internal working precision of Theorem~\ref{thm:bridge-precision}, supplies the middle transform used in
+Algorithm~\ref{alg:main}. The corollary below records that its error factor is $E_{\rm mid}=12\ell$ and its output widening is
+$\delta_{\rm mid}=0$, both well within the limits of Definition~\ref{def:middle-contract}.
 
 \begin{corollary}[Walsh middle transform]\label{cor:walsh-middle}
 Assume the hypotheses of Theorem~\ref{thm:direct-fft} at the bridge's grid precision $q=P+2$ with component width
@@ -293,6 +356,6 @@ $w=q+2$; internal guard allocations and temporary lifts to $q+8d$ return to widt
 \end{proof}
 
 The middle transform uses Theorem~\ref{thm:positional-perm} for $L$ and $U$, where every record carries $r$
-coefficients. By contrast, the bridge's line-spreading axis exposures use the chunk interchanges of
-Lemma~\ref{lem:transfer12} at cost $O(Vd(1+\ell^\tau))$ (Lemma~\ref{lem:bridge-D}), since a single-line operation has no
-long retained record payload.
+coefficients. By contrast, Lemma~\ref{lem:bridge-D} implements the bridge's line-spreading axis exposures by the chunk
+interchanges of Lemma~\ref{lem:transfer12} at cost $O(Vd(1+\ell^\tau))$, since a single-line operation has no long
+retained record payload.

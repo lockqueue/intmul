@@ -11,7 +11,7 @@ import Mathlib.MeasureTheory.Group.Integral
 # `[MS]` Section 4.2: Theorem 4.2 — CRT-Free Fractional-Shift Poisson Identity (`F_{t_1 r} ↔ F_{t_1, r}`)
 
 This module is part of our independent formalization of `[MS]` Section 4.2 (Theorem 4.2)
-(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*):
+(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*):
 
 1. **Windowed Sinc-Gaussian (Cardinal Box-Gaussian) Kernel (`[MS]` §4.2, eq. (15))**:
    - `normSinc t = sin(π t) / (π t)` (`normSinc 0 = 1`), proved even and bounded by `1 / (π |t|)`.

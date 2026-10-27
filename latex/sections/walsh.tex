@@ -1,13 +1,21 @@
 \section{Walsh-layer permutations}\label{sec:walsh}
 
-This section and the next replace the Bluestein middle transform and chunk-exchange layout of~\cite{OAI26} by a direct
-complex tensor FFT. The key new tool is an exact procedure that permutes the \emph{positions} of a binary record
-address using simultaneous butterfly layers, per-record diagonal phases, and dyadic scalings, together with elementary
-two-digit permutations at fewer than $K$ leftover positions outside the chunks (Section~\ref{sec:walsh-perm}). Three
-full layers apply $H_0=\frac12\bigl(\begin{smallmatrix}1&1\\1&-1\end{smallmatrix}\bigr)$ exactly to any subset of the
-selected bits (Section~\ref{sec:walsh-select}), two such selective layers around a sign diagonal execute a batch of
-disjoint controlled flips (Section~\ref{sec:walsh-cnot}), and six stages of batched flips execute every positional
-permutation (Section~\ref{sec:walsh-perm}).
+This section builds an exact multitape procedure that permutes the bit positions of a binary record address without
+altering any record's payload. Instead of moving records through physical chunk exchanges, we synthesize address
+permutations algebraically from three ingredients: simultaneous $2\times 2$ Walsh--Hadamard butterfly layers
+$H_0=\frac12\bigl(\begin{smallmatrix}1&1\\1&-1\end{smallmatrix}\bigr)$, recordwise fourth-root and sign phases, and
+dyadic scalings. The fewer than $K$ leftover address positions outside the chunks are handled by elementary stream swaps.
+For Theorem~\ref{thm:main}, these exact positional permutations prepare the chunked address layout and restore natural
+frequency order for the direct tensor FFT of Section~\ref{sec:direct-fft}, eliminating the external chunk-exchange
+bottleneck of~\cite{OAI26}. A first-time reader willing to treat address reordering as a black box needs only the
+positional-permutation theorem (Theorem~\ref{thm:positional-perm}) and the lifting lemma it relies on
+(Lemma~\ref{lem:walsh-lift}), and may skip directly to Section~\ref{sec:direct-fft}.
+
+The construction proceeds in three steps. Section~\ref{sec:walsh-select} interleaves three full butterfly layers with
+recordwise fourth-root phases to apply $H_0$ selectively to any chosen subset of active bits while acting as the identity
+on the rest. Section~\ref{sec:walsh-cnot} sandwiches a recordwise sign diagonal between two selective layers to execute a
+batch of disjoint controlled bit flips with zero rounding error. Section~\ref{sec:walsh-perm} then factors every
+positional permutation into six stages of such batched flips.
 
 Throughout this section and Section~\ref{sec:direct-fft}, stored arrays lie on the $q$-grid
 $\Cg_q=2^{-q}(\Z+i\Z)$, which the bridge of Section~\ref{sec:bridge} instantiates at $q=P+2$. For arrays of records,
@@ -17,40 +25,54 @@ $\|z\|_\infty\le1$. By~\eqref{eq:rounding}, componentwise truncation $Q_q$ towar
   \|Q_qz\|_\infty\le\|z\|_\infty,\qquad \|Q_qz-z\|_\infty<\sqrt2\cdot2^{-q}.
 \end{equation}
 
-We invoke the simultaneous butterfly layer through Proposition~\ref{prop:prop14-param}, proved in
+We invoke the simultaneous butterfly layer (Proposition~\ref{prop:prop14-param}), proved in
 Appendix~\ref{app:parameter-transfer} from the elementary stream primitives of Fact~\ref{fact:oai-streams} and the
-fixed triple networks at $h=100$, $m=h^3=10^6$ of Fact~\ref{fact:oai-networks}. Let us recall its signature at grid
-precision~$q$. Fix rational network exponents $0<\tau<1$ and $0\le\sigma<1$ satisfying $s_b/W_b<m^\tau$ and
-$s_c/W_c<m^\sigma$, rational parameters $0<\beta<1$, $c>0$, $0<\eps<1$, $\lambda$, $\lambda'$ with
-$\max\{\tau,\sigma,\tau(1+c/\beta)\}<\lambda<1$ and $\max\{\lambda,\sigma+\beta(1-\sigma)\}<\lambda'<1$, a guard
-exponent $C_1\ge14$ with $\eps C_1<1$, and band constants $a_d\le b_d$, $a_r\le b_r$, $C_M$,
-$C_{\rm desc}$ and $C_w>1$. For all $q$ above a fixed cutoff with
+fixed triple networks at $h=100$ and $m=h^3=10^6$ of Fact~\ref{fact:oai-networks}. The next two paragraphs restate its
+parameter family and its tape interface at grid precision~$q$.
+
+\paragraph{Parameters of the simultaneous butterfly layer.}
+Fix rational network exponents $0<\tau<1$ and $0\le\sigma<1$ satisfying $s_b/W_b<m^\tau$ and $s_c/W_c<m^\sigma$. Fix
+rational parameters $0<\beta<1$, $c>0$, $0<\eps<1$, $\lambda$, and $\lambda'$ satisfying
+$\max\{\tau,\sigma,\tau(1+c/\beta)\}<\lambda<1$ and $\max\{\lambda,\sigma+\beta(1-\sigma)\}<\lambda'<1$, together with a
+guard exponent $C_1\ge14$ satisfying $\eps C_1<1$. Fix comparison-band constants $a_d\le b_d$, $a_r\le b_r$, $C_M$,
+$C_{\rm desc}$, and $C_w>1$. We consider all grid precisions $q$ above a fixed cutoff such that
 \[
   a_dq^{\eps}\le d\le b_dq^{\eps},\qquad 2^{a_rq/d}\le r\le 2^{b_rq/d},\qquad K=\lfloor d^c\rfloor,
 \]
-and integers $1\le D\le d$, $A,S\ge1$ and $0\le\rho<K$ satisfying $M=AS\,2^{KD}$, $\lg(2M)\le C_Mq$ and
-$q+2\le w\le C_wq$, the procedure accepts a disk-grid array in lexicographic order on $[A]\times[2^K]^D\times[S]$
-together with the header $\Gamma(q)\Gamma(d)\Gamma(r)\Gamma(D)\Gamma(A)\Gamma(S)\Gamma(K)\Gamma(\rho+1)\Gamma(w)$ of
-length at most $C_{\rm desc}q$. Each address carries a length-$r$ record in $\Rr_r$ stored in coefficient order, each
-real or imaginary component being $2^{-q}$ times a signed $w$-bit two's-complement integer written most significant bit
-first. Let $H$ apply $H_0$ simultaneously to bit~$\rho$ (counted from the least significant end) of each of the $D$
+together with integers $1\le D\le d$, $A,S\ge1$, and $0\le\rho<K$ satisfying $M=AS\,2^{KD}$, $\lg(2M)\le C_Mq$, and
+$q+2\le w\le C_wq$.
+
+\paragraph{Layer interface and cost.}
+The layer procedure accepts a disk-grid array in lexicographic order on $[A]\times[2^K]^D\times[S]$ together with the
+self-delimiting header $\Gamma(q)\Gamma(d)\Gamma(r)\Gamma(D)\Gamma(A)\Gamma(S)\Gamma(K)\Gamma(\rho+1)\Gamma(w)$ of
+length at most $C_{\rm desc}q$. Each address carries a length-$r$ record in $\Rr_r$ stored in coefficient order, where
+each real or imaginary component is $2^{-q}$ times a signed $w$-bit two's-complement integer written most significant
+bit first. Let $H$ apply $H_0$ simultaneously to bit~$\rho$, counted from the least significant end, of each of the $D$
 active chunks. Proposition~\ref{prop:prop14-param} evaluates $Hz$ \emph{exactly} over $\Z[i,1/2]$ using
-$\Delta=\lceil C_0d^{C_1}\rceil=o(q)$ internal guard bits ($q+\Delta$ fractional and $\Delta+3$ integer and sign bits
-per real component) before applying one final truncation $Q_q$. It returns $Q_q(Hz)$ in the original record and
-component format, as a disk array satisfying $\|Q_q(Hz)-Hz\|_\infty<\sqrt2\cdot2^{-q}$, in $O(Vd^{\lambda'})$ steps,
+$\Delta=\lceil C_0d^{C_1}\rceil=o(q)$ internal guard bits, namely $q+\Delta$ fractional and $\Delta+3$ integer and sign
+bits per real component, before applying one final truncation $Q_q$. It returns $Q_q(Hz)$ in the original record and
+component format as a disk array satisfying $\|Q_q(Hz)-Hz\|_\infty<\sqrt2\cdot2^{-q}$, in $O(Vd^{\lambda'})$ steps,
 where $V=2Mrw$.
 
 \subsection{Selective Walsh operations}\label{sec:walsh-select}
 
-Controlled flips require $H_0$ on an arbitrary subset of a \emph{slice}, the set of $D$ positions selected by one call
-of the butterfly layer (Definition~\ref{def:walsh-positional} fixes the slices used for positional maps); three full
-layers provide this selective operator exactly. Positions in a binary record address are numbered from the most
-significant end, while within each $K$-bit chunk the offset $\rho$ is counted from the least significant end. Let
-$S=\diag(1,i)$, and for any set $U$ of record-address positions define the recordwise diagonal
+This subsection shows how three full simultaneous butterfly layers, interleaved with recordwise fourth-root phases,
+implement $H_0$ on an arbitrary subset of a slice while leaving the remaining positions unchanged.
+
+Controlled flips require applying $H_0$ on a chosen subset of a \emph{slice}, the set of $D$ positions selected by one
+call of the butterfly layer; Definition~\ref{def:walsh-positional} fixes the slices used for positional maps. Positions
+in a binary record address are numbered from the most significant end, while within each $K$-bit chunk the offset $\rho$
+is counted from the least significant end. Let $S=\diag(1,i)$, and for any set $U$ of record-address positions define
+the recordwise diagonal
 \begin{equation}\label{eq:walsh-SU}
   (S_Uz)(x)=i^{\sum_{j\in U}x_j}\,z(x),
 \end{equation}
 which multiplies every coefficient of the record at address~$x$ by the same fourth-root phase.
+
+A single butterfly-layer call applies $H_0$ to all $D$ active positions of a slice at once, whereas controlled flips
+need $H_0$ on a subset $T$ and the identity on the complement $U$. The next lemma achieves this separation
+algebraically: alternating $H_0$ three times with the fourth-root gate $S$ collapses $(H_0 S)^3$ to a scalar multiple of
+the identity on $U$, while $H_0^3$ remains a scalar multiple of $H_0$ on~$T$.
 
 \begin{lemma}[Three-layer selection]\label{lem:walsh-select}
 Let a slice consist of $D$ selected positions ($1\le D\le d$) and let $T$ be any subset of them, with $s=|T|$, $U$ the
@@ -77,8 +99,15 @@ $S_U,H_{\rm all},S_U,H_{\rm all},S_U,H_{\rm all}$ and then the scalar $2^s[2(1-i
 $S_U$ diagonals, including the initial one. The scalar is applied in one scan: a fourth-root phase, at most one
 multiplication by $1-i$ via $(\Re z,\Im z)\mapsto(\Re z+\Im z,\Im z-\Re z)$, and one binary shift. Every external
 diagonal and scalar correction is applied only at completed layer boundaries in the ordinary record layout, after the
-layer call has restored its role routing and removed its padding, with position masks kept as caller data on separate
+layer call has restored its role routing and removed its padding. Position masks are kept as caller data on separate
 tapes.
+
+Each call to Proposition~\ref{prop:prop14-param} truncates its output to the active grid precision, which would
+ordinarily introduce rounding error. On a slice of $1\le D\le d$ positions, suppose we first lift a disk array on the
+$q$-grid to precision $q_*=q+8d$ by adding $8d$ extra fractional zero bits. The next lemma shows that across two
+consecutive selective gadgets at precision~$q_*$ with the same target set~$T$, even with a sign or fourth-root diagonal
+between them, every layer output has denominator dividing $2^{q+8d}$. All layer truncations therefore discard only zeros,
+and both gadgets act without error.
 
 \begin{lemma}[Exact boundaries]\label{lem:walsh-exact}
 Let the input be a disk array on the $q$-grid and let a slice have $1\le D\le d$ selected positions. Put $q_*=q+8d$,
@@ -90,20 +119,31 @@ and the disk), a second gadget with the same $T$ is again exact, with output on 
 $q+2s$. All completed outputs are disk arrays.
 \end{lemma}
 
+\emph{Proof idea.} Because each $D$-bit butterfly layer increases the binary denominator exponent by at most $D\le d$
+and fourth-root diagonals add no denominator bits, $8d$ extra fractional bits accommodate two three-layer gadgets back
+to back with room to spare. Inside a gadget, every full layer and every $S_U$ is a contraction, so each layer call again
+receives a disk array. After the final scalar scan, the disk-array property follows from the exact operator identity
+$H_T$ on disk inputs rather than from a bound on the intermediate scalar.
+
 \begin{proof}
 A full normalized $D$-bit layer has Gaussian dyadic entries with denominator dividing~$2^D$, and $S_U$ adds no
 denominator bits. The three layer outputs of the first gadget therefore lie on grids of denominator exponent at most
-$q+D$, $q+2D$ and $q+3D$, all strictly below $q_*=q+8d$, so each $Q_{q_*}$ is the identity; the internal computation of
+$q+D$, $q+2D$, and $q+3D$, all strictly below $q_*=q+8d$, so each $Q_{q_*}$ is the identity. The internal computation of
 each layer is exact by Proposition~\ref{prop:prop14-param}, whose internal denominators are controlled by~$\Delta$.
-After the exact scalar scan, the value equals $H_Tz$, which has denominator exponent at most $q+s$. A diagonal with
-entries in $\{1,-1,i,-i\}$ multiplies every coefficient by a unit of $\Z[i]$, preserving both this denominator exponent
-and the modulus of every coefficient. The second gadget therefore again starts from a disk array, now on denominator
-exponent at most $q+s$; its three layer outputs have denominator exponents at most $q+s+3D\le q+4D<q_*$, and its
-completed output $H_T(\cdot)$ has exponent at most $q+2s$. Each full layer and each $S_U$ is a contraction in
-$\|\cdot\|_\infty$, and the completed gadget output equals $H_T$ applied to a disk array, hence is itself a disk array:
-this operator identity, rather than a bound on the intermediate scalar, verifies the disk-input condition of the next
-layer call. The scalar scan requires only a constant number of temporary integer bits.
+After the exact scalar scan, the value equals $H_Tz$, which has denominator exponent at most $q+s$.
+
+A diagonal with entries in $\{1,-1,i,-i\}$ multiplies every coefficient by a unit of $\Z[i]$, preserving both this
+denominator exponent and the modulus of every coefficient. The second gadget therefore again starts from a disk array,
+now on denominator exponent at most $q+s$; its three layer outputs have denominator exponents at most $q+s+3D\le q+4D<q_*$,
+and its completed output $H_T(\cdot)$ has exponent at most $q+2s$. Each full layer and each $S_U$ is a contraction in
+$\|\cdot\|_\infty$. Moreover, the completed gadget output equals $H_T$ applied to a disk array and is therefore itself a
+disk array: this operator identity, rather than a bound on the intermediate scalar, verifies the disk-input condition of
+the next layer call. The scalar scan requires only a constant number of temporary integer bits.
 \end{proof}
+
+Before running the lifted gadgets, we pad every stored numerator with $8d$ trailing zero bits and check that the
+butterfly layer's size bands still hold at the lifted precision $q_*=q+8d$. The next lemma verifies that this lift costs
+linear time $O(V)$ and stays inside fixed widened comparison bands.
 
 \begin{lemma}[Lifting]\label{lem:walsh-lift}
 Lifting a $q$-grid array to precision $q_*=q+8d$ costs $O(V)$: append $8d$ fractional zero bits to every numerator and
@@ -116,17 +156,23 @@ comparison constants serves both $q$ and $q_*$.
 
 \begin{proof}
 Because $C_w>1$ and $w\le C_wq$, we have $w_*=w+8d\le C_w(q+8d)=C_wq_*$. Appending $8d$ low zero bits represents the
-exact same dyadic values at scale $2^{-q_*}$ (whereas changing only the precision field in the header would rescale the
-array), and the internal guarded width $q_*+2\Delta+3$ remains $O(q)$. All re-encoding scans are linear in~$V$.
+exact same dyadic values at scale $2^{-q_*}$, whereas changing only the precision field in the header would rescale the
+array. The internal guarded width $q_*+2\Delta+3$ remains $O(q)$, and all re-encoding scans run in time $O(V)$.
 \end{proof}
 
 \subsection{Exact controlled flips}\label{sec:walsh-cnot}
 
-Two selective layers around a sign diagonal perform a batch of controlled flips exactly. For disjoint pairs
-$(c_j,t_j)$, $1\le j\le s$, of distinct record-address positions, let $T=\{t_1,\dots,t_s\}$ and define
+This subsection combines two selective Walsh gadgets with a recordwise sign diagonal to execute a batch of disjoint
+controlled address-bit flips without error.
+
+For disjoint pairs $(c_j,t_j)$, $1\le j\le s$, of distinct record-address positions, let $T=\{t_1,\dots,t_s\}$ and define
 \begin{equation}\label{eq:walsh-CZ}
   (\CZ\,z)(x)=(-1)^{\sum_{j=1}^sx_{c_j}x_{t_j}}\,z(x).
 \end{equation}
+
+Conjugating a controlled sign change by $H_0$ on the target bit turns a phase flip into a bit flip. The next lemma
+records the tensor-product form of this identity across $s$ disjoint control-target pairs, moving whole records between
+addresses without modifying their coefficients.
 
 \begin{lemma}[Controlled flips]\label{lem:cnot}
 As array operators, $\CNOT^{\otimes s}=2^sH_T\,\CZ\,H_T$, where the left-hand side moves the record at address $x$ to
@@ -140,6 +186,12 @@ $2H_0\diag(1,-1)H_0=\bigl(\begin{smallmatrix}0&1\\1&0\end{smallmatrix}\bigr)$. T
 gives the identity. Because the address map is an involution, the move and pull conventions coincide.
 \end{proof}
 
+When all target bits of a disjoint controlled-flip batch belong to one slice and the controls lie anywhere else in the
+record address, both selective $H_T$ operators act on that single slice. Under the hypotheses of
+Proposition~\ref{prop:prop14-param} at grid precision~$q$, the next proposition shows that on disk arrays on the $q$-grid,
+six butterfly-layer calls at lifted precision $q_*=q+8d$ and a constant number of linear scans execute the entire batch.
+They return an exact permutation of the input records in the original $q$-grid format in $O(Vd^{\lambda'})$ steps.
+
 \begin{proposition}[Slice-batched controlled flips]\label{prop:cnot-batch}
 Assume the hypotheses of Proposition~\ref{prop:prop14-param} at grid precision~$q$. Suppose all targets $t_1,\dots,t_s$
 of a batch of disjoint controlled flips lie among the selected positions of one slice, while the controls $c_1,\dots,c_s$
@@ -148,26 +200,40 @@ the $q$-grid, the batch is performed exactly in $O(Vd^{\lambda'})$ steps by six 
 $q_*=q+8d$ and a constant number of linear scans, returning the output in the original $q$-grid format.
 \end{proposition}
 
+\emph{Proof idea.} We lift to precision $q_*=q+8d$, run the two selective $H_T$ gadgets around the sign diagonal $\CZ$,
+rescale by $2^s$, and strip the $8d$ extra low bits. Lemma~\ref{lem:walsh-exact} guarantees that all six layer calls are
+exact, and Lemma~\ref{lem:cnot} guarantees that the completed output is a permutation of the original $q$-grid records,
+so stripping the low bits discards only zeros.
+
 \begin{proof}
-Lift the input from $q$ to $q_*=q+8d$ (Lemma~\ref{lem:walsh-lift}), apply the first selective gadget for $H_T$, the sign
-diagonal $\CZ$, and the second selective gadget for $H_T$, multiply exactly by $2^s$, and lower from $q_*$ back to~$q$.
-Since $\CZ$ has entries in $\{\pm1\}$, Lemma~\ref{lem:walsh-exact} applies: all six layer truncations discard only
-zeros. If a control $c_j$ lies in the same slice outside~$T$, the internal layers of a gadget mix that bit temporarily,
-but the completed gadget acts on it as the identity before $\CZ$ is applied. By Lemma~\ref{lem:cnot}, the value after
-multiplying by $2^s$ is an exact permutation of the input $q$-grid records, so lowering from $q_*$ to $q$ discards only
-zero low bits; this relies on the permutation identity rather than denominator counting alone. There is no
-control-before-target ordering requirement because $\CZ$ is a recordwise value diagonal rather than a controlled address
-rotation. For each record, the phases of~\eqref{eq:walsh-SU} and the parity of~\eqref{eq:walsh-CZ} are computed once
-from its address and the caller's mask or pair list in time polynomial in~$q$, which is absorbed by the record length
-$r$ (Lemma~\ref{lem:transfer-long-record}), while lifting and lowering are elementary streams
-(Lemma~\ref{lem:transfer-streams}) and the lifted volume remains $O(V)$. Thus Proposition~\ref{prop:prop14-param} gives
-total time $O(Vd^{\lambda'})$.
+Lift the input from $q$ to $q_*=q+8d$ by Lemma~\ref{lem:walsh-lift}, apply the first selective gadget for $H_T$, the
+sign diagonal $\CZ$, and the second selective gadget for $H_T$, multiply without rounding by $2^s$, and lower from $q_*$
+back to~$q$. Since $\CZ$ has entries in $\{\pm1\}$, Lemma~\ref{lem:walsh-exact} applies: all six layer truncations
+discard only zeros. If a control $c_j$ lies in the same slice outside~$T$, the internal layers of a gadget mix that bit
+temporarily, but the completed gadget acts on it as the identity before $\CZ$ is applied.
+
+By Lemma~\ref{lem:cnot}, the value after multiplying by $2^s$ is an exact permutation of the input $q$-grid records, so
+lowering from $q_*$ to $q$ discards only zero low bits; this relies on the permutation identity rather than denominator
+counting alone. No control-before-target ordering is required because $\CZ$ is a recordwise value diagonal rather than a
+controlled address rotation. For each record, the phases of~\eqref{eq:walsh-SU} and the parity of~\eqref{eq:walsh-CZ}
+are computed once from its address and the caller's mask or pair list in time polynomial in~$q$. By
+Lemma~\ref{lem:transfer-long-record}, that overhead is absorbed by the record length~$r$. Meanwhile, lifting and
+lowering are elementary streams by Lemma~\ref{lem:transfer-streams}, and the lifted volume remains $O(V)$. Thus
+Proposition~\ref{prop:prop14-param} gives total time $O(Vd^{\lambda'})$.
 \end{proof}
 
 Because a completed batch is an exact record permutation on $\Cg_q$, it neither amplifies inherited numerical error nor
 accumulates denominator bits across batches.
 
 \subsection{Positional permutations}\label{sec:walsh-perm}
+
+This subsection partitions the record-address bits into slices and factors every positional address permutation into six
+stages of slice-batched controlled flips.
+
+To feed arbitrary positional maps into the simultaneous butterfly layer, we divide the $m_0$ record-address bits into
+$K$-bit chunks and group those chunks into groups of at most $d$ chunks. Picking the same bit offset $\rho$ across every
+chunk in a group defines a slice, while fewer than $K$ leftover positions remain at the end of the address. The next
+definition fixes this slice geometry and the move convention for positional maps.
 
 \begin{definition}[Positional maps and slices]\label{def:walsh-positional}
 A \emph{positional map} on $m_0$ record-address positions is a permutation $\pi$ of $\{0,\dots,m_0-1\}$ under the move
@@ -185,19 +251,34 @@ The number of slices is
   N_{\rm slice}=K\lceil J/d\rceil\le \frac{m_0}{d}+K .
 \end{equation}
 
+Any permutation of bit positions factors into two involutions made of disjoint two-position swaps, and each swap factors
+into three XOR-based controlled flips. The next lemma records this six-stage decomposition so that within each stage all
+active control-target pairs are pairwise disjoint.
+
 \begin{lemma}[Two involutions]\label{lem:walsh-involutions}
 Every positional map is a composition $I_1\circ I_0$ of two involutions. Each involution is a set of disjoint
 positional swaps, and each set of disjoint swaps is implemented by three stages of disjoint controlled flips.
 \end{lemma}
 
+\emph{Proof idea.} Reflecting each cycle of $\pi$ across two adjacent axes of symmetry expresses $\pi$ as the
+composition $I_1\circ I_0$ of two involutions made of disjoint transpositions. Each two-bit transposition then expands
+into the standard three-step XOR swap, keeping distinct pairs disjoint in every stage.
+
 \begin{proof}
-On a cycle $(i_0,\dots,i_{n_c-1})$ with $\pi(i_j)=i_{j+1}$ (indices modulo~$n_c$), define $I_0(i_j)=i_{-j}$ and
-$I_1(i_j)=i_{1-j}$. Both are involutions and $I_1(I_0(i_j))=i_{j+1}$; defining them independently on every cycle of
-$\pi$ gives $\pi=I_1\circ I_0$. A swap of two positions $b_1,b_2$ factors into three controlled flips,
-$x_{b_1}\leftarrow x_{b_1}\oplus x_{b_2}$, $x_{b_2}\leftarrow x_{b_2}\oplus x_{b_1}$,
-$x_{b_1}\leftarrow x_{b_1}\oplus x_{b_2}$; within each of the three stages, distinct swaps act on disjoint pairs of
+On a cycle $(i_0,\dots,i_{n_c-1})$ with $\pi(i_j)=i_{j+1}$ and indices taken modulo~$n_c$, define $I_0(i_j)=i_{-j}$ and
+$I_1(i_j)=i_{1-j}$. Both maps are involutions and $I_1(I_0(i_j))=i_{j+1}$, so defining them independently on every cycle
+of $\pi$ gives $\pi=I_1\circ I_0$. A swap of two positions $b_1,b_2$ factors into three controlled flips,
+$x_{b_1}\leftarrow x_{b_1}\oplus x_{b_2}$, $x_{b_2}\leftarrow x_{b_2}\oplus x_{b_1}$, and
+$x_{b_1}\leftarrow x_{b_1}\oplus x_{b_2}$. Within each of the three stages, distinct swaps act on disjoint pairs of
 positions and therefore commute.
 \end{proof}
+
+Grouping the controlled flips of each stage by the slice containing their target bit turns
+Lemma~\ref{lem:walsh-involutions} into an exact multitape permutation algorithm. The next theorem is the main export of
+Section~\ref{sec:walsh}. Under the parameter family of Proposition~\ref{prop:prop14-param} at grid precision~$q$,
+consider a complete $m_0$-bit record-address cube of disk-valued $q$-grid records of $r$ complex coefficients, with
+$m_0=O(q)$. When $dK=o(q)$, every positional permutation of the $m_0$ record-address bits is executed without error in
+$O(Vqd^{\lambda'-1})$ steps, returning the permuted array in the original $q$-grid format.
 
 \begin{theorem}[Positional permutations]\label{thm:positional-perm}
 Assume the parameter family of Proposition~\ref{prop:prop14-param} at grid precision~$q$. Let a complete $m_0$-bit
@@ -210,26 +291,32 @@ induced record permutation exactly in
 steps, which is $O(Vqd^{\lambda'-1})$ when $dK=o(q)$. The output is returned in the original $q$-grid format.
 \end{theorem}
 
+\emph{Proof idea.} We execute the six disjoint controlled-flip stages of Lemma~\ref{lem:walsh-involutions} in sequence.
+Within each stage, flips targeting slice positions are grouped into at most $N_{\rm slice}$ slice batches and run via
+Proposition~\ref{prop:cnot-batch}, while the fewer than $K$ flips targeting leftover positions are run directly by
+linear-time two-digit stream swaps. Because each record has length~$r$, all polynomial-time header and mask bookkeeping
+is absorbed into $O(V)$.
+
 \begin{proof}
 \emph{Schedule.} Execute the three stages of $I_0$ followed by the three stages of $I_1$ from
 Lemma~\ref{lem:walsh-involutions}. Within each stage, partition the controlled-flip pairs according to the slice that
 contains their target bit; reordering batches within a stage is valid because the pairs of a stage have pairwise
-disjoint supports. Each slice batch satisfies Proposition~\ref{prop:cnot-batch} (including pairs whose control bit lies
-in a leftover position or in another slice). Any pair whose target bit is a leftover position is executed directly by a
-two-digit stream permutation (Lemma~\ref{lem:transfer-streams}(1)); since there are fewer than $K$ leftover positions,
+disjoint supports. Each slice batch satisfies Proposition~\ref{prop:cnot-batch}, including pairs whose control bit lies
+in a leftover position or in another slice. Any pair whose target bit is a leftover position is executed directly by a
+two-digit stream permutation from item~(1) of Lemma~\ref{lem:transfer-streams}. Since there are fewer than $K$ leftover positions,
 each of the six stages performs fewer than $K$ such permutations, costing $O(VK)$ in total.
 
-\emph{Bookkeeping.} Cycle decompositions, involution tables, slice masks and nine-field headers have size polynomial
+\emph{Bookkeeping.} Cycle decompositions, involution tables, slice masks, and nine-field headers have size polynomial
 in~$q$ and are constructed by polynomially many scans of polynomial-size tables, absorbed into $O(V)$ by the record
-length (Lemma~\ref{lem:transfer-long-record}). Every slice acts on the complete cube of $2^{m_0}$ records, its two
+length via Lemma~\ref{lem:transfer-long-record}. Every slice acts on the complete cube of $2^{m_0}$ records, its two
 spectator ranges contribute at most $2m_0+2$ header bits, and the record length contributes $2\lg r+1=O(q)$ bits, so a
 single pair of constants $C_M,C_{\rm desc}$ serves every slice call.
 
 \emph{Cost.} Six stages with at most $N_{\rm slice}$ slice batches per stage and six layer calls per nonempty batch use
 at most $36N_{\rm slice}$ completed layer calls. Combining~\eqref{eq:walsh-slices} with Proposition~\ref{prop:cnot-batch}
 yields~\eqref{eq:walsh-perm-cost}. Each layer completes its own padding and cleanup, and each batch returns to the
-$q$-grid before the next begins; internal packed basis changes (Lemmas~\ref{lem:transfer12}--\ref{lem:transfer13}) are
-already accounted for in $O(Vd^{\lambda'})$. When $m_0=O(q)$ and $dK=o(q)$, we have
+$q$-grid before the next begins. Internal packed basis changes from Lemmas~\ref{lem:transfer12}
+and~\ref{lem:transfer13} are already accounted for in $O(Vd^{\lambda'})$. When $m_0=O(q)$ and $dK=o(q)$, we have
 $(m_0/d+K)d^{\lambda'}+K=O(qd^{\lambda'-1})$.
 \end{proof}
 

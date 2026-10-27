@@ -10,7 +10,7 @@ import Mathlib.Topology.Algebra.InfiniteSum.Real
 # `[MS]` Section 5 (Theorem 5.1 & Lemma 5.2) & Section 6 (Lemma 6.1 & Lemma 6.5) — 2-Term Bidiagonal Deconvolution & Additive Precision Schedule
 
 This module is part of our independent formalization of `[MS]` Sections 5 and 6 (Theorem 5.1, Lemma 5.2, Lemma 6.1, and Lemma 6.5)
-(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*):
+(companion manuscript `[MS]`, *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*):
 
 1. **`[MS]` Theorem 5.1 (Part 1, §5.1: Passband Lower Bound & Telescoping Stopband Alias, eqs. (19)–(21))**:
    - Box-Gaussian Fourier transform `gHatBox(ξ) = (1/2) (erfScaled(ξ + 1/2) - erfScaled(ξ - 1/2))`.
@@ -2574,7 +2574,7 @@ was written informally as `Y'(d) = Y(t_1 - 1 - d)`. In fact:
 2. At the cyclic wrap-around boundary `k = 0`, the cyclic equation closing `Z(t_1 - 1)` and `Z(0)`
    is `c_0 Z(0) + c_1 Z(t_1 - 1) = Y(0)` (NOT `Y(t_1 - 1)`!).
 Thus the exact reversed right-hand side is `bwdRevRHS t1 Y k = if k = 0 then Y 0 else Y (t1 - k)`,
-as machine-verified in `zPartBwd_eq_zPartFwd_rev` and `solveBidiagonalBwd_eq_solveBidiagonalFwd_rev`. -/
+as proved in `zPartBwd_eq_zPartFwd_rev` and `solveBidiagonalBwd_eq_solveBidiagonalFwd_rev`. -/
 def bwdRevRHS (t1 : ℕ) (Y : ℕ → ℂ) (k : ℕ) : ℂ :=
   if k = 0 then Y 0 else Y (t1 - k)
 

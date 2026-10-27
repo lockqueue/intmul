@@ -1,32 +1,17 @@
 \section{Butterfly layer and interchanges with general parameters}\label{app:parameter-transfer}\label{app:certificates}
 
-Starting from the elementary tape operations (Fact~\ref{fact:oai-streams}, \cite[Lemmas~3--4]{OAI26}) and the finite
-linear network certificates (Fact~\ref{fact:oai-networks}, \cite[Props.~7--8]{OAI26}), this appendix establishes the
-exact network-exponent and guard certificates at $h=100$ (Proposition~\ref{prop:deficits}), the parameter-exposed
-address interchanges (Proposition~\ref{prop:transfer11} and Lemma~\ref{lem:transfer12}), and the packed selected-bit
-addition (Lemma~\ref{lem:transfer13}). From these it derives the recursive complex phase-frame reduction
-(Lemma~\ref{lem:transfer-phase}) and the simultaneous butterfly layer with general structural and guard parameters
-(Proposition~\ref{prop:prop14-param}). In particular, we do not invoke~\cite[Prop.~14]{OAI26} outside its printed parameter
-tuple; instead we follow the written arguments of~\cite[\S\S4--5]{OAI26} step by step with all exponents and guard
-parameters exposed. The finite-network constructions themselves are those of~\cite[\S\S3.1--3.3, Lemmas~5--6]{OAI26},
-used here solely through the finite algebraic data of Definition~\ref{def:fixed-network-premises}
-(\cite[Props.~7--8, \S\S3.4--3.5]{OAI26}).
+This appendix builds the two tape primitives with sub-linear overhead that our algorithm uses, the arbitrary-width field interchange (Lemma~\ref{lem:transfer12}) and the simultaneous butterfly layer (Proposition~\ref{prop:prop14-param}), from the two black-box inputs of Section~\ref{sec:prelim-oai}. Those inputs are the linear-time elementary tape-stream operations of Fact~\ref{fact:oai-streams}~\cite[Lemmas~3--4]{OAI26} and the $h=100$ finite-network certificates of Fact~\ref{fact:oai-networks}~\cite[Props.~7--8]{OAI26}. In~\cite[Prop.~14]{OAI26}, the simultaneous butterfly layer is stated only at fixed conservative constants $\beta=\frac12$, $\tau=\sigma=1-2^{-50}$, and $C_1=20$, which would limit our main route to $\kappa=2^{-56}$. Rather than invoking~\cite[Prop.~14]{OAI26} outside its printed tuple, we follow the arguments of~\cite[\S\S4--5]{OAI26} step by step with all structural and guard parameters exposed, certifying $\tau=1-2^{-40}$, $\sigma=1-2^{-42}$, and $C_1=14$ to reach $\kappa=2^{-46}$. Throughout, the finite networks of~\cite[\S\S3.1--3.3, Lemmas~5--6]{OAI26} enter solely through the finite algebraic data of Definition~\ref{def:fixed-network-premises}~\cite[Props.~7--8, \S\S3.4--3.5]{OAI26}. A reader who accepts the general field interchange of Lemma~\ref{lem:transfer12}, the butterfly layer of Proposition~\ref{prop:prop14-param}, and the $h=100$ exponents of Proposition~\ref{prop:deficits} may skip this appendix on a first reading.
 
-\paragraph{Conventions.} We use the machine model and array conventions of Section~\ref{sec:prelim-model} and
-Appendix~\ref{app:oai} (\cite[\S2]{OAI26}). Arrays are stored in lexicographic order with the first field most
-significant, and addresses are implicit. A trailing payload of $B$ bits may be viewed as a final field of range $[B]$,
-and an address permutation $f$ moves the entry at $x$ to $f(x)$. The logical volume $V$ is the number of data bits of
-the current array; temporary copies and parked streams are charged in time but never replace $V$ in a recurrence. Every
-machine has a fixed finite alphabet and a fixed finite number of tapes; implied constants may depend on the fixed
-networks, the fixed rational exponents and the fixed comparison constants, but not on field lengths or data. Every
-supplied shape is given by a fixed number of canonical binary lengths unless a longer list is explicitly charged to the
-caller, and products of adjacent spectator lengths are formed before a primitive is called. As in
-Sections~\ref{sec:walsh} and~\ref{sec:direct-fft}, $q$ denotes the dyadic grid precision at which the layer operates,
-and $Q_q$ truncates real and imaginary components toward zero to $2^{-q}\Z$ (so that $\|Q_qz\|_\infty\le\|z\|_\infty$
-and $\|Q_qz-z\|_\infty<\sqrt2\cdot2^{-q}$). Finally, $\Gamma$ is the self-delimiting header code~\eqref{eq:oai-gamma}
-(\cite[(1)]{OAI26}), and $q_{\mathrm{rad}}$ is a fixed prime radix.
+\paragraph{Conventions.}
+We use the machine model, array layout, logical bit volume~$V$, and header code~$\Gamma$~\eqref{eq:oai-gamma} of Section~\ref{sec:prelim-model} (restated in Appendix~\ref{app:oai}). Four conventions govern the procedures below. A trailing payload of $B$ bits may be treated as a final field of range $[B]$. Fields that an operation leaves untouched are called \emph{spectators}, and adjacent spectator lengths are multiplied together before a primitive is called. Each primitive receives its array shape as a fixed number of positive integer field lengths written in the header code~$\Gamma$; when a procedure needs a longer list of lengths, the cost of that list is charged to the caller. Implied constants may depend on the fixed networks, fixed rational exponents, and fixed comparison constants, never on field lengths or data.
+
+As in Sections~\ref{sec:walsh} and~\ref{sec:direct-fft}, $q$ denotes the dyadic grid precision of the layer, and $Q_q$ truncates real and imaginary parts toward zero onto $2^{-q}\Z$, satisfying $\|Q_qz\|_\infty\le\|z\|_\infty$ and $\|Q_qz-z\|_\infty<\sqrt2\cdot2^{-q}$. Finally, $q_{\mathrm{rad}}$ denotes a fixed prime radix.
 
 \subsection{Fixed network data, certified exponents, and elementary procedures}\label{sec:transfer-premises}
+
+This subsection packages the finite algebraic data of the two $h=100$ circuits, certifies their sharpened exponents and guard degree, and establishes two linear-time tape-stream helper lemmas.
+
+Definition~\ref{def:fixed-network-premises} isolates the exact finite data imported from Fact~\ref{fact:oai-networks}: a bit network over $\mathbb F_2$ and a complex network over $\Z[i,1/2]$ whose total edge-rank sums $s_b$ and $s_c$ lie strictly below $W_b m$ and $W_c m$. No internal wiring detail beyond these finite counts and endpoint identities is used anywhere in the proofs that follow.
 
 \begin{definition}[Fixed network data]\label{def:fixed-network-premises}
 The following finite data are fixed by Fact~\ref{fact:oai-networks}:
@@ -65,8 +50,7 @@ Following~\cite[\S5.4]{OAI26}, we define from the complex-network counts $(m,W_c
   E_{\rm net}=64(W_c+m+1)^3,\quad B_{\rm net}=s_c+E_{\rm net},\quad
   \nu_{\mathrm{net}}=\min\{j\ge1:m^j\ge B_{\rm net}\},\quad C_0=128\,m\,B_{\rm net}^2
 \end{equation}
-(written $\nu$ in~\cite[\S5.4]{OAI26}, subscripted here to avoid collision with the bridge alias index $\nu\in\Z$ of
-Section~\ref{sec:bridge}). At $h=100$ the exact integer values are
+Here we write $\nu_{\mathrm{net}}$ rather than $\nu$ as in~\cite[\S5.4]{OAI26} to avoid collision with the bridge alias index $\nu\in\Z$ of Section~\ref{sec:bridge}. At $h=100$ the exact integer values are
 \begin{align*}
   W_bm-s_b&=2\,659\,138\,713\,000\,000,\qquad W_cm-s_c=6\,871\,402\,692\,000\,000,\\
   E_{\rm net}&=421\,070\,402\,185\,313\,436\,016\,911\,541\,181\,936\,724\,563\,007\,566\,900\,236\,040\,789\,184\,640\,064,\\
@@ -75,16 +59,11 @@ Section~\ref{sec:bridge}). At $h=100$ the exact integer values are
      &\phantom{{}={}}261\,607\,007\,508\,662\,043\,469\,612\,184\,775\,064\,463\,128\,060\,707\,693\\
      &\phantom{{}={}}386\,195\,338\,619\,369\,397\,054\,146\,227\,284\,214\,284\,288\,000\,000,
 \end{align*}
-where the three lines of $C_0$ concatenate to a $140$-digit integer ($C_0\approx2.2694\times10^{139}$,
-$\log_2C_0=462.93\ldots$). Table~\ref{app:cert-closed} records the exact closed-form counts across representative
-ground-set sizes $h$, showing the thresholds at which each family first achieves a rank saving ($h=39$ for the bit
-network and $h=22$ for the complex network).
+where the three lines of $C_0$ concatenate to a $140$-digit integer satisfying $C_0\approx2.2694\times10^{139}$ and $\log_2C_0=462.93\ldots$. Table~\ref{app:cert-closed} records the exact closed-form counts at representative ground-set sizes~$h$, including $h=22$ and $h=39$, the smallest sizes at which the complex and the bit family, respectively, have a positive rank saving $Wm-s$.
 
 \begin{table}[htbp]
 \centering\scriptsize
-\caption{Exact closed-form counts ($m=h^3$) for the triple networks of~\cite[\S3]{OAI26}: roles $W$, edge-rank sum $s$,
-signed saving $Wm-s$, and certified rational upper bound on $\ln m$. Only $h=100$ is used in the theorems.}
-\label{app:cert-closed}\label{app:cert-ln}
+\caption{Role counts, edge-rank sums, and rank savings of the triple networks of~\cite[\S3]{OAI26} at representative sizes~$h$. With $m=h^3$, columns list the role count~$W$, edge-rank sum~$s$, signed saving $Wm-s$, and certified rational upper bound on $\ln m$; only $h=100$ is used in our theorems.}\label{app:cert-closed}\label{app:cert-ln}
 \setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{@{}rlrrrl@{}}
 \toprule
@@ -101,6 +80,8 @@ $h$ & network & $W$ & $s$ & $Wm-s$ & upper bound $\ln m$\\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Proposition~\ref{prop:deficits} translates the finite integer counts of Definition~\ref{def:fixed-network-premises} into the rational exponents $\tau=1-2^{-40}$ and $\sigma=1-2^{-42}$ and the guard degree $\nu_{\mathrm{net}}=11$. Replacing the coarse bound $\ln 10^6<20$ of~\cite[\S3.6]{OAI26} by the elementary rational check $\ln 10^6<14$ sharpens the deficits from $2^{-50}$ to $2^{-40}$ and $2^{-42}$, contributing directly to the improvement from $\kappa=2^{-56}$ to $\kappa=2^{-46}$.
 
 \begin{proposition}[Network exponents at $h=100$]\label{prop:deficits}
 For the integers $W_b,s_b,W_c,s_c$ of the triple networks of~\cite[\S3]{OAI26} at $h=100$ ($m=10^6$;
@@ -134,6 +115,8 @@ $s_c<2\cdot10^{27}$, so $10^{60}<B_{\rm net}<512\cdot10^{63}+2\cdot10^{27}<10^{6
 $m^{11}=10^{66}$, we obtain $\nu_{\mathrm{net}}=11$.
 \end{proof}
 
+The next remark records a tighter rational enclosure for $\ln 10^6$ and verifies that the dyadic deficit exponent $1-2^{-40}$ cannot be reached by the $h=100$ complex network.
+
 \begin{remark}[Sharper logarithm enclosure and sharpness]\label{rem:deficit-margins}
 At $h=100$ the scaled deficits are $\eta_b2^{40}=16.50\ldots$ and $\eta_c2^{42}=16.12\ldots$, so the bound $\ln m<20$
 used in~\cite[\S3.6]{OAI26} to certify $1-2^{-50}$ does not certify $1-2^{-40}$ or $1-2^{-42}$. Any certified upper
@@ -148,6 +131,8 @@ Moreover, the exponent $1-2^{-40}$ is false for the complex network at $h=100$: 
 $\eta_c2^{40}<5$ and $10<\ln m<20$, so $1-e^{-u\ln m}\ge u\ln m-\frac12u^2(\ln m)^2>u(10-200u)>5u>\eta_c$, whence
 $s_c/W_c=m(1-\eta_c)>m^{1-2^{-40}}$ (and similarly for the bit network at $h=39$).
 \end{remark}
+
+Lemma~\ref{lem:transfer-streams} packages the linear-time stream, arithmetic, and controlled-shift operations on a fixed number of tapes that follow from Fact~\ref{fact:oai-streams}. Every recursive interchange and butterfly routine in this appendix uses these $O(V)$ passes for its base cases, digit moves, role-stream splits, and guarded shifts.
 
 \begin{lemma}[Elementary streams]\label{lem:transfer-streams}
 Fix a radix $q_{\mathrm{rad}}\ge2$. The following operations have linear bit cost on a fixed number of tapes:
@@ -170,41 +155,27 @@ $O(V)$, and so does multiplication of the target coordinate by a fixed rational 
 denominator are prime to $q_{\mathrm{rad}}$.
 \end{lemma}
 
+\emph{Proof idea.}
+We realize digit permutations, digit moves, and cyclic row distributions by splitting the input across a fixed number of auxiliary tapes and merging in the target order. Counter updates, arbitrary-exponent guarded shifts, and controlled modular shifts or unit multiplications are then amortized into single linear scans over the active words or fibers.
+
 \begin{proof}
-\emph{Items~(1)--(4).} For~(1), split the array among $q_{\mathrm{rad}}^2$ tapes according to the two digit values;
-within every stream the remaining address fields keep their order, so merging with the permuted pair of labels gives
-the result. For~(2) and~(3), use $q_{\mathrm{rad}}$ streams and change the place in the nested merge at which the
-selected digit is inserted. The number of streams is fixed, and complete spectator fields and trailing payloads are
-copied without decoding. For~(4), send row $r$ to stream $r\bmod W$; each stream keeps the row order, and a merge reads
-the streams in the prescribed order of row classes, copying every row a constant number of times.
+\emph{Items~(1)--(4).}
+For~(1), split the array across $q_{\mathrm{rad}}^2$ tapes according to the two digit values; within every stream the remaining address fields retain their order, so merging with permuted labels gives the desired swap. For~(2) and~(3), use $q_{\mathrm{rad}}$ streams and change the place in the nested merge where the selected digit is inserted. The number of streams is fixed, and complete spectator fields and trailing payloads are copied without decoding. For~(4), send row~$r$ to stream $r\bmod W$; each stream preserves row order, and merging reads the streams in the prescribed order of row classes, copying every row a constant number of times.
 
-\emph{Overheads and item~(5).} Binary counters are stored least significant bit first. An increment, including the
-return of the head over the changed prefix, has constant amortized cost, and wraparound and reset costs are charged to
-the preceding traversal. Initial shape preparation takes at most $C(\log_2(2V))^{J}$ steps for fixed $C,J$, which is
-at most $C'V$ for all $V\ge1$. This accounting covers counters, head returns and clearing the regions visited by a
-call. Fixed-width coefficient arithmetic uses ordinary carry scans, and a bit reversal inside a coefficient, when
-needed, is a charged linear pass. For a shift by a supplied exponent $t$, partition the source and destination words
-into the retained interval and the intervals of known zeros or redundant sign bits; then copy the retained interval and
-fill the rest in one traversal. Exact right shifts discard only known zero low bits, and local counter preparation
-costs $O(\log(2w))$ per $w$-bit word, absorbed by its scan. Thus a shift by $t$ is executed in one traversal rather
-than $t$ one-bit shifts, as~\cite[\S5.4, p.~36]{OAI26} also notes. This gives~(5).
+\emph{Overheads and item~(5).}
+Binary counters are stored least significant bit first. An increment, including the head return over the changed prefix, has constant amortized cost, while wraparound and reset costs are charged to the preceding traversal. Initial shape preparation takes at most $C(\log_2(2V))^{J}$ steps for fixed $C,J$, which is at most $C'V$ for all $V\ge1$; this covers counters, head returns, and clearing visited regions.
 
-\emph{Controlled shifts and units.} Fix the preceding coordinates. The target fiber consists of $Q$ consecutive suffix
-blocks, and a rotation splits it at the computed cut and concatenates the two intervals in the opposite order. The
-offset computation is polynomial in $b$, whereas the fiber contains at least $q_{\mathrm{rad}}^b$ bits, so the fiber
-scan absorbs the offset work, uniformly in $b$. Multiplication by a fixed positive integer $a$ prime to $Q$ splits the
-target coordinates into the at most $a$ intervals on which $x\mapsto ax-kQ$ lies in $[Q]$; on each interval the outputs
-increase and lie in one residue class modulo $a$, and these classes are distinct since $\gcd(a,Q)=1$. Merging the fixed
-number of streams in output order gives the product, and the inverse uses the reversed schedule. A negative multiplier
-adds the negation $y\mapsto-y\bmod Q$, which fixes the block at $y=0$ and reverses the order of the other $Q-1$ blocks
-while preserving each block's internal order: push the blocks onto a temporary tape and reverse each popped block once
-more, as in~\cite[proof of Lemma~4, \S2.1]{OAI26}. A rational unit is an integer multiplication composed with an
-inverse one. We use the fixed-tape details of~\cite[Lemmas~3--4, \S2.1]{OAI26} as summarized in
-Fact~\ref{fact:oai-streams} (applied in~\cite[proof of Lemma~10, proof of Prop.~11, \S5.2, and \S5.3 (25)]{OAI26}).
+Fixed-width coefficient arithmetic uses standard carry scans, and bit reversal inside a coefficient, when needed, is a charged linear pass. For a shift by a supplied exponent~$t$, we partition the source and destination words into the retained interval and the intervals of known zeros or redundant sign bits. We then copy the retained interval and fill the remaining bits in a single traversal. Exact right shifts discard only known zero low bits, and local counter preparation costs $O(\log(2w))$ per $w$-bit word, absorbed by its scan. Thus a shift by~$t$ runs in one traversal rather than $t$ single-bit shifts, as~\cite[\S5.4, p.~36]{OAI26} also notes, proving~(5).
+
+\emph{Controlled shifts and units.}
+Fix the preceding coordinates. The target fiber consists of $Q$ consecutive suffix blocks, and a cyclic rotation splits that fiber at the computed cut and concatenates the two intervals in reverse order. Computing the cut takes time polynomial in~$b$, whereas the fiber holds at least $q_{\mathrm{rad}}^b$ bits, so the fiber scan absorbs the offset work uniformly in~$b$.
+
+Multiplication by a fixed positive integer~$a$ prime to~$Q$ splits the target coordinates into the at most~$a$ intervals where $x\mapsto ax-kQ$ lies in $[Q]$. On each interval the outputs increase and fall in one residue class modulo~$a$, and those classes are distinct because $\gcd(a,Q)=1$. Merging the fixed number of streams in output order produces the product, while the inverse uses the reversed schedule.
+
+A negative multiplier composes with negation $y\mapsto-y\bmod Q$, which fixes the block at $y=0$ and reverses the order of the remaining $Q-1$ blocks while preserving each block's internal order. To do so, push the blocks onto a temporary tape and reverse each popped block once more, as in~\cite[proof of Lemma~4, \S2.1]{OAI26}. A rational unit composes an integer multiplication with an inverse one, using the fixed-tape details of~\cite[Lemmas~3--4, \S2.1]{OAI26} summarized in Fact~\ref{fact:oai-streams}. Those same primitives are applied in~\cite[proof of Lemma~10, proof of Prop.~11, \S5.2, and \S5.3 (25)]{OAI26}.
 \end{proof}
 
-The next lemma justifies the address-dependent Walsh diagonals $S_U$ and $\CZ$ of Section~\ref{sec:walsh} and the
-twiddle-index preparation of Section~\ref{sec:direct-fft}.
+Lemma~\ref{lem:transfer-long-record} shows that whenever each record carries a sufficiently long payload of at least $q^J$ bits, any polynomial-in-$q$ address calculation per record amortizes into linear total bit time $O(V)$. We need this amortization to execute the address-dependent Walsh diagonals $S_U$ and $\CZ$ of Section~\ref{sec:walsh} and the twiddle-table lookups of Section~\ref{sec:direct-fft} with $O(V)$ overhead.
 
 \begin{lemma}[Long-record address-dependent scans]\label{lem:transfer-long-record}
 Fix a recordwise address routine and payload routine and constants $C_0,C_1,C_2,J$. Suppose that, on an array of
@@ -219,20 +190,16 @@ multiplications charged separately).
 \end{lemma}
 
 \begin{proof}
-Let the records have $\rho_1,\dots,\rho_M$ bits, so that $V=\rho_1+\dots+\rho_M\le M\rho_{\max}$. Summing over the
-records, setup, address preparation and payload processing take at most $C_0q^J+MC_1q^J+C_2V$ steps, and traversing the
-array on a fixed number of tapes adds $O(V)$. When every record has at least $q^J$ bits, $q^J\le V$ and $Mq^J\le V$,
-giving $O(V)$. For records of $\Theta(rq)$ bits, maintaining and decoding the record address, scanning a polynomial-size
-mask or position list, and evaluating a fixed polynomial-time address routine cost at most $Cq^J$ per record, so the
-total is $O(M(q^J+rq))=O(Mrq)=O(V)$, and a table scan and rewind cost $O(rq)$ per record. The same long-record
-amortization appears in~\cite[\S5, p.~26 and \S5.3, pp.~33--34]{OAI26}.
+Let the $M$ records have bit widths $\rho_1,\dots,\rho_M$, so $V=\rho_1+\dots+\rho_M\le M\rho_{\max}$. Summing over all records, setup, address preparation, and payload work take at most $C_0q^J+MC_1q^J+C_2V$ steps, and traversing the array on a fixed number of tapes adds $O(V)$. When every record has at least $q^J$ bits, both $q^J\le V$ and $Mq^J\le V$ hold, yielding $O(V)$ total steps.
+
+For records of $\Theta(rq)$ bits, maintaining and decoding the record address, scanning a polynomial-size mask or position list, and running a fixed polynomial-time address routine cost at most $Cq^J$ steps per record. Summing over~$M$ records gives $O(M(q^J+rq))=O(Mrq)=O(V)$, while scanning and rewinding an $O(rq)$-bit twiddle table also costs $O(rq)$ per record. The same long-record amortization appears in~\cite[\S5, p.~26 and \S5.3, pp.~33--34]{OAI26}.
 \end{proof}
 
 \subsection{Rational shears and power-width interchanges}\label{sec:transfer-power}
 
-For chunks of $m^k$ digits, the bit network, with the shears of Lemma~\ref{lem:transfer-shear} as frame changes,
-reduces one interchange to $s_b$ interchanges of chunks $m$ times shorter, each on $1/W_b$ of the volume, plus linear
-work (Proposition~\ref{prop:transfer11}).
+This subsection uses the $h=100$ bit network to swap two disjoint chunks of $e=m^k$ digits in sub-linear overhead $O(V e^\tau)$.
+
+Lemma~\ref{lem:transfer-shear} shows how any rational $m\times m$ matrix~$A$ of rank~$a$ acts as an additive address shear $(H,D)\mapsto(H+AD,D)$ modulo $q_{\mathrm{rad}}^b$ using only $a$ smaller field interchanges plus $O(V)$ linear-stream work. We need this factorization so that an edge of rank~$a$ in the bit network spawns $a$ recursive interchanges rather than~$m$.
 
 \begin{lemma}[Lower triangular factorization and shear]\label{lem:transfer-shear}
 Every rational $m\times m$ matrix $A$ of rank $a$ has a factorization $A=E_1\Pi E_2$, where $E_1,E_2$ are invertible
@@ -244,26 +211,20 @@ $b$-digit fields, each between an $H$ field and a $D$ field, and $O(V)$ further 
 \end{lemma}
 
 \begin{proof}
-\emph{Factorization.} If the active matrix is nonzero, choose its topmost nonzero row and the rightmost nonzero entry
-of that row as the pivot. Right multiplication by lower triangular elementary matrices clears entries to the left of
-the pivot, and left multiplication by lower triangular elementary matrices clears entries below it. Scale the pivot to
-one and delete its row and column from the active index sets, retaining their original orders. Subsequent operations
-remain lower triangular and preserve earlier pivots, so after $a$ steps the result is a partial permutation matrix with
-$a$ ones; inverting the accumulated triangular matrices gives $A=E_1\Pi E_2$ (\cite[Lemma~9, \S4.1]{OAI26}).
+\emph{Factorization.}
+While the active submatrix is nonzero, pick its topmost nonzero row and the rightmost nonzero entry in that row as pivot. Right multiplication by lower triangular elementary matrices clears entries to the left of the pivot, and left multiplication by lower triangular elementary matrices clears entries below it. Scale the pivot to~$1$ and remove its row and column from the active index sets while keeping the original coordinate order. Later steps remain lower triangular and preserve earlier pivots, leaving a partial permutation matrix $\Pi$ with $a$ ones after $a$ steps; inverting the accumulated triangular operations gives $A=E_1\Pi E_2$~\cite[Lemma~9, \S4.1]{OAI26}.
 
-\emph{The shear.} Fix the factorizations for the finite collection once and for all, and choose an odd prime
-$q_{\mathrm{rad}}$ avoiding all denominators of the factors and their inverses and all numerators of their diagonal
-entries by finite rational arithmetic and trial division (\cite[proof of Lemma~10, \S4.1]{OAI26}). Every identity then
-specializes modulo $q_{\mathrm{rad}}^b$ with invertible triangular factors. A lower triangular map costs $O(V)$ by
-updating coordinates in descending physical order using only earlier, still-unmodified coordinates
-(Lemma~\ref{lem:transfer-streams}, since $m$ is fixed). Transform $D$ by $E_2$ and $H$ by $E_1^{-1}$, add $\Pi D$ to
-$H$, and undo both triangular changes. Each one of $\Pi$ at $(i,j)$ is executed by
+\emph{The shear.}
+Fix the factorizations for the finite matrix collection once and for all. By finite rational arithmetic and trial division, pick an odd prime $q_{\mathrm{rad}}$ that avoids all denominators of the triangular factors and their inverses, as well as all numerators of their diagonal entries~\cite[proof of Lemma~10, \S4.1]{OAI26}. Every identity then reduces modulo $q_{\mathrm{rad}}^b$ with invertible lower triangular factors.
+
+Because $m$ is fixed, any lower triangular map runs in $O(V)$ time by updating coordinates in descending physical order from earlier, still-unmodified coordinates via Lemma~\ref{lem:transfer-streams}. We transform $D$ by $E_2$ and $H$ by $E_1^{-1}$, add $\Pi D$ to~$H$, and undo both triangular maps. Each entry~$1$ of $\Pi$ at $(i,j)$ is realized by
 \[
   D_j\leftarrow D_j+H_i,\qquad(H_i,D_j)\leftarrow(D_j,H_i),\qquad D_j\leftarrow H_i-D_j ,
 \]
-which maps $(h,d)\mapsto(h+d,d)$ using one interchange and two linear updates to the later field
-(\cite[proof of Lemma~10, \S4.1]{OAI26}).
+which maps $(h,d)\mapsto(h+d,d)$ using one interchange of $b$-digit fields and two linear updates to the later field~\cite[proof of Lemma~10, \S4.1]{OAI26}.
 \end{proof}
+
+Proposition~\ref{prop:transfer11} combines the bit network of Definition~\ref{def:fixed-network-premises} with the shears of Lemma~\ref{lem:transfer-shear} to swap two disjoint $m^k$-digit chunks in $O(V e^\tau)$ time whenever $s_b/W_b<m^\tau$. Each recursion level distributes rows across $W_b$ role streams of volume $V/W_b$ and makes only $s_b<W_b m$ child calls on chunks $m$ times shorter, turning the finite rank deficit into the exponent $\tau<1$.
 
 \begin{proposition}[Parameterized power-width interchange]\label{prop:transfer11}
 Take the bit network of Definition~\ref{def:fixed-network-premises}, and choose the prime $q_{\mathrm{rad}}$ of
@@ -274,32 +235,28 @@ length divisible by $W_b^k$. All other fields are preserved, and the machine, ta
 in all field lengths and data.
 \end{proposition}
 
-\begin{proof}
-\emph{Construction and frame invariant.} Write $W=W_b$ and $s=s_b$. The case $k=0$ is Lemma~\ref{lem:transfer-streams}(1).
-For $k>0$, write each chunk as $m$ fields of $b=e/m$ digits, and split whole rows cyclically among $W$ role streams:
-writing the old row index as $Wg+(w-1)$, role $w$ has row index $g$, volume $V/W$, and row count divisible by
-$W^{k-1}$. For a rational matrix $M$ let $\Phi_M$ move $(H,D)$ to $(H+MD,D)$, so $\Phi_{M'}\Phi_M=\Phi_{M'+M}$ and
-$\Phi_M^{-1}=\Phi_{-M}$. Apply $\Phi_{A_e}$ on each circuit edge by Lemma~\ref{lem:transfer-shear} with recursive pivot
-interchanges, and apply each circuit gate pointwise to aligned role streams. Defining the logical array at a vertex
-with frame $\Phi_M$ as $\Phi_M^{-1}$ of the physical array, edges preserve the logical array and common address
-permutations commute with pointwise gates, so input role $w$ reaches output role $\rho_b(w)$ with physical operator
-$\Phi_{M_{\mathrm{out}(\rho_b(w))}}\Phi_{-M_{\mathrm{in}(w)}}=\Phi_{I_m}$. Merging output role $\rho_b(w)$ back into row
-class $w$ applies $H\leftarrow H+D$ on every original row, including auxiliary rows with arbitrary initial contents
-(\cite[proof of Prop.~11, \S4.2]{OAI26}). Then $D\leftarrow D-H$, $H\leftarrow H+D$, $D\leftarrow H-D$ executes
-$(H,D)\mapsto(D,H)$ with one circuit call and two $O(V)$ updates (\cite[proof of Prop.~11, pp.~22--23]{OAI26}).
+\emph{Proof idea.}
+We split the array cyclically into $W_b$ role streams of volume $V/W_b$ and interpret each vertex matrix $M$ as a shear frame $\Phi_M(H,D)=(H+MD,D)$. Executing edge differences $\Phi_{A_e}$ via Lemma~\ref{lem:transfer-shear} makes $s_b$ recursive calls of width $e/m$ per level, unrolling to $O(V e^\tau)$ on a fixed number of tapes via depth-first stream parking.
 
-\emph{Recurrence, fixed tapes, and descriptors.} There are $s$ recursive calls on volume $V/W$ plus $O(V)$ work, so
-$F_0=O(1)$ and $F_k\le(s/W)F_{k-1}+O(1)$; since $a=s/W<m^\tau$, $\sum_{j=0}^ka^j=O(m^{k\tau})$ and $F_k=O(e^\tau)$
-(\cite[proof of Prop.~11, (12)]{OAI26}). Depth-first scheduling uses $W$ role tapes, fixed I/O and work tapes, a
-parking-stack tape and a descriptor-stack tape. Inactive streams are pushed before a child call, parent role areas are
-erased while traversed, and popped streams are written from the right end of their known destination intervals to
-restore direction without scanning ancestor parked data, adding $O(V)$ at the parent (\cite[\S4.2, p.~23]{OAI26}). At
-depth $j$ from root width $e_0=m^{k_0}$, inactive digits remain spectators, so $V_j\ge q_{\mathrm{rad}}^{2e_0}$ and
-$\log V_0=O(\log(2V_j))$, absorbing the $\mathrm{poly}(\log(2V_j))$ child-descriptor work into $O(V_j)$
-(\cite[\S4.2, pp.~23--24]{OAI26}).
+\begin{proof}
+\emph{Construction and frame invariant.}
+Write $W=W_b$ and $s=s_b$. The base case $k=0$ is Lemma~\ref{lem:transfer-streams}(1). For $k>0$, subdivide each chunk into $m$ fields of $b=e/m$ digits and split whole rows cyclically across $W$ role streams. Writing the parent row index as $Wg+(w-1)$, role~$w$ receives row index~$g$, volume $V/W$, and row count divisible by $W^{k-1}$.
+
+For any rational matrix~$M$, let $\Phi_M$ map $(H,D)$ to $(H+MD,D)$, so $\Phi_{M'}\Phi_M=\Phi_{M'+M}$ and $\Phi_M^{-1}=\Phi_{-M}$. On each circuit edge we apply $\Phi_{A_e}$ via Lemma~\ref{lem:transfer-shear} using recursive pivot interchanges, and at each gate we apply the circuit operation pointwise to aligned role streams. Defining the logical array at a vertex with frame $\Phi_M$ as $\Phi_M^{-1}$ of the physical array, edges preserve the logical array and common address permutations commute with pointwise gates. Input role~$w$ therefore arrives at output role $\rho_b(w)$ carrying $\Phi_{M_{\mathrm{out}(\rho_b(w))}}\Phi_{-M_{\mathrm{in}(w)}}=\Phi_{I_m}$.
+
+Merging output role $\rho_b(w)$ back into row class~$w$ applies $H\leftarrow H+D$ on every original row, including auxiliary rows with arbitrary initial contents~\cite[proof of Prop.~11, \S4.2]{OAI26}. Three updates $D\leftarrow D-H$, $H\leftarrow H+D$, and $D\leftarrow H-D$ then realize $(H,D)\mapsto(D,H)$ from one circuit call and two $O(V)$ passes~\cite[proof of Prop.~11, pp.~22--23]{OAI26}.
+
+\emph{Recurrence, fixed tapes, and descriptors.}
+One level makes $s$ recursive calls on volume $V/W$ plus $O(V)$ work, giving $F_0=O(1)$ and $F_k\le(s/W)F_{k-1}+O(1)$. Because $a=s/W<m^\tau$, we have $\sum_{j=0}^ka^j=O(m^{k\tau})$ and $F_k=O(e^\tau)$~\cite[proof of Prop.~11, (12)]{OAI26}. Depth-first scheduling uses $W$ role tapes, fixed I/O and work tapes, one parking-stack tape, and one descriptor-stack tape.
+
+Before each child call, inactive streams are pushed onto the parking stack while parent role areas are erased during traversal. Popped streams are written back from the right end of their known destination intervals to restore direction without scanning ancestor data, costing $O(V)$ at the parent~\cite[\S4.2, p.~23]{OAI26}. At depth~$j$ from root width $e_0=m^{k_0}$, inactive digits act as spectators, so $V_j\ge q_{\mathrm{rad}}^{2e_0}$ and $\log V_0=O(\log(2V_j))$, absorbing $\mathrm{poly}(\log(2V_j))$ child-descriptor work into $O(V_j)$~\cite[\S4.2, pp.~23--24]{OAI26}.
 \end{proof}
 
 \subsection{Arbitrary-width interchanges}\label{sec:transfer-arbitrary}
+
+This subsection removes both the power-of-$m$ width restriction and the row-divisibility precondition of Proposition~\ref{prop:transfer11}.
+
+Lemma~\ref{lem:transfer12} swaps any two disjoint $u$-bit binary address fields in $O(V u^\tau)$ time, uniformly across all surrounding field sizes. Section~\ref{sec:bridge} invokes this general interchange directly for the bridge's $O(d)$ axis exposures, and Lemma~\ref{lem:transfer13} uses it to align chunks for packed selected-bit addition.
 
 \begin{lemma}[Parameterized arbitrary-width interchange]\label{lem:transfer12}
 Under the hypotheses of Proposition~\ref{prop:transfer11}, for the same fixed $\tau$, a bit array on
@@ -310,27 +267,22 @@ by one such interchange and one single-bit move.
 \end{lemma}
 
 \begin{proof}
-\emph{Radix-$q_{\mathrm{rad}}$ chunks.} First let the chunks have range $[q_{\mathrm{rad}}^e]$. Put
-$k=\lceil\log_me\rceil$ and $k_{\rm hi}=\min\{j\ge0:q_{\mathrm{rad}}^{2j}\ge W_b^k\}$. For large $e$,
-$1\le k_{\rm hi}<e$ with $k_{\rm hi}=O(\log(2e))$ (bounded widths use individual digit swaps). Split each chunk into
-its top $k_{\rm hi}$ digits and the rest, $h=(h_+,h_-)$ and $d=(d_+,d_-)$. Interchange $h_+$ and $d_+$ digit by digit
-and move $h_+$ immediately after $d_+$, transforming $(h_+,h_-,g,d_+,d_-)\mapsto(d_+,h_+,h_-,g,d_-)$ in $O(Vk_{\rm hi})$
-steps so that $(d_+,h_+)$ forms a row field of range $R_{\rm row}=q_{\mathrm{rad}}^{2k_{\rm hi}}\ge W_b^k$ before both
-remaining chunks. Pad this row range in each prefix to $R'_{\rm row}=W_b^k\lceil R_{\rm row}/W_b^k\rceil<2R_{\rm row}$.
-Expand $e-k_{\rm hi}=\sum_{j=0}^ka_jm^j$ ($0\le a_j<m$) and interchange corresponding power-of-$m$ pieces by
-Proposition~\ref{prop:transfer11} in cost $O(V)\sum_ja_jm^{j\tau}=O(Ve^\tau)$. Delete the padded rows and reverse only
-the joining moves to reach $(d_+,d_-,g,h_+,h_-)$, with descriptor and movement overhead $O(V\log(2e))=O(Ve^\tau)$.
-These steps follow~\cite[proof of Lemma~12, \S4.3]{OAI26}; none uses the specific value $1-2^{-50}$ fixed
-in~\cite[\S4.2, p.~24]{OAI26}.
+\emph{Radix-$q_{\mathrm{rad}}$ chunks.}
+First consider chunks of range $[q_{\mathrm{rad}}^e]$. Set $k=\lceil\log_me\rceil$ and $k_{\rm hi}=\min\{j\ge0:q_{\mathrm{rad}}^{2j}\ge W_b^k\}$. Bounded widths use individual digit swaps; for large~$e$, we have $1\le k_{\rm hi}<e$ with $k_{\rm hi}=O(\log(2e))$. Split each chunk into its top $k_{\rm hi}$ digits and the rest, writing $h=(h_+,h_-)$ and $d=(d_+,d_-)$.
 
-\emph{Binary chunks.} Choose the least $e$ with $q_{\mathrm{rad}}^e\ge2^u$ and pad both ranges numerically from $[2^u]$
-to $[q_{\mathrm{rad}}^e]$ (increasing volume by less than $q_{\mathrm{rad}}^2$ without per-address radix conversion, as
-numerical and lexicographic orders coincide). After the radix-$q_{\mathrm{rad}}$ interchange, scan away entries with
-either coordinate $\ge2^u$; since $e=O(u)$, the time is $O(Vu^\tau)$ (\cite[proof of Lemma~12, p.~25]{OAI26}). Widths
-differing by one bit use one equal-width interchange and one single-bit move as in~\cite[\S4.3, p.~25]{OAI26}.
+We swap $h_+$ and $d_+$ digit by digit and move $h_+$ right after $d_+$, mapping $(h_+,h_-,g,d_+,d_-)\mapsto(d_+,h_+,h_-,g,d_-)$ in $O(Vk_{\rm hi})$ steps. Now $(d_+,h_+)$ forms a preceding row field of range $R_{\rm row}=q_{\mathrm{rad}}^{2k_{\rm hi}}\ge W_b^k$. We pad that row range in each prefix to $R'_{\rm row}=W_b^k\lceil R_{\rm row}/W_b^k\rceil<2R_{\rm row}$.
+
+Next, expand $e-k_{\rm hi}=\sum_{j=0}^ka_jm^j$ with $0\le a_j<m$, and swap matching power-of-$m$ pieces via Proposition~\ref{prop:transfer11} in cost $O(V)\sum_ja_jm^{j\tau}=O(Ve^\tau)$. Deleting the padded rows and reversing only the joining moves produces $(d_+,d_-,g,h_+,h_-)$, with descriptor and movement overhead $O(V\log(2e))=O(Ve^\tau)$. These steps follow~\cite[proof of Lemma~12, \S4.3]{OAI26}, and none uses the specific exponent $1-2^{-50}$ fixed in~\cite[\S4.2, p.~24]{OAI26}.
+
+\emph{Binary chunks.}
+Pick the smallest~$e$ with $q_{\mathrm{rad}}^e\ge2^u$ and pad both ranges numerically from $[2^u]$ to $[q_{\mathrm{rad}}^e]$. Because numerical and lexicographic orders coincide, this padding increases volume by less than $q_{\mathrm{rad}}^2$ without per-address radix conversion. After running the radix-$q_{\mathrm{rad}}$ interchange, scan away padded entries where either coordinate is at least $2^u$; since $e=O(u)$, the total cost is $O(Vu^\tau)$~\cite[proof of Lemma~12, p.~25]{OAI26}. Widths differing by one bit use one equal-width interchange plus one single-bit move~\cite[\S4.3, p.~25]{OAI26}.
 \end{proof}
 
 \subsection{Packed selected-bit addition}\label{sec:transfer-packed}
+
+This subsection shows how to XOR one selected bit offset across $f$ consecutive $K$-bit address chunks simultaneously in sub-linear overhead.
+
+Lemma~\ref{lem:transfer13} executes $y_{\rho+iK}\leftarrow y_{\rho+iK}\oplus x_{\rho+iK}$ for $0\le i<f$, while restoring the scratch chunk~$z$, with explicit step bound~\eqref{eq:transfer-packed}. For large~$q$, when $\log_2 V=O(q)$, $f\le q$, records are at least $q^4$ bits wide, and the chunk width~$K$ exceeds $3\log_2 q$ by a suitable constant, this bound simplifies to $O(V(L^\tau+1))$ steps. We need this packed binary row addition in Lemma~\ref{lem:transfer-phase} to perform $\mathbb F_2$-linear basis changes on circuit edges of the complex network.
 
 \begin{lemma}[Parameterized packed selected-bit addition]\label{lem:transfer13}
 Fix $\tau$ as in Lemma~\ref{lem:transfer12}. Let $R_{\mathrm{rec}}\ge1$, $K\ge6$, $f\ge1$, $L=fK$ and $0\le\rho<K$, let
@@ -350,41 +302,35 @@ absolute implied constant; both hold for all sufficiently large $q$, uniformly i
 $A_{\mathrm{rect}}\le C_Aq$, $f\le d\le q$, $R_{\mathrm{rec}}\ge q^4$ and $K\ge3\log_2q+\log_2(160\,C_A)$.
 \end{lemma}
 
+\emph{Proof idea.}
+An eight-step modular-shift program toggles the low bit of a segment without disturbing its partner whenever the upper $K-1$ bits stay away from the segment boundary, using only $O(1)$ whole-field shifts and interchanges of width~$L$. The tiny $O(f 2^{-K})$ fraction of addresses near a segment boundary is then extracted, radix-sorted to its exact destination ranks, and reinserted deterministically.
+
 \begin{proof}
-\emph{Scalar program and packing.} For $c\in\{0,1\}$ and integers $u,w$, execute in chronological order (congruences
-modulo~$2$, using current values):
+\emph{Scalar program and packing.}
+For $c\in\{0,1\}$ and integers $u,w$, run eight updates in chronological order, evaluating congruences modulo~$2$ on current values:
 \[
 \begin{array}{llll}
 u\leftarrow u-c[w\equiv0], & w\leftarrow w-c[u\equiv0], & u\leftarrow u+c[w\equiv0], & w\leftarrow w+c[u\equiv0],\\
 w\leftarrow w+c[u\equiv1], & u\leftarrow u+c[w\equiv1], & w\leftarrow w-c[u\equiv1], & u\leftarrow u-c[w\equiv1].
 \end{array}
 \]
-For $c=0$ this is the identity; for $c=1$ the two halves induce $(00\ 01\ 10)$ and $(01\ 10\ 11)$ on each square
-$\{2u_0,2u_0+1\}\times\{2w_0,2w_0+1\}$, composing to $(u',w')=(u+c(1-2(u\bmod2)),\,w)$ with displacement at most four
-(\cite[proof of Lemma~13, (20)--(21)]{OAI26}). Omitting the top selected bit $j_{f-1}$, write the $K$-bit segments at
-$j_i=\rho+iK$ ($i<f-1$) in $y,z$ as $u_i=2g_i+a_i$, $w_i=2h_i+b_i$. Each program line across all $i<f-1$ is a single
-cyclic shift modulo $2^L$ (e.g.\ $y\leftarrow y+\epsilon\sum_{i=0}^{f-2}2^{j_i}[x_{j_i}=1][z_{j_i}=b]\bmod2^L$), hence
-a bijection of the rectangle. Let $B$ be the set of addresses where some guard $g_i$ or $h_i$ fails
-$10\le g\le2^{K-1}-11$. Off $B$, every segment starts in $[20,2^K-21]$ and stays within $[0,2^K-1]$ without inter-segment
-carries, so the eight-shift composite $S_0$ agrees with the ideal XOR map $T_0$ on $i<f-1$. By the union bound over
-$2(f-1)$ guards with $20$ excluded values out of $2^{K-1}$ each, $|B|\le\delta_{\mathrm{bad}}M$; since $T_0$ preserves
-guards, $T_0S_0^{-1}$ permutes $B$ and fixes $B^c$ (\cite[proof of Lemma~13, (22)--(24)]{OAI26}).
+When $c=0$ this program is the identity. When $c=1$ its two halves induce the $3$-cycles $(00\ 01\ 10)$ and $(01\ 10\ 11)$ on each $2\times2$ square $\{2u_0,2u_0+1\}\times\{2w_0,2w_0+1\}$, composing to $(u',w')=(u+c(1-2(u\bmod2)),\,w)$ with total displacement at most~$4$~\cite[proof of Lemma~13, (20)--(21)]{OAI26}.
 
-\emph{Movement and deterministic repair.} Moving each shift's target to the rightmost chunk position by
-Lemma~\ref{lem:transfer12}, applying the controlled rotation of Lemma~\ref{lem:transfer-streams}, and undoing the swap
-uses at most $16$ interchanges and $8$ rotations at cost $O(V(L^\tau+1))$ (\cite[proof of Lemma~13, pp.~30--31]{OAI26}).
-Next scan with a record-rank counter, test membership in $B$ in $O(A_{\mathrm{rect}}^3)$ steps per record, extract
-records $q_{\rm addr}\in B$ with destination rank of $T_0(S_0^{-1}(q_{\rm addr}))$, mark their holes, radix-sort the
-extracted bank in $O(|B|A_{\mathrm{rect}}(R_{\mathrm{rec}}+A_{\mathrm{rect}}))$ time, and reinsert in one forward scan;
-finally apply the omitted two-bit XOR at $j_{f-1}$ by Lemma~\ref{lem:transfer-streams}(1) in $O(V)$ time
-(\cite[proof of Lemma~13, (19), p.~31]{OAI26}). Neither $B$ nor the repair depends on $\tau$.
+Omitting the top selected bit $j_{f-1}$, write the $K$-bit segments at $j_i=\rho+iK$ for $i<f-1$ inside $y$ and~$z$ as $u_i=2g_i+a_i$ and $w_i=2h_i+b_i$. Across all $i<f-1$ simultaneously, each program line is a single cyclic shift modulo $2^L$, such as $y\leftarrow y+\epsilon\sum_{i=0}^{f-2}2^{j_i}[x_{j_i}=1][z_{j_i}=b]\bmod2^L$, and is therefore a bijection of the rectangle. Let $B$ be the exceptional set of addresses where some guard $g_i$ or $h_i$ fails $10\le g\le2^{K-1}-11$.
+
+Outside $B$, every segment starts in $[20,2^K-21]$ and remains inside $[0,2^K-1]$ with zero carries between adjacent segments, so the eight-shift composite $S_0$ matches the ideal XOR map $T_0$ across $i<f-1$. Taking a union bound over $2(f-1)$ guards, each excluding $20$ values out of $2^{K-1}$, gives $|B|\le\delta_{\mathrm{bad}}M$; because $T_0$ preserves every guard, $T_0S_0^{-1}$ permutes $B$ and fixes $B^c$~\cite[proof of Lemma~13, (22)--(24)]{OAI26}.
+
+\emph{Movement and deterministic repair.}
+Moving each shift's target chunk to the rightmost position via Lemma~\ref{lem:transfer12}, running the controlled rotation of Lemma~\ref{lem:transfer-streams}, and restoring the chunk order uses at most $16$ interchanges and $8$ rotations in time $O(V(L^\tau+1))$~\cite[proof of Lemma~13, pp.~30--31]{OAI26}. Next we scan the array with a record-rank counter, test membership in~$B$ in $O(A_{\mathrm{rect}}^3)$ steps per record, extract records $q_{\rm addr}\in B$ tagged with the destination rank of $T_0(S_0^{-1}(q_{\rm addr}))$, and mark their holes.
+
+We then radix-sort the extracted bank in $O(|B|A_{\mathrm{rect}}(R_{\mathrm{rec}}+A_{\mathrm{rect}}))$ steps and reinsert those records in one forward pass. Finally, we apply the omitted two-bit XOR at $j_{f-1}$ directly via Lemma~\ref{lem:transfer-streams}(1) in $O(V)$ steps~\cite[proof of Lemma~13, (19), p.~31]{OAI26}. Neither $B$ nor the repair depends on~$\tau$.
 \end{proof}
 
 \subsection{Complex frames and the simultaneous butterfly layer}\label{sec:transfer-frames}
 
-Put $H_{\mathrm u}=\sqrt2H_0$, $S=\diag(1,i)$, $Z=\diag(1,-1)$ and $C=H_{\mathrm u}SH_{\mathrm u}=aI+bX$ with
-$a=\frac{1+i}2$, $b=\frac{1-i}2$ and $X=\bigl(\begin{smallmatrix}0&1\\1&0\end{smallmatrix}\bigr)$. Direct multiplication
-gives $H_0=bSCS$, $C^{-1}=-iZCZ$ and $b^2=-i/2$ (\cite[\S5.1, (13)--(14) and \S5.4, p.~36]{OAI26}).
+This subsection connects the $h=100$ complex network to the simultaneous normalized butterfly layer $H_0^{\otimes D}$ with exposed parameters. Put $H_{\mathrm u}=\sqrt2H_0$, $S=\diag(1,i)$, $Z=\diag(1,-1)$, and $C=H_{\mathrm u}SH_{\mathrm u}=aI+bX$ with $a=\frac{1+i}2$, $b=\frac{1-i}2$, and $X=\bigl(\begin{smallmatrix}0&1\\1&0\end{smallmatrix}\bigr)$. Direct $2\times2$ multiplication gives $H_0=bSCS$, $C^{-1}=-iZCZ$, and $b^2=-i/2$~\cite[\S5.1, (13)--(14) and \S5.4, p.~36]{OAI26}.
+
+Lemma~\ref{lem:transfer-phase} unrolls one level of the complex network over the exact dyadic Gaussian ring $\Z[i,1/2]$ on $mf$ consecutive $K$-bit chunks with a common selected offset. It reduces $C^{\otimes mf}$ on all $W_c$ role streams at once to a total of $s_c<W_c m$ child calls $C^{\otimes f}$, plus packed binary row additions, scalar gates, and linear-time diagonal phases. Crucially, inverse edge factors reduce to forward child calls via $C^{-1}=-iZCZ$, so the child count stays exactly $s_c$.
 
 \begin{lemma}[Exact recursive complex contract]\label{lem:transfer-phase}
 For the complex network of Definition~\ref{def:fixed-network-premises}, on a group of $e=mf$ consecutive $K$-bit chunks
@@ -398,29 +344,19 @@ No extra child call is needed for an inverse directional factor or for an endpoi
 \end{lemma}
 
 \begin{proof}
-For a binary subspace label $U$ put $q_U(x)=\operatorname{wt}(P_Ux)\bmod4$ and
-$C_U=H_{\mathrm u}^{\otimes m}\diag_x(i^{q_U(x)})H_{\mathrm u}^{\otimes m}$. Orthogonal binary vectors meet in an even
-number of coordinates, so weight is additive modulo~$4$ on orthogonal sums. On a nested edge with orthonormal residual
-basis $\mathcal B$, $q_V(x)-q_U(x)=\sum_{v\in\mathcal B}\operatorname{wt}(v)[v\cdot x]\bmod4$ (negated on a decreasing
-edge), with each $\operatorname{wt}(v)$ odd. Since $i^{[v\cdot x]}=a+b(-1)^{v\cdot x}$ and conjugating
-$\diag_x((-1)^{v\cdot x})$ by $H_{\mathrm u}^{\otimes m}$ yields $(X_vf)(x)=f(x+v)$, each $v\in\mathcal B$ contributes
-$aI+bX_v$ or its inverse (\cite[proof of Prop.~8, \S3.5]{OAI26}).
+For any binary subspace label~$U$, define $q_U(x)=\operatorname{wt}(P_Ux)\bmod4$ together with the frame operator $C_U=\allowbreak H_{\mathrm u}^{\otimes m}\diag_x(i^{q_U(x)})H_{\mathrm u}^{\otimes m}$. Orthogonal binary vectors share an even number of ones, so Hamming weight is additive modulo~$4$ on orthogonal sums. On a nested edge with orthonormal residual basis $\mathcal B$, we have $q_V(x)-q_U(x)=\sum_{v\in\mathcal B}\operatorname{wt}(v)[v\cdot x]\bmod4$, negated on a decreasing edge, where each $\operatorname{wt}(v)$ is odd. Because $i^{[v\cdot x]}=a+b(-1)^{v\cdot x}$ and conjugating $\diag_x((-1)^{v\cdot x})$ by $H_{\mathrm u}^{\otimes m}$ yields $(X_vf)(x)=f(x+v)$, each vector $v\in\mathcal B$ contributes $aI+bX_v$ or its inverse~\cite[proof of Prop.~8, \S3.5]{OAI26}.
 
-Extending $\mathcal B$ to $M\in\mathrm{GL}(m,\mathbb F_2)$ with first columns $\mathcal B$, the move permutation $P_M$
-satisfies $P_MX_vP_M^{-1}=X_{Mv}$, realizing the edge on $f$ columns by $P_M^{-1}$, one coordinate kernel per
-$v\in\mathcal B$, and $P_M$, where inverse factors use $(C^{-1})^{\otimes f}=(-i)^fZ^{\otimes f}C^{\otimes f}Z^{\otimes f}$
-without extra child calls (\cite[\S5.1, (15)--(17)]{OAI26}). Each fixed $M^{\pm1}$ factors into at most $m(m-1)+3m$ row
-additions, each executed across two $f$-chunk slots by Lemma~\ref{lem:transfer13} using a third slot ($m\ge3$) as
-restored scratch (\cite[\S5.1, p.~27 and \S5.2, pp.~31--32]{OAI26}). Commutation of common address-linear frames with
-pointwise role gates, together with the source/sink signs $Z_{a,f}$, scalar $i^{27f}$ and bank restoration, yields
-$C^{\otimes e}$ on every role from $s_c$ child calls (\cite[proof of Prop.~8, \S3.5 and \S5.1, pp.~27--28]{OAI26}).
-Finally,
+Extend $\mathcal B$ to an invertible matrix $M\in\mathrm{GL}(m,\mathbb F_2)$ whose first columns are $\mathcal B$. The induced address move $P_M$ satisfies $P_MX_vP_M^{-1}=X_{Mv}$, realizing the edge across $f$ columns via $P_M^{-1}$, one coordinate kernel per $v\in\mathcal B$, and $P_M$. Here inverse factors use $(C^{-1})^{\otimes f}=(-i)^fZ^{\otimes f}C^{\otimes f}Z^{\otimes f}$ with zero extra child calls~\cite[\S5.1, (15)--(17)]{OAI26}.
+
+Each fixed matrix $M^{\pm1}$ factors into at most $m(m-1)+3m$ elementary row additions, and Lemma~\ref{lem:transfer13} executes each row addition across two $f$-chunk slots using a third slot as restored scratch since $m\ge3$~\cite[\S5.1, p.~27 and \S5.2, pp.~31--32]{OAI26}. Because common address-linear frames commute with pointwise role gates, applying the source and sink signs $Z_{a,f}$, the scalar $i^{27f}$, and bank restoration produces $C^{\otimes e}$ on every role from $s_c$ child calls~\cite[proof of Prop.~8, \S3.5 and \S5.1, pp.~27--28]{OAI26}. Finally,
 \begin{equation}\label{eq:oai-h0-transfer}
   H_0^{\otimes D}=b^D\mathcal S_DC^{\otimes D}\mathcal S_D,\qquad
   (\mathcal S_Dz)(x)=i^{\sum_{j=1}^Dx_j}z(x),\qquad b^D=(-i/2)^{\lfloor D/2\rfloor}b^{D\bmod2},
 \end{equation}
-as in~\cite[\S5.1, (18)]{OAI26}, with $\mathcal S_D$ executed in $O(V)$ time by Lemma~\ref{lem:transfer-long-record}.
+as in~\cite[\S5.1, (18)]{OAI26}, where $\mathcal S_D$ runs in $O(V)$ time by Lemma~\ref{lem:transfer-long-record}.
 \end{proof}
+
+Proposition~\ref{prop:prop14-param} is the central sub-linear butterfly engine of the paper. Given an array of $M$ disk-valued polynomial records indexed by $D\le d$ consecutive $K$-bit chunks, it applies $H_0$ simultaneously to one selected bit offset in every chunk in $O(V d^{\lambda'})$ steps. Internally, it evaluates the entire layer without intermediate rounding inside $\Delta=\lceil C_0 d^{C_1}\rceil=o(q)$ guard bits before one final truncation $Q_q$. Exposing $\beta$, $\tau$, $\sigma$, and $C_1$ here allows Section~\ref{sec:main} to pair Proposition~\ref{prop:deficits} with a small leaf exponent $\beta=1/64$ and guard exponent $C_1=14$.
 
 \begin{proposition}[Simultaneous butterfly layer with general parameters]\label{prop:prop14-param}
 Let $\nu_{\mathrm{net}}$ and $C_0$ be as in~\eqref{eq:walsh-guard-constants}. Fix rationals $0<\tau<1$ and $0\le\sigma<1$ with
@@ -455,6 +391,8 @@ fractional and $\Delta+3$ integer and sign bits per real component internally; t
 includes padding, deterministic repair, role-stream scheduling, unpadding and workspace cleanup.
 \end{proposition}
 
+Before proving Proposition~\ref{prop:prop14-param}, the next remark summarizes where each exposed structural parameter $\beta$, $\tau$, $\sigma$, and $C_1$ enters the recursion.
+
 \begin{remark}[Where the parameters enter]\label{rem:prop14-ledger}\label{rem:walsh-delta}\label{rem:transfer-guard}
 As printed, \cite[Prop.~14]{OAI26} fixes $\beta=\frac12$, $\tau=\sigma=1-2^{-50}$ and $C_1=20$. In the proof below,
 following~\cite[\S\S5.1--5.4]{OAI26}, the parameters enter only through the hypotheses of
@@ -468,67 +406,47 @@ in~\cite[\S5.4, p.~35]{OAI26} as requiring only exponent $14=\nu_{\mathrm{net}}+
 
 \subsection{Proof of Proposition~\ref{prop:prop14-param}}\label{sec:transfer-layer}
 
-\emph{Individual kernels.} Applying $C(u,v)=\bigl(\frac{u+v+i(u-v)}2,\frac{u+v-i(u-v)}2\bigr)$ at one selected bit splits
-on that bit, scans aligned coefficient pairs, and merges in $O(V)$ time at any $O(q)$ guarded width, so $e$ individual
-kernels cost $O(Ve)$ (\cite[\S5.3, (25)]{OAI26}).
+This final subsection proves Proposition~\ref{prop:prop14-param} by assembling Lemma~\ref{lem:transfer-phase} into a complete guarded tape procedure.
 
-\emph{Rows, pieces, and scheduling.} Put $d_0=\lceil\log_2W_c\rceil\lceil\log_m(2d)\rceil$ and $k_0=\lceil\log_md\rceil$.
-If $D\le d_0$, use individual kernels. Otherwise apply individual kernels to the first $d_0$ selected bits; their
-complete consecutive chunks form a row field of range $R_{\mathrm{row}}=2^{d_0K}\ge W_c^{k_0}$, padded in each prefix to
-the next multiple of $W_c^{k_0}$ (at most doubling volume), and the remaining $D-d_0$ chunks split into at most
-$(m-1)(1+\lfloor\log_md\rfloor)$ consecutive power-of-$m$ pieces. At each internal node, cyclic row splitting gives $W_c$
-role streams of volume $V/W_c$ with row count divisible by $W_c^{k_0-j}$ at depth $j\le k_0$, supporting recursion down
-to one chunk regardless of $\beta$ and preserving the three-slot rectangles of Lemma~\ref{lem:transfer13}
-(\cite[\S5.3, pp.~33--34]{OAI26}). Depth-first parking as in Proposition~\ref{prop:transfer11} adds $O(V)$ overhead per
-node across the fixed number $s_c$ of children, and completed invocations commute with the row-bit kernels and leave
-padded zero rows zero for removal (\cite[\S5.3, pp.~33--34]{OAI26}).
+\emph{Proof idea.}
+We peel off $d_0=O(\log d)$ chunks to form a row field divisible by $W_c^{k_0}$, decompose the remaining chunks into power-of-$m$ pieces, and recurse via Lemma~\ref{lem:transfer-phase} down to leaves of size $e<d^\beta$. Because every operation is dyadic Gaussian and total arithmetic depth grows at most polynomially in~$d$, $\Delta=\lceil C_0 d^{C_1}\rceil=o(q)$ guard bits hold every intermediate value without rounding until a single final truncation $Q_q$.
 
-\emph{Arithmetic depth and guard.} Let $E_*$ be the constant number of elementary coefficient operations (additions,
-subtractions, halvings, signs and multiplications by~$i$) performed outside child calls at one internal node by the
-fixed finite scalar circuit and its fourth-root/sign corrections. Then the dependency depth satisfies
-$A(e)\le s_cA(e/m)+E_*$ at internal nodes and $A(e)\le8e$ at leaves (\cite[\S5.4, p.~35]{OAI26}). Over
-$j_{\max}\le\lceil\log_md\rceil$ levels with $1<s_c<m^5$, we have $s_c^{j_{\max}}\le s_cd^5$ and
-$A(e)\le C_{\rm dep}d^6$ where $C_{\rm dep}=s_c(8+E_*/(s_c-1))$. Across at most $md$ pieces (for large $d$), at most $d$
-preprocessing kernels, the two outer diagonals $\mathcal S_D$ and the scalar $b^D$ (whose shift by $t=\lfloor D/2\rfloor$
-is charged as $t$ halvings), total denominator and magnitude growth obeys (\cite[\S5.4, p.~36]{OAI26})
+\emph{Individual kernels.}
+Applying $C(u,v)=\bigl(\frac{u+v+i(u-v)}2,\frac{u+v-i(u-v)}2\bigr)$ at one selected bit splits on that bit, scans aligned coefficient pairs, and merges in $O(V)$ time at any $O(q)$ guarded width. Hence $e$ individual kernels cost $O(Ve)$~\cite[\S5.3, (25)]{OAI26}.
+
+\emph{Rows, pieces, and scheduling.}
+Set $d_0=\lceil\log_2W_c\rceil\lceil\log_m(2d)\rceil$ and $k_0=\lceil\log_md\rceil$. When $D\le d_0$, we run individual kernels directly. When $D>d_0$, we apply individual kernels to the first $d_0$ selected bits. Their complete consecutive chunks form a preceding row field of range $R_{\mathrm{row}}=2^{d_0K}\ge W_c^{k_0}$, which we pad in each prefix to the next multiple of $W_c^{k_0}$, at most doubling the volume. The remaining $D-d_0$ chunks split into at most $(m-1)(1+\lfloor\log_md\rfloor)$ consecutive power-of-$m$ pieces.
+
+At each internal node, cyclic row splitting produces $W_c$ role streams of volume $V/W_c$ whose row count is divisible by $W_c^{k_0-j}$ at depth $j\le k_0$. That divisibility supports recursion down to one chunk regardless of~$\beta$ and preserves the three-slot rectangles required by Lemma~\ref{lem:transfer13}~\cite[\S5.3, pp.~33--34]{OAI26}. Depth-first stream parking as in Proposition~\ref{prop:transfer11} adds $O(V)$ overhead per node across the $s_c$ children, while completed calls commute with the row-bit kernels and keep padded zero rows equal to zero for clean removal~\cite[\S5.3, pp.~33--34]{OAI26}.
+
+\emph{Arithmetic depth and guard.}
+Let $E_*$ denote the constant number of elementary coefficient operations, namely additions, subtractions, halvings, sign flips, and multiplications by~$i$, executed outside child calls at one internal node by the fixed scalar circuit and its phase corrections. Dependency depth then obeys $A(e)\le s_cA(e/m)+E_*$ at internal nodes and $A(e)\le8e$ at leaves~\cite[\S5.4, p.~35]{OAI26}. Across $j_{\max}\le\lceil\log_md\rceil$ levels with $1<s_c<m^5$, we have $s_c^{j_{\max}}\le s_cd^5$ and $A(e)\le C_{\rm dep}d^6$ for $C_{\rm dep}=s_c(8+E_*/(s_c-1))$.
+
+We sum over at most $md$ pieces for large~$d$, at most $d$ preprocessing kernels, the two outer diagonals $\mathcal S_D$, and the scalar $b^D$, whose shift by $t=\lfloor D/2\rfloor$ counts as $t$ halvings. The total denominator and magnitude growth then satisfies~\cite[\S5.4, p.~36]{OAI26}
 \begin{equation}\label{eq:walsh-guard-growth}
   G(d)\le mC_{\rm dep}d^7+8d+t+9\le(mC_{\rm dep}+18)\,d^7\le C_0d^{C_1}\qquad(d\ge d_*),
 \end{equation}
-with $d_*=\bigl\lceil((mC_{\rm dep}+18)/C_0)^{1/(C_1-7)}\bigr\rceil$ finite since $C_1\ge\nu_{\mathrm{net}}+3=14>7$; the condition
-$d\ge d_*$ holds via $d\ge a_dq^\eps$ once $q\ge q_{\min}$. Starting from disk inputs on $2^{-q}\Z[i]$, values at depth
-$j$ lie in $2^{-(q+j)}\Z[i]$ with modulus at most $2^j$, so $\Delta=\lceil C_0d^{C_1}\rceil$ ($q+\Delta$ fractional and
-$\Delta+3$ integer/sign bits) represents every intermediate value exactly, and temporary bit-level interchanges cause no
-coefficient rounding (\cite[\S5.4, p.~36]{OAI26}). Since $d\le b_dq^\eps$ and $\eps C_1<1$, $\Delta=o(q)$, so
-$\Delta\le q$ for $q\ge q_{\min}$ and guarded records have width $R_g=2r(q+2\Delta+3)\in[2rq,12rq]$.
+where $d_*=\bigl\lceil((mC_{\rm dep}+18)/C_0)^{1/(C_1-7)}\bigr\rceil$ is finite because $C_1\ge\nu_{\mathrm{net}}+3=14>7$, and $d\ge d_*$ holds via $d\ge a_dq^\eps$ once $q\ge q_{\min}$.
 
-\emph{Uniform packed-call cost and time recurrence.} Every packed child has
-$A_*=\lceil\log_2(2M_{\rm child}R_g)\rceil\le C_Aq$ with $C_A=C_M+b_r+7$, while $K\ge\frac12a_d^cq^{\eps c}$ and
-$r\ge2^{(a_r/b_d)q^{1-\eps}}$, so both extra normalized terms of~\eqref{eq:transfer-packed} tend to zero uniformly across
-all children and descriptors/masks are absorbed by Lemma~\ref{lem:transfer-long-record}
-(\cite[\S5.3, pp.~33--34 and proof of Prop.~14, \S5.4, pp.~37--38]{OAI26}). With $a_c=s_c/W_c$ and $F(e)$ the time
-divided by current logical volume,
+Starting from disk inputs on $2^{-q}\Z[i]$, values at arithmetic depth~$j$ lie in $2^{-(q+j)}\Z[i]$ with modulus at most $2^j$. Allocating $\Delta=\lceil C_0d^{C_1}\rceil$ guard bits, namely $q+\Delta$ fractional bits and $\Delta+3$ integer and sign bits, therefore represents every intermediate value exactly, and temporary bit-level interchanges cause zero coefficient rounding~\cite[\S5.4, p.~36]{OAI26}. Because $d\le b_dq^\eps$ and $\eps C_1<1$, we have $\Delta=o(q)$, so $\Delta\le q$ once $q\ge q_{\min}$ and guarded records have width $R_g=2r(q+2\Delta+3)\in[2rq,12rq]$.
+
+\emph{Uniform packed-call cost and time recurrence.}
+Every packed-addition child satisfies $A_*=\lceil\log_2(2M_{\rm child}R_g)\rceil\le C_Aq$ with $C_A=C_M+b_r+7$, while $K\ge\frac12a_d^cq^{\eps c}$ and $r\ge2^{(a_r/b_d)q^{1-\eps}}$. Both extra normalized terms in~\eqref{eq:transfer-packed} therefore vanish uniformly across all children, and Lemma~\ref{lem:transfer-long-record} absorbs all descriptor and mask scans~\cite[\S5.3, pp.~33--34 and proof of Prop.~14, \S5.4, pp.~37--38]{OAI26}. Writing $a_c=s_c/W_c$ and $F(e)$ for step count divided by current logical volume gives
 \begin{equation}\label{eq:walsh-layer-recurrence}
   F(e)\le a_cF(e/m)+O((eK)^{\tau}+1),\qquad F(e)=O(e)\quad(e<d^\beta).
 \end{equation}
-For $e\ge d^\beta$ we have $K\le d^c\le e^{c/\beta}$, so~\eqref{eq:walsh-layer-a} bounds the node overhead by
-$O(e^\lambda)$ and internal nodes sum to $O(e^\lambda)$ since $a_c<m^\sigma<m^\lambda$, while leaves of size
-$u=e/m^j<d^\beta$ contribute $O(a_c^ju)\le O(e^\sigma u^{1-\sigma})\le O(e^\sigma d^{\beta(1-\sigma)})$. Summing over
-the base-$m$ pieces and preprocessing yields
+For $e\ge d^\beta$ we have $K\le d^c\le e^{c/\beta}$, so~\eqref{eq:walsh-layer-a} bounds node overhead by $O(e^\lambda)$, and internal nodes sum to $O(e^\lambda)$ since $a_c<m^\sigma<m^\lambda$. Leaves of size $u=e/m^j<d^\beta$ contribute $O(a_c^ju)\le O(e^\sigma u^{1-\sigma})\le O(e^\sigma d^{\beta(1-\sigma)})$. Summing over all power-of-$m$ pieces and preprocessing kernels yields
 \begin{equation}\label{eq:walsh-layer-unrolled}
   O\bigl(\log(2d)\,[d^{\lambda}+d^{\sigma+\beta(1-\sigma)}+1]\bigr)=O(d^{\lambda'})
 \end{equation}
-by~\eqref{eq:walsh-layer-b} (\cite[\S5.3, p.~34]{OAI26}).
+by~\eqref{eq:walsh-layer-b}~\cite[\S5.3, p.~34]{OAI26}.
 
-\emph{Order of operations and output.} Re-encode into the guarded format (sign-extending or trimming redundant sign bits
-to $\Delta+3$ integer/sign bits and appending $\Delta$ fractional zero bits, giving exact width $q+2\Delta+3$), apply
-$\mathcal S_D$ in the original layout, execute the row-bit kernels, row padding and power-of-$m$ pieces for
-$C^{\otimes D}$, unpad, apply $\mathcal S_D$ again and $b^D$ as in~\eqref{eq:oai-h0-transfer}, and apply $Q_q$ once.
-The chronological order matters: for $D=1$, placing both $\mathcal S_1=S$ factors after $C$ would give
-$bS^2C(1,0)^{\mathsf T}=(\frac12,\frac i2)^{\mathsf T}\ne H_0(1,0)^{\mathsf T}$. The final truncation acts on the
-absolute numerator and then restores the sign, implementing componentwise truncation toward zero $Q_q$ in two's
-complement; because each row of $H=H_0^{\otimes D}$ has absolute sum~$1$, $H$ preserves the unit disk, and $Q_q$
-preserves the disk with error $<\sqrt2\cdot2^{-q}$ in width $w\ge q+2$ (\cite[proof of Prop.~14, p.~38]{OAI26}). Taking
-$q_{\min}$ above the finitely many thresholds proves Proposition~\ref{prop:prop14-param}.\qed
+\emph{Order of operations and output.}
+First re-encode the input into guarded format by sign-extending or trimming redundant sign bits to $\Delta+3$ integer and sign bits and appending $\Delta$ low fractional zero bits, reaching exact width $q+2\Delta+3$. In that format, apply $\mathcal S_D$ in the original layout, run the row-bit kernels, row padding, and power-of-$m$ pieces for $C^{\otimes D}$, unpad, apply $\mathcal S_D$ again together with $b^D$ as in~\eqref{eq:oai-h0-transfer}, and finally apply $Q_q$ once.
+
+Chronological order matters: at $D=1$, placing both $\mathcal S_1=S$ factors after~$C$ would yield $bS^2C(1,0)^{\mathsf T}=(\frac12,\frac i2)^{\mathsf T}\ne H_0(1,0)^{\mathsf T}$. The final truncation drops low bits on the absolute numerator and restores the sign, realizing componentwise truncation toward zero $Q_q$ in two's complement. Because every row of $H=H_0^{\otimes D}$ has absolute $\ell_1$ sum~$1$, $H$ preserves the unit disk, and $Q_q$ preserves the disk with error below $\sqrt2\cdot2^{-q}$ in width $w\ge q+2$~\cite[proof of Prop.~14, p.~38]{OAI26}. Choosing $q_{\min}$ above these finitely many thresholds completes the proof of Proposition~\ref{prop:prop14-param}.\qed
+
+The next remark notes that counting scalar circuit gates explicitly removes the threshold $d_*$ from~\eqref{eq:walsh-guard-growth}, although no theorem here needs that bound.
 
 \begin{remark}[Explicit gate-count threshold]\label{rem:transfer-guard-explicit}
 The proof above uses only finiteness of the scalar circuit. Counting at most $12W_c$ scalar gates of at most $2W_c^2$
@@ -537,6 +455,8 @@ of~\cite[\S5.4, pp.~35--36]{OAI26} gives $E_*\le24W_c^3+4s_c+4W_c+4<E_{\rm net}$
 $A(e)\le8B_{\rm net}^2d^{\nu_{\mathrm{net}}+1}$ and $G(d)<128mB_{\rm net}^2d^{\nu_{\mathrm{net}}+3}\le C_0d^{C_1}$ as soon as the piece count is at
 most $md$, without any unspecified $d_*$. No theorem of this paper relies on that gate count.
 \end{remark}
+
+The last remark covers the lifted precision used by the Walsh gadgets of Section~\ref{sec:walsh}.
 
 \begin{remark}[Lifted precision]\label{rem:transfer-lift}
 Proposition~\ref{prop:prop14-param} applies directly at the lifted precision $q_*=q+8d$ used by the Walsh gadgets of

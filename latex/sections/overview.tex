@@ -1,126 +1,343 @@
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{3.5pt plus 2pt minus 3pt}
+\setlength{\abovedisplayskip}{6.5pt plus 2pt minus 3pt}
+\setlength{\belowdisplayskip}{6.5pt plus 2pt minus 3pt}
 \section{Technical overview}\label{sec:overview}
 
-This section explains the main ideas of Algorithm~1 and its analysis without tracking explicit precision constants, giving forward pointers to the formal statements in Sections~\ref{sec:prelim}--\ref{sec:lean}.
+This section explains how Algorithm~\ref{alg:main} works in outline, with forward pointers to Sections~\ref{sec:prelim}--\ref{sec:lean}. It also shows how retuning the schedule, removing the layout bottleneck, and certifying sharper network constants combine to raise its saving exponent from $2^{-182}$ to $2^{-46}$. Every known route below $n\log n$, like every Fourier-based multiplier since Sch\"onhage and Strassen, evaluates a long discrete Fourier transform on an array of bit volume proportional to~$n$ without making $\log n$ full scans. The preprint~\cite{OAI26} breaks $n\log n$ by applying two fixed linear networks across many dimensions at once, each performing one basic tape operation in slightly less than linear time; the exponent of that saving is called the \emph{network deficit}. To feed those networks, however, \cite{OAI26} first splits the indices across several prime lengths with a \emph{Chinese remainder map}, then interpolates each prime-length axis onto a power-of-two grid (\emph{Gaussian resampling}), and finally rewrites the central transform through Bluestein's quadratic-phase trick as convolutions of blocks treated as polynomials.\looseness=-1
+
+We no longer route the input through prime-length grids, chirp factors, or polynomial rings; instead we work from start to finish on one power-of-two grid. First, we absorb cross-axis twiddles by smoothing each spread axis with one data-independent phase-modulated kernel, run one direct complex transform via \emph{butterfly layers}, which combine pairs of entries whose addresses differ in one bit into half-sums and half-differences, and undo the smoothing to working precision. Second, three-step algebraic identities let the butterfly layer itself permute address-bit positions bit-exactly, removing the block-swapping layout pass that forced a quadratic loss in the network deficit in~\cite{OAI26}. With that layout bottleneck gone, the network deficit enters the saving exponent linearly, raising $\kappa$ to $2^{-56}$ under printed network constants and to $2^{-46}$ with our certified constants. A first-time reader may read Section~\ref{sec:overview-five-steps} for the complete recipe and skim Sections~\ref{sec:overview-barrier}--\ref{sec:overview-fft} as needed.\looseness=-1
 
 \subsection{The algorithm in five steps}\label{sec:overview-five-steps}
 
-Below the fixed cutoff $n_*$ of~\eqref{eq:cutoff}, Algorithm~1 delegates directly to the independent inner multiplier $\mathsf M$. For $n\ge n_*$, set $b=\lfloor\log_2 n\rfloor$, $N_{\mathrm{dig}}=\lceil n/b\rceil$, and let $R=2^k$ be the least power of two with $R\ge 2N_{\mathrm{dig}}$. Factor $R=t_1\cdots t_d$ into balanced powers of two $\mathbf t=(t_1,\dots,t_d)$ with $d=\lfloor k^\eps\rfloor$, $t_d=r=2^\ell$, $t_i\in\{r/2,r\}$, and $A_a=\prod_{i<a}t_i$ ($1\le a\le d+1$). Algorithm~1 multiplies two $n$-bit integers on this single power-of-two grid in five steps.
-\begin{enumerate}[label=\arabic*.,leftmargin=*,nosep,topsep=3pt]
-  \item \emph{Complex digit packing} (Proposition~\ref{prop:root-packing}). Split the two inputs into radix-$2^b$ digits $x^{(0)}_j,x^{(1)}_j\in[0,2^b)$ ($0\le j<N_{\mathrm{dig}}$) and pack both into one complex vector $x_j=2^{-b}(x^{(0)}_j+i x^{(1)}_j)$ of length~$R$ (padded with zeros for $j\ge N_{\mathrm{dig}}$), reducing integer multiplication to two forward length-$R$ DFTs at working precision $P=\Theta(k)=\Theta(\log n)$ ($q=P+2$).
-  \item \emph{Descending fractional-shift spreading} (Section~\ref{sec:bridge}). Pre-scale into $\Cg_q$ and spread axes $a=d,\dots,2$ in descending order on the same $t_1\times\cdots\times t_d$ grid by the kernel $g_a(s)=e^{-\pi i s/t_a}\sinc(s)e^{-\pi s^2/\alpha^2}$ ($\alpha=2\sqrt{\tw\ln 2/\pi}$, $\tw=\Theta(k)$) shifted by $\delta_a(\mathbf j)=(\sum_{i<a}j_i A_i)/A_a$ ($\mathbf j=(j_1,\dots,j_d)$, $j=\sum_{i=1}^d j_i A_i$, $0\le j_i<t_i$) and folded modulo~$t_a$ (Definition~\ref{def:carrier}, Lemma~\ref{lem:bridge-A}; exposures by Lemma~\ref{lem:bridge-D}), producing $U$ and absorbing Cooley--Tukey twiddles without Nyquist singularities.
-  \item \emph{Direct complex tensor FFT} (Sections~\ref{sec:walsh}--\ref{sec:direct-fft}). Evaluate $Y\approx F_{\mathbf t}U$ on $\Cg_q$ directly over~$\C$, executing the chunk and bit-reversal layouts $L,(LB)^{-1}$ bit-exactly via three-layer selective Walsh permutations (Theorem~\ref{thm:positional-perm}) and the record-axis butterfly rounds with combined twiddles (Theorem~\ref{thm:direct-fft}).
-  \item \emph{Ascending two-term cyclic deconvolution} (Lemmas~\ref{lem:bridge-B}--\ref{lem:bridge-C}). Invert the non-commuting two-alias operators $B_2,\dots,B_d$ in ascending order $a=2,\dots,d$ by solving $c_0 Z_f + c_1 Z_{(f-R/A_a)\bmod R}=Y_f$ on cycles of length $A_a$ (with $c_\nu=\hat g_a(u_a/t_a-\nu)$ for $f=\sum_{i=1}^d u_i R/A_{i+1}$ and $\|B_a^{-1}\|_\infty\le\frac47 t_a$ uniform in $A_a$), updating $Y\leftarrow Z$ after each axis, and rescale to obtain $\hat y\approx F_R x$.
-  \item \emph{Conjugated squaring and carry propagation} (Proposition~\ref{prop:root-packing}). Form $\hat w=\overline{\Quant_{p+2}(\hat y\odot\hat y)}$, repeat Steps~2--4 on $\hat w$ to obtain $\hat z\approx F_R\hat w$, recover the exact integer convolution $x^{(0)}\circledast x^{(1)}$ by rounding $-2^{2b-1}R^2\,\mathrm{Im}\,\hat z_j$ via the two-call identity~\eqref{eq:two-call}, and propagate radix-$2^b$ carries.
-\end{enumerate}
+Algorithm~\ref{alg:main} reduces $n$-bit integer multiplication to two approximate discrete Fourier transforms of power-of-two length $R=2^k$, evaluated on one $d$-dimensional grid of balanced power-of-two side lengths $t_1\times\cdots\times t_d$.\looseness=-1
 
-\subsection{Where the \texorpdfstring{$n\log n$}{n log n} barrier is broken, and what caps the saving}\label{sec:overview-barrier}
+\paragraph{The simplest case: two axes.}
+Consider first $d=2$, where $R=t_1 r$ factors into two powers of two and a length-$R$ vector forms a $t_1\times r$ table with row index $j_1\in[t_1]$ and column index $j_2\in[r]$. In the Cooley--Tukey decomposition of $F_R$, row~$j_1$ carries a cross-axis twiddle factor that acts as a \emph{fractional shift} of its samples by $j_1/t_1$ of a grid cell along the row. Rather than multiplying by twiddle factors between passes, we realize that shift on the same $t_1\times r$ grid by convolving row~$j_1$ cyclically at offset $j_1/t_1$ with a data-independent smooth kernel modulated by a negative half-bin phase.\looseness=-1
 
-Because $R=\Theta(n/\log n)$ and working precision $P=\Theta(k)=\Theta(\log n)$ suffices to round the output coefficients to exact integers, the stored array has logical bit volume $V=\Theta(RP)=\Theta(n)$. On a multitape Turing machine, a standard one-dimensional FFT performs $k=\Theta(\log n)$ sequential passes over volume~$V$, costing $\Theta(n\log n)$ steps from tape movement alone.
+Applying a two-dimensional power-of-two Fourier transform to the smoothed table leaves, in every column, a linear combination of two adjacent frequency entries of $F_R x$ plus an exponentially small Gaussian tail. Because the half-bin phase keeps the two dominant weights well separated in every column, solving one two-term cyclic recurrence down each column undoes the smoothing to working precision and approximates $F_R x$; see Figure~\ref{fig:two-axis-showcase}. Passing to general $d=\lfloor k^\eps\rfloor\ge 2$ changes only two things. First, we smooth the spread axes $a=d,\dots,2$ in descending order and solve the two-term cyclic systems in ascending order $a=2,\dots,d$ because the multi-axis smoothing operators do not commute. Second, across the $d$-axis grid, the two fixed linear networks of~\cite{OAI26} accelerate axis swaps, bit-exact address permutations, and butterfly rounds in sub-linear time per axis.
 
-Harvey and van der Hoeven~\cite{HvdH21} reach $O(n\log n)$ by folding a one-dimensional convolution of odd-prime-product length $S=s_1\cdots s_d$ into $d$ dimensions. A Chinese remainder map splits the length onto the pairwise coprime odd primes $s_1,\dots,s_d$, Gaussian resampling interpolates each prime axis onto a larger power-of-two length $t_i$, and multidimensional FFTs evaluate the product. In~\cite{HvdH21} the dimension~$d$ is a large constant. In~\cite{OAI26}, by contrast, $d=\lfloor k^\eps\rfloor$ grows with~$n$, and two fixed finite linear networks at $h=100$ ($m=h^3=10^6$; Fact~\ref{fact:oai-networks}) give a power saving across the $d$ axes.
-\begin{enumerate}[label=(\roman*),nosep,leftmargin=*]
-  \item A \emph{bit-shear network} of $W_b$ roles with $s_b < W_b m^{\tau}$ ($\tau<1$) interchanges two disjoint contiguous $u$-bit address fields in time $O(V u^{\tau})$ rather than $O(V u)$ (Lemma~\ref{lem:transfer12}).
-  \item A \emph{complex phase network} of $W_c$ roles with $s_c < W_c m^{\sigma}$ ($\sigma<1$) executes the normalized butterfly $H_0=\frac12\bigl(\begin{smallmatrix}1&1\\1&-1\end{smallmatrix}\bigr)$ simultaneously on one selected bit~$\rho$ of each of $D\le d$ consecutive $K$-bit address chunks ($K=\lfloor d^c\rfloor$) in time $O(V d^{\lambda'})$ with $\lambda'<1$, rather than $O(V d)$ (Proposition~\ref{prop:prop14-param}).
-\end{enumerate}
-Since $\ell=\lceil k/d\rceil$ bit-levels across $d-1$ record axes then cost $O(V\ell d^{\lambda'})=O(V k d^{\lambda'-1})$, one would hope for an exponent saving $\kappa\approx\eps(1-\lambda')$ linear in the network deficit $1-\sigma$.
-
-\paragraph{The chunk-layout cap.}
-Why does~\cite{OAI26} instead obtain $\kappa=2^{-182}$? Before the simultaneous butterfly layer can act, the $m_0=\log_2(R/r)$ record-address bits, initially stored axis by axis, must be rearranged by a layout permutation~$L$ that interleaves $K$-bit chunks across axes. Executing~$L$ via $O(k/K)$ width-$K$ chunk interchanges costs $O\bigl(V\cdot (k/K)K^{\tau}\bigr)=O(V P K^{\tau-1})$, whose saving factor $K^{1-\tau}=\Theta(P^{\eps c(1-\tau)})$ requires $c$ to be large. Yet inside the butterfly layer recursion (stopping below $d^\beta$ chunks), moving $K$-bit chunks into aligned basis positions forces $\tau(1+c/\beta)<\lambda<1$, hence $c<\beta(1-\tau)/\tau$. Meanwhile, keeping the internal precision guard $\Delta=\lceil C_0 d^{C_1}\rceil$ sublinear in~$P$ forces $\eps<1/C_1$. Multiplying these bounds traps any chunk-exchange layout beneath a \emph{quadratic} ceiling:
-\begin{equation}\label{eq:overview-quad-cap}
-  \kappa < \eps c(1-\tau) < \frac{\beta(1-\tau)^2}{C_1\tau} < \frac{(1-\tau)^2}{C_1\tau}.
-\end{equation}
-Even with our certified exponent $1-\tau=2^{-40}$ and $C_1=14$, \eqref{eq:overview-quad-cap} caps $\kappa$ below $2^{-83.8}$; at the schedule $\eps=2^{-75}$, $c=2^{-56}$ of~\cite[(38)]{OAI26} the first term of~\eqref{eq:overview-quad-cap} is $2^{-181}$, giving $2^{-182}$, while the cap itself is ${\approx}\,2^{-104}$ at the printed structural constants. Figure~\ref{fig:pipeline} contrasts the architecture of~\cite{OAI26} with ours, highlighting the stages we remove and add.
-
-\begin{figure}[t]
-\setlength{\abovecaptionskip}{5pt}
+\begin{figure}[!ht]
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{-2pt}
 \centering
 \begin{tikzpicture}[
   font=\footnotesize,
   >=Latex,
-  stage/.style={draw, rounded corners=2.5pt, minimum height=1.14cm, align=center, inner sep=3pt},
+  panel/.style={draw=black!45, rounded corners=2.5pt, fill=black!2, minimum width=3.15cm, minimum height=1.98cm},
+  arr/.style={->, thick, draw=black!75}
+]
+  % Panel 1: t_1 x r grid with fractional shift j_1 / t_1
+  \node[panel] (p1) at (1.60, 1.09) {};
+  \foreach \r in {0,1,2,3} {
+    \foreach \c in {0,1,2,3} {
+      \draw[black!30] ({0.45+\c*0.56}, {0.32+\r*0.32}) rectangle ({0.95+\c*0.56}, {0.58+\r*0.32});
+    }
+  }
+  \fill[blue!18] (0.45, 0.96) rectangle (2.69, 1.22);
+  \foreach \c in {0,1,2,3} {
+    \draw[blue!70!black] ({0.45+\c*0.56}, 0.96) rectangle ({0.95+\c*0.56}, 1.22);
+    \fill[blue!75!black] ({0.62+\c*0.56}, 1.09) circle (1.3pt);
+    \draw[->, blue!75!black, thin] ({0.65+\c*0.56}, 1.09) -- ({0.86+\c*0.56}, 1.09);
+  }
+  \node[font=\scriptsize, text=blue!75!black] at (1.60, 1.83) {row $j_1$: shift $+j_1/t_1$};
+  \node[font=\scriptsize, align=center] at (1.60, -0.22) {1.\ Fractional shift\\on $t_1\times r$ grid};
+
+  % Panel 2: Smooth kernel spread on same grid
+  \node[panel] (p2) at (5.45, 1.09) {};
+  \foreach \r in {0,1,2,3} {
+    \foreach \c in {0,1,2,3} {
+      \draw[black!30] ({4.30+\c*0.56}, {0.32+\r*0.32}) rectangle ({4.80+\c*0.56}, {0.58+\r*0.32});
+    }
+  }
+  \fill[teal!14] (4.30, 0.96) rectangle (6.54, 1.22);
+  \draw[very thick, teal!75!black, smooth] plot coordinates {
+    (4.45,1.00) (4.85,1.05) (5.25,1.20) (5.52,1.35) (5.79,1.20) (6.18,1.05) (6.48,1.00)
+  };
+  \foreach \c in {0,1,2,3} {
+    \fill[teal!80!black] ({4.55+\c*0.56}, 1.07) circle (1.5pt);
+  }
+  \node[font=\scriptsize, text=teal!75!black] at (5.45, 1.83) {half-bin smooth kernel};
+  \node[font=\scriptsize, align=center] at (5.45, -0.22) {2.\ \textsf{Spread} rows in place\\(same $t_1\times r$ grid)};
+
+  % Panel 3: 2D power-of-two FFT
+  \node[panel] (p3) at (9.30, 1.09) {};
+  \foreach \r in {0,1,2,3} {
+    \foreach \c in {0,1,2,3} {
+      \draw[blue!35] ({8.15+\c*0.56}, {0.32+\r*0.32}) rectangle ({8.65+\c*0.56}, {0.58+\r*0.32});
+    }
+  }
+  \draw[<->, thick, blue!75!black] (8.20, 1.66) -- (10.38, 1.66);
+  \node[font=\scriptsize, text=blue!75!black] at (9.30, 1.86) {row FFTs ($r$)};
+  \draw[<->, thick, blue!75!black] (7.95, 0.34) -- (7.95, 1.52);
+  \node[font=\scriptsize, align=center] at (9.30, -0.22) {3.\ \textsf{TensorFFT} across\\rows and columns};
+
+  % Panel 4: Column-wise 2-term cyclic solve (stepping top-to-bottom down each column)
+  \node[panel] (p4) at (13.15, 1.09) {};
+  \foreach \r in {0,1,2,3} {
+    \foreach \c in {0,1,2,3} {
+      \draw[black!30] ({12.00+\c*0.56}, {0.32+\r*0.32}) rectangle ({12.50+\c*0.56}, {0.58+\r*0.32});
+    }
+  }
+  \fill[orange!18] (13.12, 0.32) rectangle (13.62, 1.54);
+  \foreach \r in {0,1,2,3} {
+    \draw[orange!75!black] (13.12, {0.32+\r*0.32}) rectangle (13.62, {0.58+\r*0.32});
+    \fill[orange!80!black] (13.37, {0.45+\r*0.32}) circle (1.5pt);
+  }
+  \foreach \ra/\rb in {3/2, 2/1, 1/0} {
+    \draw[->, thick, orange!80!black] (13.70, {0.45+\ra*0.32}) to[bend left=28] (13.70, {0.45+\rb*0.32});
+  }
+  \draw[->, thick, orange!80!black, densely dashed] (13.04, 0.45) to[bend left=30] (13.04, 1.41);
+  \node[font=\scriptsize, text=orange!75!black] at (13.15, 1.83) {2-term cyclic solve};
+  \node[font=\scriptsize, align=center] at (13.15, -0.22) {4.\ \textsf{Deconvolve} columns\\($\approx F_R x$, working prec.)};
+
+  \draw[arr] (p1.east) -- (p2.west);
+  \draw[arr] (p2.east) -- (p3.west);
+  \draw[arr] (p3.east) -- (p4.west);
+\end{tikzpicture}
+\caption{How the bridge approximates a one-dimensional Fourier transform in the simplest case of two axes ($d=2$, $R=t_1 r$). Each row $j_1$ carries a fractional shift $j_1/t_1$, which \textsf{Spread} realizes on the same $t_1\times r$ power-of-two grid at offset $j_1/t_1$ with a data-independent phase-modulated kernel. After a two-dimensional transform (\textsf{TensorFFT}), \textsf{Deconvolve} solves one two-term cyclic recurrence down each column to undo the smoothing to working precision.}
+\label{fig:two-axis-showcase}
+\end{figure}
+
+\paragraph{The five named procedures.}
+Below a fixed cutoff~$n_*$, the computation delegates directly to an independent multiplier $\mathsf M$; for $n\ge n_*$, it runs five named procedures on one power-of-two grid, specified in Algorithm~\ref{alg:main} and shown in Figure~\ref{fig:five-steps}. First, \textsf{Pack} cuts both $n$-bit inputs into radix-$2^b$ digits and packs them into the real and imaginary parts of one length-$R$ complex array. Second, inside \textsf{Bridge}, \textsf{Spread} scales onto the fixed-point grid and smooths the spread axes $d$ down to~$2$ in place, using one data-independent negative half-bin kernel per spread axis to absorb cross-axis twiddles without the midpoint (Nyquist) cancellation that would make the column recurrence singular.\looseness=-1
+
+Third, \textsf{TensorFFT} evaluates the $d$-dimensional complex Fourier transform directly on that grid via simultaneous butterfly rounds and bit-exact \emph{positional permutations}, which reorder address-bit positions through $2\times 2$ \emph{Walsh} half-sum and half-difference identities. Fourth, \textsf{Deconvolve} solves one two-term cyclic recurrence along each axis from~$2$ up to~$d$ to undo the smoothing to working precision, completing \textsf{Bridge} with an approximation to $F_R x$. Fifth, after conjugated pointwise squaring and a second \textsf{Bridge} call, grouped with recovery as Step~5 in Figure~\ref{fig:five-steps}, \textsf{Recover} rounds the scaled imaginary parts via~\eqref{eq:two-call} and propagates carries for the exact $2n$-bit product.\looseness=-1
+
+{\setlength{\intextsep}{9.5pt plus 2pt minus 1.5pt}
+\begin{algorithm}[!ht]
+\small
+\caption{Integer multiplication on one power-of-two grid}\label{alg:main}
+\vspace{1pt}
+\noindent\textbf{Input:} two $n$-bit integers $0\le A,B<2^n$. \quad \textbf{Output:} the $2n$-bit product $AB$.\par\vspace{1pt}
+\noindent\textbf{Parameters} (Section~\ref{sec:main-alg})\textbf{:} $b=\lfloor\log_2 n\rfloor$, $N_{\mathrm{dig}}=\lceil n/b\rceil$, $R=2^k\ge 2N_{\mathrm{dig}}$, balanced shape $\mathbf t=(t_1,\dots,t_d)$ with $t_1\cdots t_d=R$, $d=\lfloor k^\eps\rfloor$, $t_d=r=2^\ell$, $t_i\in\{r/2,r\}$; precisions $p,\tw,P$ and $q=P+2$ from~\eqref{eq:root-sizes} and~\eqref{eq:schedule}.
+\vspace{2pt}\hrule\vspace{1.5pt}
+
+\begin{algorithmic}[1]
+\State \textbf{if} $n < n_*$ \textbf{then return} $\mathsf M(A,B)$ \Comment{cutoff~\eqref{eq:cutoff}; $\mathsf M$ any $N(\log N)^{O(1)}$ multiplier}
+
+\State $x \gets \textsf{Pack}(A,B)$ \Comment{radix-$2^b$ digits as real and imaginary parts of one length-$R$ array; Prop.~\ref{prop:root-packing}}
+
+\State $\hat y \gets \textsf{Bridge}(x)$ \Comment{$\hat y \approx F_R x$}
+
+\State $\rule{0pt}{2.8ex}\hat w \gets \overline{\Quant_{p+2}(\hat y \odot \hat y)}$ \Comment{conjugated pointwise squaring, one rounding}
+
+\State $\hat z \gets \textsf{Bridge}(\hat w)$ \Comment{$\hat z \approx F_R \hat w$}
+
+\State \textbf{return} $\textsf{Recover}(\hat z)$ \Comment{round $-2^{2b-1}R^2\,\mathrm{Im}\,\hat z_j$ via~\eqref{eq:two-call}, propagate radix-$2^b$ carries; Prop.~\ref{prop:root-packing}}\vspace{1.5pt}
+
+\Procedure{Bridge}{$x$} \Comment{approximates $F_R x$ on the grid; Theorem~\ref{thm:bridge-precision}}
+
+\State $U \gets x$ scaled to $\Cg_q$
+
+\For{$a = d$ \textbf{down to} $2$} \Comment{Def.~\ref{def:carrier}, Lems.~\ref{lem:bridge-A}, \ref{lem:bridge-D}, \S\ref{sec:bridge-alg}}
+
+\State $\textsf{Spread}$ axis~$a$ of $U$ with kernel~$g_a$ at offsets~$\delta_a$, folded mod~$t_a$
+\EndFor
+
+\State $Y \gets \textsf{TensorFFT}(U)$ \Comment{direct complex $F_{\mathbf t}$, bit-exact Walsh layouts $L,(LB)^{-1}$; Thms.~\ref{thm:positional-perm}, \ref{thm:direct-fft}}
+
+\For{$a = 2$ \textbf{to} $d$} \Comment{Lems.~\ref{lem:bridge-B}, \ref{lem:bridge-C}}
+
+\State $\textsf{Deconvolve}$ axis~$a$: solve $c_0 Z_f + c_1 Z_{(f-R/A_a)\bmod R} = Y_f$ on each cycle, set $Y \gets Z$
+\EndFor
+
+\State \textbf{return} $Y$ rescaled \Comment{approximates $F_R x$ to working precision}
+\EndProcedure
+\end{algorithmic}
+
+\vspace{1.5pt}\hrule\vspace{2pt}
+\noindent Inner products of $O((\log n)^2)$-bit integers are delegated to $\mathsf M$.
+\end{algorithm}}
+
+\begin{figure}[t]
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{-2pt}
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >=Latex,
+  stepbox/.style={draw=blue!65!black, fill=blue!6!white, thick, rounded corners=2.5pt, minimum height=0.94cm, text width=2.45cm, align=center, inner sep=2.2pt},
+  netbox/.style={draw=orange!70!black, fill=yellow!12!white, thick, rounded corners=2.5pt, minimum height=0.78cm, align=center, inner sep=2.4pt},
+  arr/.style={->, thick, draw=black!75},
+  netarr/.style={->, thick, densely dashed, draw=orange!70!black}
+]
+  \node[stepbox] (s1) at (1.35, 1.32) {\textbf{1.\ \textsf{Pack}}\\inputs to one\\complex array};
+  \node[stepbox] (s2) at (4.45, 1.32) {\textbf{2.\ \textsf{Spread}}\\smooth axes $2..d$\\on one grid};
+  \node[stepbox] (s3) at (7.55, 1.32) {\textbf{3.\ \textsf{TensorFFT}}\\direct complex\\grid transform};
+  \node[stepbox] (s4) at (10.65, 1.32) {\textbf{4.\ \textsf{Deconvolve}}\\two-term pass\\for $F_R$};
+  \node[stepbox] (s5) at (13.75, 1.32) {\textbf{5.\ \textsf{Recover}}\\square, repeat\\2--4, carries};
+
+  \draw[arr] (s1) -- (s2);
+  \draw[arr] (s2) -- (s3);
+  \draw[arr] (s3) -- (s4);
+  \draw[arr] (s4) -- (s5);
+
+  % Return loop for second bridge call on squared frequencies
+  \draw[->, thick, teal!70!black] (s5.north) -- ++(0, 0.30) -| node[pos=0.25, above, font=\scriptsize, text=teal!75!black]
+    {second approximate $F_R$ call on conjugated pointwise squares} (s2.north);
+
+  % Two fixed finite networks of [OAI26]: bit-shear feeds Spread and TensorFFT; complex feeds TensorFFT
+  \node[netbox, text width=4.65cm] (n1) at (4.25, -0.26)
+    {\textbf{Bit-shear network~\cite{OAI26}}\\sub-linear address-block swaps};
+  \node[netbox, text width=5.30cm] (n2) at (10.15, -0.26)
+    {\textbf{Complex phase network~\cite{OAI26}}\\butterfly rounds \& Walsh maps};
+
+  \draw[netarr] (n1.north -| s2.south) -- (s2.south);
+  \draw[netarr, rounded corners=2.5pt] ([xshift=1.80cm]n1.north) -- ++(0, 0.28) -| ([xshift=-0.35cm]s3.south);
+  \draw[netarr] ([xshift=0.35cm]s3.south |- n2.north) -- ([xshift=0.35cm]s3.south);
+\end{tikzpicture}
+\caption{The five-step multiplication pipeline on one power-of-two grid. Steps~2--4 approximate the one-dimensional transform $F_R$ by smoothing axes $d$ down to~$2$ (\textsf{Spread}), running one direct complex transform (\textsf{TensorFFT}), and undoing the smoothing to working precision (\textsf{Deconvolve}). Step~5 (\textsf{Recover}) squares pointwise, repeats Steps~2--4 once, and propagates carries. The bit-shear network of~\cite{OAI26} accelerates axis swaps in \textsf{Spread} and internal chunk alignments in \textsf{TensorFFT}, while the complex phase network accelerates \textsf{TensorFFT}'s butterfly rounds and bit-exact Walsh permutations.\looseness=-1}
+\label{fig:five-steps}
+\end{figure}
+
+\subsection{Where the \texorpdfstring{$n\log n$}{n log n} barrier is broken, and what caps the saving}\label{sec:overview-barrier}
+
+To see why our outer reduction improves both the structure and the exponent of~\cite{OAI26}, we compare how the two algorithms connect the finite networks to integer multiplication. Because $R=\Theta(n/\log n)$ and working precision $P=\Theta(k)=\Theta(\log n)$ suffices to round the output coefficients to exact integers, the stored array has logical bit volume $V=\Theta(RP)=\Theta(n)$. On a multitape Turing machine, a standard one-dimensional FFT makes $k=\Theta(\log n)$ sequential passes over volume~$V$, costing $\Theta(n\log n)$ steps from tape movement alone.
+
+Harvey and van der Hoeven~\cite{HvdH21} reach $O(n\log n)$ by folding a convolution of odd-prime-product length $S=s_1\cdots s_d$ into $d$ fixed dimensions. Their reduction splits indices across coprime odd primes $s_1,\dots,s_d$ via a Chinese remainder map, resamples onto larger powers of two~$t_i$, and runs multidimensional FFTs.
+
+In~\cite{OAI26}, by contrast, the dimension $d=\lfloor k^\eps\rfloor$ grows with~$n$, and two fixed linear networks at ground-set parameter $h=100$ act over block size $m=h^3=10^6$. Each network couples $W$ matrix blocks, called \emph{roles}, through sub-calls whose total matrix rank~$s$, the \emph{recursive edge-rank sum}, is strictly smaller than the trivial value $Wm$; see Fact~\ref{fact:oai-networks}.
+\begin{enumerate}[label=(\roman*),nosep,leftmargin=*]
+  \item A \emph{bit-shear network} of $W_b$ roles with $s_b < W_b m^{\tau}$ and $\tau<1$ interchanges two disjoint contiguous $u$-bit address fields in time $O(V u^{\tau})$ rather than $O(V u)$~\cite[Lemma~12]{OAI26}; see Lemma~\ref{lem:transfer12}.
+
+  \item A \emph{complex phase network} of $W_c$ roles with $s_c < W_c m^{\sigma}$ and $\sigma<1$ executes the normalized butterfly $H_0(u,v)=\bigl((u+v)/2,(u-v)/2\bigr)$ simultaneously across $D\le d$ consecutive $K$-bit address chunks, where $K=\lfloor d^c\rfloor$. Acting on one selected bit per chunk takes $O(V d^{\lambda'})$ steps with $\lambda'<1$ rather than $O(V d)$~\cite[Prop.~14]{OAI26}; see Proposition~\ref{prop:prop14-param}.
+\end{enumerate}
+Since $\ell=\lceil k/d\rceil$ bit-levels across $d-1$ outer axes cost $O(V\ell d^{\lambda'})=O(V k d^{\lambda'-1})$, one would hope for an exponent saving $\kappa\approx\eps(1-\lambda')$ linear in $1-\sigma$.
+
+Around those two primitives, however, \cite{OAI26} retains the surrounding multi-grid reduction of~\cite{HvdH21} together with Bluestein's reduction~\cite{Bluestein70} and root-free Nussbaumer polynomial transforms~\cite{NQ78,Nussbaumer80} over $\C[y]/(y^r+1)$. That surrounding stack incurs $O(d^2)$ adjacent axis-swap passes and amplifies middle-transform error by the record count $M=R/r$, as contrasted stage by stage in Table~\ref{tab:components} and Figure~\ref{fig:pipeline}.
+
+\begin{table}[!ht]
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{3pt}
+\centering
+\footnotesize
+\caption{Side-by-side comparison of the prior sub-$n\log n$ pipeline and our single-grid algorithm around the two shared $h=100$ finite networks of~\cite{OAI26}. Every number-theoretic and polynomial-ring stage on the left is removed or replaced on the right, with formal locations listed in the third column.\looseness=-1}
+\label{tab:components}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}>{\raggedright}p{0.38\textwidth}>{\raggedright}p{0.40\textwidth}>{\raggedright\arraybackslash}p{0.17\textwidth}@{}}
+\toprule
+\cite{HvdH21} / \cite{OAI26} & This paper & Where \\
+\midrule
+CRT map onto $d$ distinct odd primes; prime search by trial division & None: one power-of-two length $R=t_1\cdots t_d=2^k$ & Thm.~\ref{thm:main}, \S\ref{sec:bridge-conventions} \\\addlinespace[1pt]
+Gaussian resampling prime $\to 2^\ell$ (\cite{HvdH21}; \cite[Lemmas~19--20]{OAI26}) & Same-grid sinc-Gaussian spread; negative half-bin phase gives one uniform 2-term solver ($\|B_a^{-1}\|_\infty\le\frac47 t_a$; cf.~\cite{MS}) & Lemmas~\ref{lem:bridge-A}, \ref{lem:bridge-B}; App.~\ref{app:deferred} \\\addlinespace[1pt]
+$O(d^2)$ adjacent axis-swap passes (\cite[\S9]{OAI26}) & $O(d)$ direct axis exposures & Lemma~\ref{lem:bridge-D} \\\addlinespace[1pt]
+$O(k/K)$ chunk-swap layout; quadratic cap $\kappa<(1-\tau)^2/(C_1\tau)$ (\cite[Lemma~16]{OAI26}) & Exact Walsh-layer positional permutations; linear cap $\kappa<(1-\sigma)/C_1$ & Thm.~\ref{thm:positional-perm}, \S\ref{sec:main-gaps} \\\addlinespace[1pt]
+Bluestein chirp + twist + ring convolution in $\C[y]/(y^r+1)$ (\cite[Prop.~18, Lemma~21]{OAI26}) & Direct complex tensor FFT; no polynomial-ring multiplication & Thm.~\ref{thm:direct-fft}, Cor.~\ref{cor:walsh-middle} \\\addlinespace[1pt]
+Middle error amplified by $M=R/r$; $\log_2 M$-bit output widening (\cite[Prop.~18]{OAI26}) & Error $<12\ell\cdot 2^{-q}$; no output widening ($\delta_{\mathrm{mid}}=0$) & Thm.~\ref{thm:direct-fft}, Cor.~\ref{cor:walsh-middle} \\\addlinespace[1pt]
+$\Theta(rP)$-bit packed products (\cite[Lemma~17]{OAI26}, invoking~\cite{HvdH21}) & $O(P^2)$-bit integer products; any $\mathsf M(N)=N(\log N)^{O(1)}$ suffices (e.g.~\cite{SS71}) & Thm.~\ref{thm:main}, \S\ref{sec:main-tables} \\\addlinespace[1pt]
+Separate precision budgets for resampling, chirp, and ring convolution & Single contract $P=O(p+\log R)$ with one master margin & Thm.~\ref{thm:bridge-precision} \\\addlinespace[1pt]
+Main-route chain uses~\cite{HvdH21} and~\cite{OAI26} Lemmas~3--4, 9--10, 12--13, 15--21, Props.~7--8, 11, 14, 18 & Zero results of~\cite{HvdH21}; only~\cite{OAI26} Lemmas~3--4, Props.~7--8 as black boxes (9--10, 12--13, Props.~11, 14 re-derived in App.~\ref{app:parameter-transfer}; 15--21, Prop.~18 unused; none in Lean~4) & \S\ref{sec:prelim-oai}, \S\ref{sec:lean}, App.~\ref{app:parameter-transfer} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The chunk-layout cap.}
+Quantitatively, why does~\cite{OAI26} obtain $\kappa=2^{-182}$ instead of a linear saving? Contiguous blocks of $r=t_d$ complex numbers form \emph{records} indexed by $m_0=\log_2(R/r)$ binary \emph{address bits}. Before the simultaneous butterfly layer can act, those $m_0$ address bits, initially grouped axis by axis, must be rearranged by a \emph{chunk layout} permutation~$L$ that interleaves $K$-bit chunks across axes. Executing~$L$ via $O(k/K)$ width-$K$ chunk interchanges costs $O\bigl(V\cdot (k/K)K^{\tau}\bigr)=O(V P K^{\tau-1})$, whose saving factor $K^{1-\tau}=\Theta(P^{\eps c(1-\tau)})$ needs the chunk exponent~$c$ to be large.
+
+Inside the butterfly-layer recursion, however, recursive \emph{non-leaf levels} subdivide chunk groups down to base \emph{leaf levels} of fewer than $d^\beta$ chunks, and aligning $K$-bit chunks forces $\tau(1+c/\beta)<\lambda<1$, so $c<\beta(1-\tau)/\tau$. Meanwhile, each layer carries $\Delta=\lceil C_0 d^{C_1}\rceil$ extra \emph{guard bits} internally to prevent overflow and intermediate rounding. Keeping $\Delta$ sublinear in~$P$ forces $\eps<1/C_1$. Multiplying these bounds traps any chunk-exchange layout beneath a \emph{quadratic} ceiling in $1-\tau$:
+\begin{equation}\label{eq:overview-quad-cap}
+  \kappa < \eps c(1-\tau) < \frac{\beta(1-\tau)^2}{C_1\tau} < \frac{(1-\tau)^2}{C_1\tau}.
+\end{equation}
+Even with our certified $1-\tau=2^{-40}$ and $C_1=14$, \eqref{eq:overview-quad-cap} caps $\kappa$ below $2^{-83.8}$. At the schedule $\eps=2^{-75}$ and $c=2^{-56}$ of~\cite[(38)]{OAI26}, the first term of~\eqref{eq:overview-quad-cap} is $2^{-181}$, giving $\kappa=2^{-182}$, while the ceiling itself is about $2^{-104}$ under the printed constants.
+
+\begin{figure}[t]
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{-2pt}
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >=Latex,
+  stage/.style={draw, rounded corners=2.5pt, minimum height=1.00cm, align=center, inner sep=2.5pt},
   oldbox/.style={stage, fill=red!5!white, draw=red!50!black, dashed},
   newbox/.style={stage, fill=blue!6!white, draw=blue!60!black, thick},
-  io/.style={draw=black!65, rounded corners=2pt, fill=black!4, minimum height=0.96cm, align=center, inner sep=3pt},
+  io/.style={draw=black!65, rounded corners=2pt, fill=black!4, minimum height=0.88cm, align=center, inner sep=2.5pt},
   arr/.style={->, thick, draw=black!75}
 ]
   % Top row: Prior pipeline [OAI26]
-  \node[anchor=west, font=\footnotesize\bfseries, text=red!55!black] at (0, 2.48)
+  \node[anchor=west, font=\footnotesize\bfseries, text=red!55!black] at (0, 2.14)
     {Prior pipeline (\cite{HvdH21} architecture, networks of~\cite{OAI26}; $\kappa = 2^{-182}$, quadratically capped):};
 
-  \node[io, text width=1.82cm] (in1) at (0.93, 1.28) {1-D input\\$S{=}s_1{\cdots}s_d$\\(odd primes)};
-  \node[oldbox, text width=3.38cm] (old1) at (3.96, 1.28)
+  \node[io, text width=1.76cm] (in1) at (0.97, 1.14) {1-D input\\$S{=}s_1{\cdots}s_d$\\(odd primes)};
+  \node[oldbox, text width=3.74cm] (old1) at (4.15, 1.14)
     {\textbf{CRT + resampling}\\primes $s_i \to 2^\ell$ grid\\$O(d^2)$ adjacent swaps};
-  \node[oldbox, text width=3.38cm] (old2) at (7.78, 1.28)
+  \node[oldbox, text width=3.78cm] (old2) at (8.34, 1.14)
     {\textbf{Chunk-swap layout $L$}\\$O(k/K)$ field swaps\\cost $O(V P K^{\tau-1})$};
-  \node[oldbox, text width=3.48cm] (old3) at (11.65, 1.28)
+  \node[oldbox, text width=3.74cm] (old3) at (12.53, 1.14)
     {\textbf{Bluestein + ring conv.}\\chirp in $\C[y]/(y^r{+}1)$\\$M$-amplified error};
-  \node[io, text width=1.48cm] (out1) at (14.58, 1.28) {DFT of\\length $S$};
+  \node[io, text width=1.36cm] (out1) at (15.51, 1.14) {DFT of\\length $S$};
 
   \draw[arr] (in1) -- (old1);
   \draw[arr] (old1) -- (old2);
   \draw[arr] (old2) -- (old3);
   \draw[arr] (old3) -- (out1);
 
-  % Shared foundation bar (single clean centered line <= 15.4cm)
-  \node[draw=black!55, fill=yellow!10!white, rounded corners=2pt, minimum width=15.40cm, inner sep=3.2pt, align=center]
-    (shared) at (7.70, 0.06)
+  % Shared foundation bar (single clean centered line <= 16.28cm)
+  \node[draw=black!55, fill=yellow!10!white, rounded corners=2pt, minimum width=16.28cm, inner sep=2.6pt, align=center]
+    (shared) at (8.14, 0.00)
     {\textbf{Shared $h{=}100$ network primitives~\cite{OAI26} (Fact~\ref{fact:oai-networks}):}\;\;
      interchange $O(V u^{\tau})$ \;\;$\bullet$\;\; butterfly layer $O(V d^{\lambda'})$};
 
   % Bottom row: This paper
-  \node[anchor=west, font=\footnotesize\bfseries, text=blue!65!black] at (0, -0.68)
+  \node[anchor=west, font=\footnotesize\bfseries, text=blue!65!black] at (0, -0.58)
     {This paper (Theorems~\ref{thm:main}, \ref{thm:lean}; $\kappa = 2^{-46}$, linear in network deficit; $\kappa=2^{-56}$ with printed constants):};
 
-  \node[io, text width=1.82cm] (in2) at (0.93, -1.90) {1-D input\\$R=2^k$\\(power of $2$)};
-  \node[newbox, text width=3.38cm] (new1) at (3.96, -1.90)
+  \node[io, text width=1.76cm] (in2) at (0.97, -1.64) {1-D input\\$R=2^k$\\(power of $2$)};
+  \node[newbox, text width=3.74cm] (new1) at (4.15, -1.64)
     {\textbf{Fractional-shift bridge}\\half-bin kernel (\S\ref{sec:bridge})\\$O(d)$ swaps, same $2^k$ grid};
-  \node[newbox, text width=3.38cm] (new2) at (7.78, -1.90)
-    {\textbf{Walsh perm.\ (\S\ref{sec:walsh})}\\$L,(LB)^{-1}$ via $2^s H_T\,\CZ\,H_T$\\exact, cost $O(V\ell d^{\lambda'})$};
-  \node[newbox, text width=3.48cm] (new3) at (11.65, -1.90)
+  \node[newbox, text width=3.78cm] (new2) at (8.34, -1.64)
+    {\textbf{Walsh perm.\ (\S\ref{sec:walsh})}\\$L,(LB)^{-1}$ via $2^s H_T\CZ H_T$\\exact, cost $O(V\ell d^{\lambda'})$};
+  \node[newbox, text width=3.74cm] (new3) at (12.53, -1.64)
     {\textbf{Direct DIF FFT (\S\ref{sec:direct-fft})}\\combined twiddles\\error $<12\ell\cdot 2^{-q}$};
-  \node[io, text width=1.48cm] (out2) at (14.58, -1.90) {2-alias\\solve $\to F_R x$};
+  \node[io, text width=1.36cm] (out2) at (15.51, -1.64) {2-alias\\solve $\approx F_R x$};
 
   \draw[arr] (in2) -- (new1);
   \draw[arr] (new1) -- (new2);
   \draw[arr] (new2) -- (new3);
   \draw[arr] (new3) -- (out2);
 \end{tikzpicture}
-\caption{Comparison of sub-$n\log n$ multiplication pipelines. Both build on the same two finite-network primitives of~\cite{OAI26}, but we replace the CRT/resampling front end, the chunk-swap address layout, and the Bluestein ring-convolution middle transform. Boxes removed by this paper: CRT map, prime lengths, Gaussian resampling, chunk-swap layout, Bluestein chirp, ring convolution; added: a fixed-kernel spread, an exact Walsh-layer permutation, and a two-term deconvolution.}
+\caption{The prior sub-$n\log n$ multiplication pipeline compared with our single-grid pipeline. Both share the two fixed $h=100$ network primitives of~\cite{OAI26}, summarized in the center bar. Our pipeline replaces the top row's multi-grid and ring-convolution stages by \textsf{Spread} on one power-of-two grid, bit-exact Walsh permutations, a direct complex Fourier transform, and \textsf{Deconvolve} to working precision.\looseness=-1}
 \label{fig:pipeline}
 \end{figure}
 
 \subsection{A CRT-free front end: what the bridge removes and how}\label{sec:overview-bridge}
 
+Our front end replaces prime-length splitting and Gaussian resampling by an algebraic bridge between $F_R$ at $R=2^k$ and a multidimensional transform on the same power-of-two grid.
+
 \paragraph{Cooley--Tukey twiddles as fractional shifts.}
-Consider first dimension two~\cite{MS}: factor $R=t_1 r$ into powers of two, write input indices as $j=j_1+t_1 j_2$ and reversed-digit frequencies as $f=u_1 r+u_2$ ($0\le j_1,u_1<t_1$, $0\le j_2,u_2<r$). Expanding the normalized transform $(F_R x)_f = \frac1R\sum_{j=0}^{R-1} x_j e^{2\pi i j f/R}$ yields
+In dimension two~\cite{MS}, with $R=t_1 r$, input indices $j=j_1+t_1 j_2$, and reversed-digit frequencies $f=u_1 r+u_2$ for $0\le j_1,u_1<t_1$ and $0\le j_2,u_2<r$, expanding $(F_R x)_f = \frac1R\sum_{j=0}^{R-1} x_j e^{2\pi i j f/R}$ yields
 \begin{equation}\label{eq:overview-ct}
   (F_R x)_{u_1 r + u_2}
   = \frac{1}{t_1}\sum_{j_1=0}^{t_1-1} e^{2\pi i j_1 u_1/t_1}
     \Biggl(\frac{1}{r}\sum_{j_2=0}^{r-1} x_{j_1+t_1 j_2}\,e^{2\pi i (j_2 + j_1/t_1) u_2/r}\Biggr).
 \end{equation}
-The inner sum is the length-$r$ DFT of row~$j_1$, except that every sample is evaluated at the \emph{fractional shift} $j_2 + \delta_2$ with $\delta_2=j_1/t_1\in[0,1)$. Rather than multiplying by twiddles in frequency (which couples the axes), we spread each row $j_1$ in the time domain by a localized kernel $g(s)$ folded modulo~$r$ at offset $\delta_2$. By Poisson summation, the 2-D tensor DFT $F_{t_1,r}U$ of the spread array~$U$ is a weighted sum of aliases of $F_R x$ on the \emph{exact same} $t_1\times r$ grid:
+The inner sum is the length-$r$ DFT of row~$j_1$ at the fractional shift $j_2 + \delta_2$ with $\delta_2=j_1/t_1\in[0,1)$, which \textsf{Spread} realizes in the index domain by convolving row~$j_1$ with a localized kernel $g(s)$ folded modulo~$r$ at offset~$\delta_2$.
+
+\emph{Poisson summation} equates the transform of a periodized shifted kernel to a sum over integer-shifted frequency copies called \emph{aliases}, expressing $F_{t_1,r}U$ on the \emph{same} $t_1\times r$ grid as
 \[
   (F_{t_1,r}U)_{u_1,u_2} = \sum_{\nu\in\Z} \hat g\Bigl(\frac{u_2}{r}-\nu\Bigr)\,(F_R x)_{((u_1-\nu)\bmod t_1)\,r + u_2}.
 \]
-For the sinc-Gaussian base kernel $g_0(s)=\sinc(s)e^{-\pi s^2/\alpha^2}$ ($\alpha\asymp\sqrt{\tw}$ for alias-width parameter~$\tw$), the Fourier transform $G(\xi)=\int_{\xi-1/2}^{\xi+1/2}\alpha e^{-\pi\alpha^2 v^2}\,dv$ is a smoothed indicator of $[-\frac12,\frac12]$. For $\xi\in(0,1)$, all aliases $\nu\notin\{0,1\}$ lie in Gaussian tails of total weight $O(2^{-\tw})$, leaving a two-term cyclic bidiagonal system $c_0 Z_{u_1} + c_1 Z_{u_1-1} = Y_{u_1}$ per column.
+For the \emph{sinc-Gaussian kernel} $g_0(s)=\sinc(s)e^{-\pi s^2/\alpha^2}$, the product of $\sinc(s)=\sin(\pi s)/(\pi s)$ and a Gaussian of width $\alpha\asymp\sqrt{\tw}$, the transform $G(\xi)=\int_{\xi-1/2}^{\xi+1/2}\alpha e^{-\pi\alpha^2 v^2}\,dv$ smooths the indicator of $[-\frac12,\frac12]$. For $\xi\in(0,1)$, all aliases $\nu\notin\{0,1\}$ have Gaussian tail weight $O(2^{-\tw})$. Truncating the full alias sum to $\nu\in\{0,1\}$ leaves a \emph{two-alias deconvolution} operator $B_a = c_0 I + c_1 T$ per cycle, where $T$ is the unit cyclic shift $(Tz)_u = z_{u-1}$, undoing the smoothing to working precision.
 
 \paragraph{The Nyquist singularity and negative half-bin modulation.}
-If the spreading kernel is real-valued, conjugate symmetry $\hat g(-\xi)=\overline{\hat g(\xi)}$ forces $|c_0|=|\hat g(\frac12)|=|\hat g(-\frac12)|=|c_1|$ at the Nyquist sample $u_2=r/2$ ($\xi=\frac12$). On a cycle of length~$L$, the bidiagonal matrix $c_0 I + c_1 T$ is then singular whenever $g$ is even and $L$ is even (since $c_0=c_1$), and for \emph{any} real Schwartz kernel its inverse has $\ell^\infty$ norm $\Omega(L)$ whenever invertible (Proposition~\ref{prop:real-kernel-fails}). In dimension two, $L=t_1$ and~\cite{MS} handles the single Nyquist column via a separate alternating-sum identity. In $d$ dimensions, however, cycle lengths reach $L=A_a=\prod_{i<a}t_i\le R/r$, so an $\Omega(L)$ conditioning loss on each of the $d-1$ spread axes would cost $\sum_{a=2}^d\log_2 A_a=\Theta(dk)$ extra bits of working precision. That overhead is superlinear in~$k$ once $d\to\infty$, destroying the $O(k)$-bit budget on which $V=\Theta(n)$ rests.
+If the spreading kernel is real-valued, conjugate symmetry $\hat g(-\xi)=\overline{\hat g(\xi)}$ forces $|c_0|=|\hat g(\frac12)|=|\hat g(-\frac12)|=|c_1|$ at the \emph{Nyquist frequency} $u_2=r/2$, where $\xi=\frac12$. On an even cycle of length~$L$, $c_0 I + c_1 T$ is singular for even~$g$, and for any real Schwartz kernel its inverse has $\ell^\infty$ norm $\Omega(L)$ whenever invertible; see Proposition~\ref{prop:real-kernel-fails}. Whereas~\cite{MS} handles one Nyquist column at $d=2$ via an alternating-sum identity, in $d$ dimensions cycle lengths reach $L=A_a=\prod_{i<a}t_i\le R/r$, and losing $\Omega(L)$ conditioning on $d-1$ axes would cost $\sum_{a=2}^d\log_2 A_a=\Theta(dk)$ extra precision bits, destroying $V=\Theta(n)$.\looseness=-1
 
-We eliminate the singularity uniformly across all dimensions and cycle lengths by modulating the kernel on each axis $a\in\{2,\dots,d\}$ with a \emph{negative half-bin phase}:
+We eliminate the Nyquist singularity uniformly across all dimensions and cycle lengths by multiplying the sinc-Gaussian kernel on each spread axis $a\in\{2,\dots,d\}$ by a complex \emph{carrier}, namely a negative half-bin phase:\looseness=-1
 \begin{equation}\label{eq:overview-carrier}
   g_a(s) = e^{-\pi i s/t_a}\,\sinc(s)\,e^{-\pi s^2/\alpha^2}, \qquad \hat g_a(\xi) = G\Bigl(\xi + \frac{1}{2t_a}\Bigr).
 \end{equation}
-This shifts the frequency samples from integer bins $u_a/t_a$ to half-bin midpoints $y=(u_a+\frac12)/t_a\in(0,1)$ (Figure~\ref{fig:kernel-sampling}). Because $t_a\ge 2$ is even, no integer $u_a\in[t_a]$ ever lands on the crossing point $y=\frac12$ (which corresponds to $u_a=(t_a-1)/2\notin\Z$). Every sample satisfies $|y-\frac12|\ge \frac{1}{2t_a}$, ensuring a separation $|c_0-c_1|=|G(y)-G(y-1)|\ge \frac{7}{4t_a}$ and an inverse norm
+This carrier shifts every frequency sample from $u_a/t_a$ to a half-bin midpoint $y=(u_a+\frac12)/t_a\in(0,1)$, as shown in Figure~\ref{fig:kernel-sampling}. Write $\cA_a$ for the full alias operator on axis~$a$ over all $\nu\in\Z$, defined in~\eqref{eq:overview-triangular} below. Because $t_a\ge 2$ is even, no integer $u_a\in[t_a]$ hits $y=\frac12$, so $|y-\frac12|\ge \frac{1}{2t_a}$ gives $|c_0-c_1|=|G(y)-G(y-1)|\ge \frac{7}{4t_a}$, two-alias truncation error $\|\cA_a-B_a\|_\infty=O(2^{-\tw})$, and inverse norm\looseness=-1
 \[
   \|B_a^{-1}\|_\infty \le \frac{1}{|c_0-c_1|} \le \frac47\,t_a \le t_a
 \]
-completely independent of the cycle length $L=A_a$ (Lemma~\ref{lem:bridge-B}). The negative sign in~\eqref{eq:overview-carrier} is essential: a positive carrier $e^{+\pi i s/t_a}$ shifts $u_a=0$ to $y=-\frac{1}{2t_a}\notin(0,1)$, encroaching on the omitted $\nu=-1$ passband and degrading the alias error from $O(2^{-\tw})$ to $\Omega(\tw^{-1/2}2^{-\tw/4})$ at $t_a=2$ (Proposition~\ref{prop:positive-fails}). Because $e^{-\pi i s/t_a}$ is anti-periodic of period $t_a$, periodizing $g_a$ folds $g_0$ with alternating signs $(-1)^{(e-s)/t_a}$.
+independent of $L=A_a$; see Lemma~\ref{lem:bridge-B}. The negative sign in~\eqref{eq:overview-carrier} is essential: a positive phase $e^{+\pi i s/t_a}$ shifts $u_a=0$ to $y=-\frac{1}{2t_a}\notin(0,1)$, nearing the $\nu=-1$ passband and degrading the alias tail to $\Omega(\tw^{-1/2}2^{-\tw/4})$ at $t_a=2$ in Proposition~\ref{prop:positive-fails}. Because $e^{-\pi i s/t_a}$ is anti-periodic of period~$t_a$, folding $g_a$ modulo~$t_a$ alternates signs.
 
 \begin{figure}[t]
-\setlength{\abovecaptionskip}{5pt}
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{-2pt}
 \centering
-\begin{tikzpicture}[xscale=8.0, yscale=2.95, font=\footnotesize, >=Latex]
+\begin{tikzpicture}[xscale=8.0, yscale=2.16, font=\footnotesize, >=Latex]
   % Shaded regions outside [0,1] where samples approach omitted alias passbands
   \fill[black!6] (-0.23, 0) rectangle (0, 1.06);
   \fill[black!6] (1.0, 0) rectangle (1.23, 1.06);
@@ -167,8 +384,8 @@ completely independent of the cycle length $L=A_a$ (Lemma~\ref{lem:bridge-B}). T
 
   % Nyquist crossing at y = 1/2 (integer bin u_a/4 for u_a=2)
   \draw[red!75!black, thick, densely dashed] (0.5, 0) -- (0.5, 1.12);
-  \draw[red!75!black, very thick, fill=white] (0.5, 0.500) circle [x radius=0.011, y radius=0.026];
-  \node[red!75!black, fill=white, inner sep=1pt, font=\scriptsize\bfseries, align=center] at (0.56, 1.19)
+  \draw[red!75!black, very thick, fill=white] (0.5, 0.500) circle [x radius=0.011, y radius=0.030];
+  \node[red!75!black, fill=white, inner sep=1pt, font=\scriptsize\bfseries, align=center] at (0.56, 1.20)
     {Nyquist crossing $y=\tfrac12$: $c_0=c_1$ (integer sample $u_a/t_a$ singular)};
 
   % y-axis labels placed AFTER banner, cleanly clear of curves and dotted lines
@@ -177,11 +394,11 @@ completely independent of the cycle length $L=A_a$ (Lemma~\ref{lem:bridge-B}). T
 
   % Four integer-bin ticks u_a/4 \in {0, 1/4, 1/2, 3/4} in red, plus black reference tick at y=1
   \foreach \ux/\ulab in {0/0, 0.25/\tfrac14, 0.5/\tfrac12, 0.75/\tfrac34} {
-    \draw[red!65!black, thick] (\ux, -0.025) -- (\ux, 0.025);
-    \node[below=3pt, font=\scriptsize, text=red!65!black] at (\ux, -0.01) {$\ulab$};
+    \draw[red!65!black, thick] (\ux, -0.028) -- (\ux, 0.028);
+    \node[below=2.5pt, font=\scriptsize, text=red!65!black] at (\ux, -0.01) {$\ulab$};
   }
-  \draw[black!75, thick] (1.0, -0.025) -- (1.0, 0.025);
-  \node[below=3pt, font=\scriptsize, text=black!75] at (1.0, -0.01) {$1$};
+  \draw[black!75, thick] (1.0, -0.028) -- (1.0, 0.028);
+  \node[below=2.5pt, font=\scriptsize, text=black!75] at (1.0, -0.01) {$1$};
 
   % Half-bin samples y = (u_a + 1/2)/4 for t_a = 4, \tw = 8: 1/8, 3/8, 5/8, 7/8
   \foreach \hx/\czero/\cone/\ymax/\hlab in {
@@ -190,14 +407,14 @@ completely independent of the cycle length $L=A_a$ (Lemma~\ref{lem:bridge-B}). T
     0.625/0.2025/0.7975/0.7975/\tfrac58,
     0.875/0.0063/0.9937/0.9937/\tfrac78} {
     \draw[blue!45!black, dotted] (\hx, 0) -- (\hx, \ymax);
-    \fill[blue!80!black] (\hx, \czero) circle [x radius=0.009, y radius=0.021];
-    \fill[teal!80!black] (\hx, \cone) circle [x radius=0.009, y radius=0.021];
-    \node[below=13pt, font=\scriptsize\bfseries, text=blue!75!black] at (\hx, 0) {$\hlab$};
+    \fill[blue!80!black] (\hx, \czero) circle [x radius=0.009, y radius=0.024];
+    \fill[teal!80!black] (\hx, \cone) circle [x radius=0.009, y radius=0.024];
+    \node[below=12pt, font=\scriptsize\bfseries, text=blue!75!black] at (\hx, 0) {$\hlab$};
   }
 
   % Curve labels placed AFTER dotted lines, strictly inside (0.125, 0.375) and (0.625, 0.875)
-  \node[blue!75!black, fill=white, inner sep=1.2pt, font=\scriptsize\bfseries] at (0.245, 0.72) {$c_0(y)=G(y)$};
-  \node[teal!75!black, fill=white, inner sep=1.2pt, font=\scriptsize\bfseries] at (0.755, 0.65) {$c_1(y)=G(y{-}1)$};
+  \node[blue!75!black, fill=white, inner sep=1.2pt, font=\scriptsize\bfseries] at (0.250, 0.72) {$c_0(y){=}G(y)$};
+  \node[teal!75!black, fill=white, inner sep=1.2pt, font=\scriptsize\bfseries] at (0.750, 0.60) {$c_1(y){=}G(y{-}1)$};
 
   % Separation arrows at y = 3/8 and y = 5/8 (|c_0 - c_1| = 0.5949 > 7/16 = 0.4375)
   \draw[<->, thick, blue!75!black] (0.375, 0.228) -- (0.375, 0.772);
@@ -205,136 +422,186 @@ completely independent of the cycle length $L=A_a$ (Lemma~\ref{lem:bridge-B}). T
   \node[fill=white, inner sep=1.2pt, font=\scriptsize, text=blue!80!black] at (0.250, 0.47)
     {$|c_0{-}c_1|\ge\tfrac{7}{4t_a}$};
 \end{tikzpicture}
-\caption{Retained alias weights $c_0(y)=G(y)$ and $c_1(y)=G(y-1)$ plotted at $\tw=8$ for $t_a=4$. Integer-bin samples $u_a/t_a\in\{0,\tfrac14,\tfrac12,\tfrac34\}$ (red ticks) include the Nyquist crossing $y=\frac12$ (at $u_a=t_a/2$), where $c_0=c_1$, making the two-alias operator singular. Negative half-bin samples $y=(u_a+\frac12)/t_a\in\{\tfrac18,\tfrac38,\tfrac58,\tfrac78\}$ (solid dots) stay strictly inside $(0,1)$ and at distance $\ge\frac{1}{2t_a}$ from $\frac12$, giving $|c_0-c_1|\ge\frac{7}{4t_a}$ and uniform conditioning $\|B_a^{-1}\|_\infty\le \frac47 t_a$.}
+\caption{Why shifting frequency samples by half a bin keeps the two-term deconvolution system well conditioned, illustrated for axis length $t_a=4$ and width parameter $\tw=8$. Integer-bin samples $u_a/t_a$ in red hit the Nyquist midpoint $y=\frac12$ where $c_0=c_1$, making the solver singular. Negative half-bin samples $y=(u_a+\frac12)/t_a$ shown as solid dots stay inside $(0,1)$ at distance at least $\frac{1}{2t_a}$ from $\frac12$, giving $|c_0-c_1|\ge\frac{7}{4t_a}$ and $\|B_a^{-1}\|_\infty\le \frac47 t_a$.}
 \label{fig:kernel-sampling}
 \end{figure}
 
 \paragraph{Triangular non-commuting factorization in $d$ dimensions.}
-For general $R=t_1\cdots t_d=2^k$, put $A_a=\prod_{i<a}t_i$, write time indices as $j=\sum_{i=1}^d j_i A_i$ ($j_1$ least significant) and frequencies in reversed digit order $f(\mathbf u)=\sum_{i=1}^d u_i R/A_{i+1}$ ($u_d$ least significant). On axis $a\ge 2$, the fractional shift $\delta_a(\mathbf j)=(\sum_{i<a}j_i A_i)/A_a\in[0,1)$ depends on the \emph{original} digits below~$a$. We therefore spread the axes in \emph{descending} order $a=d,d-1,\dots,2$, forming $U=\mathcal S_2\mathcal S_3\cdots\mathcal S_d x$, so that whenever $\mathcal S_a$ acts, coordinates $1,\dots,a-1$ are still untouched. Dual to this in frequency space, shifting $f$ by $-\nu R/A_a$ modifies only the more significant frequency digits $u_1,\dots,u_{a-1}$ while leaving $u_a,\dots,u_d$ fixed. Consequently, Poisson summation along all $d-1$ spread axes factors into an exact \emph{triangular} operator product (Lemma~\ref{lem:bridge-A}):
+For general $R=t_1\cdots t_d=2^k$, put $A_a=\prod_{i<a}t_i$, write time indices as $j=\sum_{i=1}^d j_i A_i$ with $j_1$ least significant, and write frequencies in reversed digit order $f(\mathbf u)=\sum_{i=1}^d u_i R/A_{i+1}$ with $u_d$ least significant. On axis $a\ge 2$, the fractional shift $\delta_a(\mathbf j)=(\sum_{i<a}j_i A_i)/A_a\in[0,1)$ depends on the untouched digits below~$a$, so \textsf{Spread} processes axes in descending order $a=d,d-1,\dots,2$ to form $U=\mathcal S_2\mathcal S_3\cdots\mathcal S_d x$. Dual to this in frequency space, shifting $f$ by $-\nu R/A_a$ modifies only $u_1,\dots,u_{a-1}$ while leaving $u_a,\dots,u_d$ fixed, so Poisson summation factors into an exact triangular product in Lemma~\ref{lem:bridge-A}:
 \begin{equation}\label{eq:overview-triangular}
   F_{\mathbf t}U = \cA_2\cA_3\cdots\cA_d(F_R x), \qquad
   (\cA_a Z)_f = \sum_{\nu\in\Z} G\Bigl(\frac{u_a(f)+1/2}{t_a}-\nu\Bigr)\,Z_{(f-\nu R/A_a)\bmod R}.
 \end{equation}
-The operators $\cA_a$ do not commute, so deconvolution applies the two-alias cyclic inverses $B_2^{-1},B_3^{-1},\dots,B_d^{-1}$ in ascending order. Because $\|(B_2\cdots B_d)^{-1}\|_\infty\le (4/7)^{d-1}(R/t_1)\le R/t_1$, working precision $P=\Theta(p+\log R)$ and grid precision $q=P+2$ control both alias and fixed-point errors to $O(2^{-p}\max(1,\|x\|_\infty))$ (Theorem~\ref{thm:bridge-precision}). Finally, exposing each axis~$a$ by a single direct field interchange with the innermost axis~$d$ rather than a chain of adjacent swaps reduces the exposure overhead from $O(d^2)$ to $O(d)$ interchanges of cost $O\bigl(V d(1+\ell^\tau)\bigr)$ (Lemma~\ref{lem:bridge-D}).
+
+Because the alias operators $\cA_a$ do not commute, \textsf{Deconvolve} applies the two-alias cyclic inverses $B_2^{-1},B_3^{-1},\dots,B_d^{-1}$ in ascending order, where $\|(B_2\cdots B_d)^{-1}\|_\infty\le (4/7)^{d-1}(R/t_1)\le R/t_1$. Precomputed tables need only be \emph{faithful}, meaning certified within one or two grid units of true values. At working precision $P=O(p+\log R)$ and grid precision $q=P+2$, the bridge precision theorem, Theorem~\ref{thm:bridge-precision}, bounds the total error by $O(2^{-p}\max(1,\|x\|_\infty))$, while direct field interchanges with axis~$d$ cut axis exposures from $O(d^2)$ passes to $O(d)$ interchanges of cost $O\bigl(V d(1+\ell^\tau)\bigr)$ in Lemma~\ref{lem:bridge-D}.
 
 \subsection{Butterfly layers as exact positional permutations}\label{sec:overview-walsh}
 
-The central new idea of our middle transform is that the simultaneous butterfly layer of Proposition~\ref{prop:prop14-param} can itself execute \emph{any} permutation of the bit positions of a binary record address, bit-exactly and at the cost of $O(1)$ butterfly layers per slice.
+The central new tool of our middle transform uses the simultaneous butterfly layer of Proposition~\ref{prop:prop14-param} to execute any \emph{positional permutation} bit-exactly in a constant number of layer calls per bit-offset pass. Here a positional permutation means any reordering of the bit positions of a binary record address.\looseness=-1
 
 \paragraph{Selective Walsh layers via three-layer cancellation.}
-Consider an array of $2^{m_0}$ disk-valued records on the $q$-grid ($m_0=\log_2(R/r)=O(q)$), arranged so that a \emph{slice} selects one bit position from each of $D\le d$ consecutive $K$-bit address chunks. One black-box call to Proposition~\ref{prop:prop14-param} applies $H_0=\frac12\bigl(\begin{smallmatrix}1&1\\1&-1\end{smallmatrix}\bigr)$ to \emph{all} $D$ slice positions simultaneously ($H_{\mathrm{all}}$); we cannot disable individual chunks inside its recursive complex-network schedule. Observe, however, two $2\times 2$ identities involving the phase gate $S=\diag(1,i)$:
+Consider an array of $2^{m_0}$ records on the $q$-grid whose entries lie in the complex unit disk $|z|\le 1$, where $m_0=\log_2(R/r)=O(q)$ and a \emph{slice} picks one bit position from each of $D\le d$ consecutive $K$-bit address chunks. One black-box call to Proposition~\ref{prop:prop14-param} applies $H_0=\frac12\bigl(\begin{smallmatrix}1&1\\1&-1\end{smallmatrix}\bigr)$ to all $D$ slice positions at once, written $H_{\mathrm{all}}$; individual chunks cannot be turned off inside its recursive schedule. Instead, we use two $2\times 2$ \emph{Walsh identities} with the phase gate $S=\diag(1,i)$:\looseness=-1
 \begin{equation}\label{eq:overview-h3}
   H_0^3 = \tfrac12\,H_0, \qquad (H_0 S)^3 = \tfrac{1+i}{4}\,I.
 \end{equation}
-Indeed, $H_0^2=\frac12 I$ immediately gives $H_0^3=\frac12 H_0$, while cubing $H_0 S = \frac12\bigl(\begin{smallmatrix}1&i\\1&-i\end{smallmatrix}\bigr)$ yields $(H_0 S)^2 = \frac14\bigl(\begin{smallmatrix}1+i & 1+i\\ 1-i & i-1\end{smallmatrix}\bigr)$ and $(H_0 S)^3 = \frac{1+i}{4}I$. Suppose we want to apply $H_0$ only on an arbitrary subset $T$ of the $D$ slice positions ($s=|T|$) and act as the identity on the complement $U$ ($q_{\mathrm{sel}}=D-s$). Before each of \emph{three} full layer calls $H_{\mathrm{all}}$, we scan the array and multiply every record at address~$x$ by the scalar phase $(S_U z)(x) = i^{\sum_{j\in U} x_j} z(x)$. Because operators on distinct address bits tensor and commute, $(H_{\mathrm{all}} S_U)^3$ acts as $\frac12 H_0$ on every bit in~$T$ and collapses to $\frac{1+i}{4}I$ on every bit in~$U$. Rescaling by $2^s[2(1-i)]^{q_{\mathrm{sel}}}$ recovers the selective operator $H_T$ exactly (Lemma~\ref{lem:walsh-select}; Figure~\ref{fig:walsh-gadget}(a)).
+Indeed, $H_0^2=\frac12 I$ gives $H_0^3=\frac12 H_0$, while cubing $H_0 S = \frac12\bigl(\begin{smallmatrix}1&i\\1&-i\end{smallmatrix}\bigr)$ gives $(H_0 S)^2 = \frac14\bigl(\begin{smallmatrix}1+i & 1+i\\ 1-i & i-1\end{smallmatrix}\bigr)$ and $(H_0 S)^3 = \frac{1+i}{4}I$.\looseness=-1
+
+Suppose we want to apply $H_0$ only on a subset~$T$ of size $s=|T|$ of the slice and act as the identity on its complement~$U$ of size $q_{\mathrm{sel}}=D-s$. We run three full layer calls $H_{\mathrm{all}}$, preceding each call by a linear scan that multiplies every record at address~$x$ by $(S_U z)(x) = i^{\sum_{j\in U} x_j} z(x)$. Because operators on distinct address bits tensor and commute, $(H_{\mathrm{all}} S_U)^3$ acts as $\frac12 H_0$ on every bit in~$T$ and collapses to $\frac{1+i}{4}I$ on every bit in~$U$. Rescaling by $2^s[2(1-i)]^{q_{\mathrm{sel}}}$ recovers the selective operator $H_T$ exactly, as proved in Lemma~\ref{lem:walsh-select} and illustrated in Figure~\ref{fig:walsh-gadget}(a).
 
 \paragraph{Batched controlled flips without address movement.}
-Next, conjugating $\diag(1,-1)$ by $H_0$ gives $2 H_0\diag(1,-1)H_0 = \bigl(\begin{smallmatrix}0&1\\1&0\end{smallmatrix}\bigr)$, whereas $2 H_0 I H_0 = I$. Consider $s$ pairwise disjoint control-target bit pairs $(c_j,t_j)$ whose targets $T=\{t_1,\dots,t_s\}$ lie in one slice, while the controls $c_j$ may lie \emph{anywhere} in the $m_0$-bit record address. Define the recordwise sign diagonal $(\CZ\,z)(x)=(-1)^{\sum_{j=1}^s x_{c_j} x_{t_j}}z(x)$. Then (Lemma~\ref{lem:cnot}; Figure~\ref{fig:walsh-gadget}(b))
+Next, conjugating $\diag(1,-1)$ by $H_0$ gives $2 H_0\diag(1,-1)H_0 = \bigl(\begin{smallmatrix}0&1\\1&0\end{smallmatrix}\bigr)$, whereas $2 H_0 I H_0 = I$. Take $s$ pairwise disjoint control-target bit pairs $(c_j,t_j)$ whose targets $T=\{t_1,\dots,t_s\}$ lie in one slice while the controls $c_j$ lie anywhere in the $m_0$-bit record address. Define the recordwise sign diagonal $(\CZ\,z)(x)=(-1)^{\sum_{j=1}^s x_{c_j} x_{t_j}}z(x)$. By Lemma~\ref{lem:cnot}, shown in Figure~\ref{fig:walsh-gadget}(b),\looseness=-1
 \begin{equation}\label{eq:overview-cnot}
   \CNOT^{\otimes s} = 2^s H_T\,\CZ\,H_T
 \end{equation}
-moves every record from address~$x$ to the address with $x_{t_j}\mapsto x_{t_j}\oplus x_{c_j}$ for all $j=1,\dots,s$, using six full butterfly-layer calls and linear scans (Proposition~\ref{prop:cnot-batch}). Crucially, $\CZ$ never routes data between $c_j$ and $t_j$: it computes the parity $\sum_j x_{c_j} x_{t_j}\bmod 2$ from each record's address in $q^{O(1)}$ steps (absorbed by the record payload of $\Theta(rq)$ bits, Lemma~\ref{lem:transfer-long-record}) and negates the record in place.
+moves every record from address~$x$ to the address with $x_{t_j}\mapsto x_{t_j}\oplus x_{c_j}$ for all $j=1,\dots,s$ using six full butterfly-layer calls and linear scans; see Proposition~\ref{prop:cnot-batch}. Crucially, $\CZ$ never routes data between $c_j$ and $t_j$. It computes the parity $\sum_j x_{c_j} x_{t_j}\bmod 2$ from each record's address in $q^{O(1)}$ steps, absorbed by the $\Theta(rq)$-bit record payload via Lemma~\ref{lem:transfer-long-record}, and negates the record in place.
 
-\begin{figure}[t]
-\setlength{\abovecaptionskip}{5pt}
+\begin{figure}[!ht]
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{-2pt}
 \centering
 \begin{tikzpicture}[
   font=\footnotesize,
   >=Latex,
-  gate/.style={draw=orange!70!black, fill=orange!15!yellow!20, thick, rounded corners=1.5pt, minimum width=0.50cm, minimum height=0.42cm, inner sep=1.5pt, align=center},
+  gate/.style={draw=orange!70!black, fill=orange!15!yellow!20, thick, rounded corners=1.5pt, minimum width=0.48cm, minimum height=0.38cm, inner sep=1.2pt, align=center},
   layer/.style={draw=blue!70!black, fill=blue!10!white, thick, rounded corners=2pt, minimum width=0.72cm, inner sep=2pt, align=center},
-  diagbox/.style={draw=teal!70!black, fill=teal!8!white, thick, rounded corners=2pt, inner sep=2.5pt, align=center},
+  diagbox/.style={draw=teal!70!black, fill=teal!8!white, thick, rounded corners=2pt, inner sep=2.2pt, align=center},
   wire/.style={thick, black!75}
 ]
   % Panel (a): Selective Walsh gadget H_T
-  \node[anchor=west, font=\footnotesize\bfseries] at (0, 2.55)
+  \node[anchor=west, font=\footnotesize\bfseries] at (0, 2.24)
     {(a) Selective gadget $H_T$ ($s=|T|$, $q_{\mathrm{sel}}=|U|$):};
 
   % 4 wires: top 2 in T, bottom 2 in U
-  \foreach \y/\wlab in {1.90/{$j\in T$}, 1.35/{$j'\in T$}, 0.65/{$u\in U$}, 0.10/{$u'\in U$}} {
-    \draw[wire] (0.65, \y) -- (6.35, \y);
+  \foreach \y/\wlab in {1.68/{$j\in T$}, 1.20/{$j'\in T$}, 0.58/{$u\in U$}, 0.10/{$u'\in U$}} {
+    \draw[wire] (0.65, \y) -- (6.48, \y);
     \node[left, font=\scriptsize] at (0.65, \y) {\wlab};
   }
 
   % S gates on U wires before each of the 3 H_all layers
-  \foreach \x in {1.10, 2.45, 3.80} {
-    \node[gate] at (\x, 0.65) {$S$};
+  \foreach \x in {1.06, 2.34, 3.62} {
+    \node[gate] at (\x, 0.58) {$S$};
     \node[gate] at (\x, 0.10) {$S$};
   }
   % 3 full H_all boxes spanning all 4 wires
-  \foreach \x in {1.78, 3.13, 4.48} {
-    \node[layer, minimum height=2.25cm] at (\x, 1.00) {$H_{\mathrm{all}}$};
+  \foreach \x in {1.70, 2.98, 4.26} {
+    \node[layer, minimum height=1.96cm] at (\x, 0.89) {$H_{\mathrm{all}}$};
   }
-  % Scalar box at end (wide enough so [2(1-i)]^{q_sel} fits cleanly)
-  \node[diagbox, minimum height=2.25cm, minimum width=1.42cm, font=\scriptsize] at (5.62, 1.00)
+  % Scalar box at end (clean 2.3mm wire gap after 3rd H_all box)
+  \node[diagbox, minimum height=1.96cm, minimum width=1.42cm, font=\scriptsize] at (5.62, 0.89)
     {$\times\,2^s\cdot$\\$[2(1{-}i)]^{q_{\mathrm{sel}}}$};
 
-  \node[right, font=\scriptsize, align=left, text=blue!75!black] at (6.42, 1.62) {$H_0^3=\tfrac12 H_0$\\$\Rightarrow H_0$};
-  \node[right, font=\scriptsize, align=left, text=orange!70!black] at (6.42, 0.38) {$(H_0 S)^3=\tfrac{1+i}{4}I$\\$\Rightarrow I$};
+  \node[right, font=\scriptsize, align=left, text=blue!75!black] at (6.54, 1.44) {$H_0^3=\tfrac12 H_0$\\$\Rightarrow H_0$};
+  \node[right, font=\scriptsize, align=left, text=orange!70!black] at (6.54, 0.34) {$(H_0 S)^3=\tfrac{1+i}{4}I$\\$\Rightarrow I$};
 
   % Panel (b): Batched CNOT = 2^s H_T CZ H_T
-  \node[anchor=west, font=\footnotesize\bfseries] at (8.75, 2.55)
+  \node[anchor=west, font=\footnotesize\bfseries] at (8.80, 2.24)
     {(b) Batched flips $\CNOT^{\otimes s}=2^s H_T\,\CZ\,H_T$:};
 
   % Control wires (top 2) and target wires in slice T (bottom 2)
-  \draw[wire] (9.50, 1.90) -- (14.45, 1.90);
-  \draw[wire] (9.50, 1.40) -- (14.45, 1.40);
-  \draw[wire] (9.50, 0.65) -- (14.45, 0.65);
-  \draw[wire] (9.50, 0.10) -- (14.45, 0.10);
+  \draw[wire] (9.55, 1.68) -- (14.45, 1.68);
+  \draw[wire] (9.55, 1.24) -- (14.45, 1.24);
+  \draw[wire] (9.55, 0.58) -- (14.45, 0.58);
+  \draw[wire] (9.55, 0.10) -- (14.45, 0.10);
 
-  \node[left, font=\scriptsize] at (9.50, 1.90) {$x_{c_1}$};
-  \node[left, font=\scriptsize] at (9.50, 1.40) {$x_{c_2}$};
-  \node[left, font=\scriptsize] at (9.50, 0.65) {$x_{t_1}$};
-  \node[left, font=\scriptsize] at (9.50, 0.10) {$x_{t_2}$};
+  \node[left, font=\scriptsize] at (9.55, 1.68) {$x_{c_1}$};
+  \node[left, font=\scriptsize] at (9.55, 1.24) {$x_{c_2}$};
+  \node[left, font=\scriptsize] at (9.55, 0.58) {$x_{t_1}$};
+  \node[left, font=\scriptsize] at (9.55, 0.10) {$x_{t_2}$};
 
   % First H_T on targets
-  \node[layer, minimum height=1.05cm, minimum width=0.85cm] at (10.35, 0.375) {$H_T$};
+  \node[layer, minimum height=0.94cm, minimum width=0.85cm] at (10.38, 0.34) {$H_T$};
 
   % CZ connections
-  \draw[thick, teal!75!black] (11.40, 1.90) -- (11.40, 0.65);
-  \fill[teal!75!black] (11.40, 1.90) circle (2.2pt);
-  \fill[teal!75!black] (11.40, 0.65) circle (2.2pt);
+  \draw[thick, teal!75!black] (11.42, 1.68) -- (11.42, 0.58);
+  \fill[teal!75!black] (11.42, 1.68) circle (2.1pt);
+  \fill[teal!75!black] (11.42, 0.58) circle (2.1pt);
 
-  \draw[thick, teal!75!black] (11.90, 1.40) -- (11.90, 0.10);
-  \fill[teal!75!black] (11.90, 1.40) circle (2.2pt);
-  \fill[teal!75!black] (11.90, 0.10) circle (2.2pt);
-  \node[above, font=\scriptsize, text=teal!75!black] at (11.65, 1.95) {$\CZ$};
+  \draw[thick, teal!75!black] (11.92, 1.24) -- (11.92, 0.10);
+  \fill[teal!75!black] (11.92, 1.24) circle (2.1pt);
+  \fill[teal!75!black] (11.92, 0.10) circle (2.1pt);
+  \node[above, font=\scriptsize, text=teal!75!black] at (11.67, 1.72) {$\CZ$};
 
   % Second H_T on targets + 2^s scaling
-  \node[layer, minimum height=1.05cm, minimum width=0.85cm] at (12.85, 0.375) {$H_T$};
-  \node[diagbox, minimum height=1.05cm, minimum width=0.78cm, font=\scriptsize] at (13.88, 0.375) {$\times\,2^s$};
+  \node[layer, minimum height=0.94cm, minimum width=0.85cm] at (12.86, 0.34) {$H_T$};
+  \node[diagbox, minimum height=0.94cm, minimum width=0.78cm, font=\scriptsize] at (13.88, 0.34) {$\times\,2^s$};
 
-  \node[right, font=\scriptsize] at (14.45, 1.90) {$x_{c_1}$};
-  \node[right, font=\scriptsize] at (14.45, 1.40) {$x_{c_2}$};
-  \node[right, font=\scriptsize, text=blue!75!black] at (14.45, 0.65) {$x_{t_1}\oplus x_{c_1}$};
+  \node[right, font=\scriptsize] at (14.45, 1.68) {$x_{c_1}$};
+  \node[right, font=\scriptsize] at (14.45, 1.24) {$x_{c_2}$};
+  \node[right, font=\scriptsize, text=blue!75!black] at (14.45, 0.58) {$x_{t_1}\oplus x_{c_1}$};
   \node[right, font=\scriptsize, text=blue!75!black] at (14.45, 0.10) {$x_{t_2}\oplus x_{c_2}$};
 \end{tikzpicture}
-\caption{Turning simultaneous butterfly layers into exact controlled flips. (a)~Inserting $S=\diag(1,i)$ on $U$ before three full layers cancels $U$ to $\frac{1+i}{4}I$ while leaving $\frac12 H_0$ on $T$. (b)~Sandwiching the recordwise sign diagonal $\CZ$ between two selective $H_T$ gadgets flips all target address bits $t_j\in T$ by distant controls $c_j$ in six layer calls.}
+\caption{How simultaneous butterfly layers become bit-exact controlled address flips. In panel~(a), inserting $S=\diag(1,i)$ on unselected bits $U$ before three full layers cancels $U$ to $\frac{1+i}{4}I$ while leaving $\frac12 H_0$ on selected bits $T$. In panel~(b), sandwiching the recordwise sign diagonal $\CZ$ between two selective $H_T$ gadgets flips all target address bits $t_j\in T$ by distant controls $c_j$ in six layer calls.}
 \label{fig:walsh-gadget}
 \end{figure}
 
 \paragraph{Every positional permutation is $O(1)$ CNOT stages, and is bit-exact.}
-Every permutation~$\pi$ of the $m_0$ record-address bit positions factors on its cycles as $\pi = I_1\circ I_0$, a product of two involutions, and each involution is a set of disjoint two-bit swaps implemented by three stages of disjoint CNOTs (Lemma~\ref{lem:walsh-involutions}). We partition the $m_0$ positions into $N_{\mathrm{slice}}\le m_0/d + K$ slices of $D\le d$ chunks, plus fewer than~$K$ leftover positions handled by linear two-digit stream swaps. Grouping each of the six CNOT stages by target slice then executes any positional permutation~$\pi$ in at most $36 N_{\mathrm{slice}}$ layer calls, costing $O\bigl(V[(m_0/d+K)d^{\lambda'}+K]\bigr)=O(V\ell d^{\lambda'})$ steps, the same order as the FFT butterfly rounds themselves (Theorem~\ref{thm:positional-perm}).
+Every permutation~$\pi$ of the $m_0$ record-address bit positions factors on its cycles as $\pi = I_1\circ I_0$, a product of two involutions, and each involution is a set of disjoint two-bit swaps implemented by three stages of disjoint CNOTs; see Lemma~\ref{lem:walsh-involutions}. Partitioning the $m_0$ positions into $N_{\mathrm{slice}}\le m_0/d + K$ slices of $D\le d$ chunks, plus fewer than~$K$ leftover positions handled by linear stream swaps, executes any positional permutation~$\pi$ in at most $36 N_{\mathrm{slice}}$ layer calls. In Theorem~\ref{thm:positional-perm}, this costs $O\bigl(V[(m_0/d+K)d^{\lambda'}+K]\bigr)=O(V\ell d^{\lambda'})$ steps, equivalently $O(V q d^{\lambda'-1})$ at $q=\Theta(k)$, matching the FFT butterfly rounds themselves.
 
-Why does fixed-point truncation introduce zero error across complex linear combinations? Before each CNOT batch on a $q$-grid disk array, we append $8d$ zero fractional bits to lift to precision $q_*=q+8d$ (Lemma~\ref{lem:walsh-lift}). Each normalized $D$-bit layer divides by $2^D$ ($D\le d$), while $S_U$ and $\CZ$ multiply by units in $\{\pm 1,\pm i\}$, so throughout both $H_T$ gadgets every intermediate entry lies on a dyadic grid of denominator exponent at most $q+s+3D\le q+4d < q_*$. Because Proposition~\ref{prop:prop14-param} evaluates each layer \emph{exactly} internally (using its guard~$\Delta$) before a single final truncation $Q_{q_*}$, every truncation discards only trailing zeros (Lemma~\ref{lem:walsh-exact}). Once $\CNOT^{\otimes s}$ completes, the array is an exact permutation of the original $q$-grid records, so stripping the $8d$ zero bits returns to the $q$-grid bit-exactly and resets denominator growth before the next batch.
+Why does fixed-point truncation introduce zero error across complex linear combinations? Before each CNOT batch on a $q$-grid unit-disk array, Lemma~\ref{lem:walsh-lift} appends $8d$ zero fractional bits to lift to precision $q_*=q+8d$. Each normalized $D$-bit layer divides by $2^D$ with $D\le d$, while $S_U$ and $\CZ$ multiply by units in $\{\pm 1,\pm i\}$, so every intermediate entry has dyadic denominator exponent at most $q+s+3D\le q+4d < q_*$. Because Proposition~\ref{prop:prop14-param} evaluates each layer exactly internally using its guard~$\Delta$ before one truncation $Q_{q_*}$, every truncation discards only trailing zeros by Lemma~\ref{lem:walsh-exact}, and stripping the $8d$ zero bits afterward returns the exact permuted $q$-grid array.
 
 \subsection{A direct tensor FFT and where \texorpdfstring{$2^{-46}$}{2\^{}\{-46\}} comes from}\label{sec:overview-fft}
 
+With bit-exact positional permutations available at butterfly-layer speed, we evaluate the multidimensional Fourier transform directly over the complex numbers and remove the quadratic layout ceiling on $\kappa$.\looseness=-1
+
 \paragraph{Direct decimation-in-frequency tensor FFT.}
-With exact positional permutations available at layer cost, Bluestein's chirp reduction and polynomial-ring convolutions over $\C[y]/(y^r+1)$ disappear completely. We evaluate $F_{\mathbf t}U$ on the $q$-grid ($t_d=r=2^\ell$, $t_i\in\{r/2,r\}$; Theorem~\ref{thm:direct-fft}) in four steps.
+Bluestein's chirp reduction and polynomial-ring convolutions over $\C[y]/(y^r+1)$ disappear completely from \textsf{TensorFFT}. On the $q$-grid with $t_d=r=2^\ell$ and $t_i\in\{r/2,r\}$, Theorem~\ref{thm:direct-fft} computes $F_{\mathbf t}U$ in four steps.
 \begin{enumerate}[label=(\arabic*),nosep,leftmargin=*]
-  \item Run a standard length-$r$ DIF FFT inside each contiguous record along axis~$d$.
-  \item Apply the exact positional permutation~$L$ (Lemma~\ref{lem:walsh-layout}) to interleave $K$-bit chunks of the $d-1$ record axes.
-  \item Execute the $\ell$ DIF bit-levels across all $d-1$ record axes in parallel: at most~$K$ prefix/leftover levels by exact individual butterflies in $O(VdK)$, and the remaining chunk levels by one call to Proposition~\ref{prop:prop14-param} per level in $O(V\ell d^{\lambda'})$. At each level~$v$, multiplying $d-1$ separately rounded twiddles would accumulate $O(d\ell\cdot 2^{-q})$ error. Instead, we combine all participating axis twiddles into a \emph{single} exact index $J(x)=\sum_i (r/2^{v+1})b_i j_i^{<v}\bmod r$, where $2^{v+1}$ is the DIF subproblem length, $b_i\in\{0,1\}$ is axis~$i$'s branch bit at level~$v$, and $j_i^{<v}$ is its lower $v$-bit index. Looking up that index in one $2r$-entry disk-valued phase table (Lemma~\ref{lem:phase-table}) incurs error $<6\cdot 2^{-q}$ per level regardless of~$d$.
-  \item Apply the exact positional permutation $(LB)^{-1}=B^{-1}L^{-1}$ (Theorem~\ref{thm:positional-perm}) to undo both the chunk layout~$L$ and the DIF bit-reversal~$B$ in one pass.
+  \item Run a standard length-$r$ decimation-in-frequency FFT inside each contiguous record along axis~$d$.\looseness=-1
+
+  \item Apply the bit-exact positional permutation~$L$ of Lemma~\ref{lem:walsh-layout} to interleave $K$-bit chunks of the $d-1$ record axes.\looseness=-1
+
+  \item Execute the $\ell$ decimation-in-frequency bit-levels across all $d-1$ record axes in parallel: at most~$K$ prefix or leftover levels by individual butterflies in $O(VdK)$, and the remaining chunk levels by one call to Proposition~\ref{prop:prop14-param} per level in $O(V\ell d^{\lambda'})$. Multiplying $d-1$ separately rounded twiddles per level would accumulate $O(d\ell\cdot 2^{-q})$ error. Instead, we sum all participating axis twiddle exponents modulo~$r$ into one exact table index and look up one $2r$-entry unit-disk phase table from Lemma~\ref{lem:phase-table}, incurring error $<6\cdot 2^{-q}$ per level regardless of~$d$.
+
+  \item Apply the bit-exact positional permutation $(LB)^{-1}=B^{-1}L^{-1}$ via Theorem~\ref{thm:positional-perm} to undo both the chunk layout~$L$ and the decimation-in-frequency bit-reversal~$B$ in one pass.
 \end{enumerate}
-Because every exact DIF round is an $\ell^\infty$ contraction and the positional maps are exact, the $\ell$ last-axis levels and at most~$\ell$ record-axis rounds accumulate total error strictly below $12\ell\cdot 2^{-q}$ (Corollary~\ref{cor:walsh-middle}), with no $R/r$ error amplification and no output bit-widening.
+Every exact decimation-in-frequency round is an $\ell^\infty$ contraction, and the positional maps are bit-exact, so the $\ell$ last-axis levels and at most~$\ell$ record-axis rounds accumulate error strictly below $12\ell\cdot 2^{-q}$ in Corollary~\ref{cor:walsh-middle}, with no $R/r$ amplification and no output bit-widening.
 
-\paragraph{Cost balance and the exponent $\kappa=2^{-46}$.}
-Dividing the cost of one bridge call by $V=RP=\Theta(n)$ leaves the five normalized terms of Table~\ref{tab:cost-walsh}, where $P=\Theta(\log n)$, $d=\lfloor k^\eps\rfloor=\Theta(P^\eps)$, $\ell=\Theta(P^{1-\eps})$, $K=\lfloor d^c\rfloor=\Theta(P^{\eps c})$, and $\mathsf m(N)=\mathsf M(N)/N=(\log N)^{O(1)}$. Individual prefix butterfly rounds cost $O(dK)$ (gap $1-\eps(1+c)$ below $P^1$), simultaneous layers and the exact positional maps $L,(LB)^{-1}$ cost $O(\ell d^{\lambda'})$ (gap $\eps(1-\lambda')$), and the last-axis FFT and combined twiddle products cost $O(\ell\,\mathsf m(P))$ (gap $\eps$ up to $\log P$). Direct axis exposures and restorations cost $O\bigl(d(1+\ell^\tau)\bigr)$ (gap $(1-\eps)(1-\tau)$), and spreading and two-alias cyclic solves cost $O\bigl(d(\mathsf m(P)+\mathsf m(P^2))\bigr)$ (gap $1-\eps$ up to $\log P$). With the external chunk-swap term $P K^{\tau-1}$ gone, we are free to choose $c$ tiny so internal layer basis changes never bind. This leaves the butterfly-layer gap $g_{\mathrm{lay}}=\eps(1-\lambda') < (1-\sigma)/C_1$ as the sole bottleneck, now \emph{linear} in the complex network's deficit $1-\sigma$.
+\paragraph{Cost balance and the exponent $\kappa=2^{-46}$.}\phantomsection\label{sec:intro-comparison}\label{sec:intro-kappa}
+Dividing the cost of one bridge call by $V=RP=\Theta(n)$ gives the five normalized terms of Table~\ref{tab:cost-walsh}, where $P=\Theta(\log n)$, $d=\lfloor k^\eps\rfloor=\Theta(P^\eps)$, $\ell=\Theta(P^{1-\eps})$, $K=\lfloor d^c\rfloor=\Theta(P^{\eps c})$, and $\mathsf m(N)=\mathsf M(N)/N=(\log N)^{O(1)}$. Prefix butterflies cost $O(dK)$ with gap $1-\eps(1+c)$ below $P^1$, while simultaneous layers and the exact maps $L,(LB)^{-1}$ cost $O(\ell d^{\lambda'})$ with gap $\eps(1-\lambda')$. The last-axis FFT and combined twiddles cost $O(\ell\,\mathsf m(P))$ with gap~$\eps$ up to $\log P$, direct axis exposures cost $O\bigl(d(1+\ell^\tau)\bigr)$ with gap $(1-\eps)(1-\tau)$, and \textsf{Spread} and \textsf{Deconvolve} cost $O\bigl(d(\mathsf m(P)+\mathsf m(P^2))\bigr)$ with gap $1-\eps$ up to $\log P$. With $P K^{\tau-1}$ gone, choosing~$c$ tiny leaves the linear butterfly-layer gap $g_{\mathrm{lay}}=\eps(1-\lambda') < (1-\sigma)/C_1$ as the sole bottleneck.
 
-At $h=100$ ($m=10^6$), the complex network of~\cite{OAI26} has exact relative deficit $\eta_c=(W_c m - s_c)/(W_c m)=73/19{,}906{,}842{,}167{,}500$. Using the elementary rational bound $\ln 10^6 < 14$ (via $e^7>\sum_{j=0}^{11}7^j/j!>1000$, sharpening $\ln m<20$ in~\cite{OAI26}), Proposition~\ref{prop:deficits} certifies $s_c/W_c < m^\sigma$ at $\sigma=1-\xi$ with $\xi=2^{-42}$ (since $73\cdot 2^{42} > 14\cdot 19{,}906{,}842{,}167{,}500$) and $\tau=1-4\xi=1-2^{-40}$ for the bit network. Moreover, the guard bound $B_{\mathrm{net}}<10^{66}=m^{11}$ admits guard exponent $C_1=11+3=14$ (Proposition~\ref{prop:prop14-param}; cf.~\cite[\S5.4]{OAI26}). Setting $\eps=1/15$, $\beta=1/64$, $c=\xi/256$, $\lambda=1-\frac{63}{64}\xi$, and $\lambda'=1-\frac{31}{32}\xi$ gives $g_{\mathrm{lay}}=\eps(1-\lambda')=\frac{31}{480}\xi > \frac{1}{16}\xi = 2^{-46}$, yielding $\kappa=2^{-46}$ with positive slack (Section~\ref{sec:main-rows}). In short, Bluestein's chunk layout is capped quadratically at $(1-\tau)^2/(C_1\tau)\approx 2^{-83.8}$, whereas Walsh-layer permutations reach $(1-\sigma)/C_1\approx 2^{-45.8}$ linearly and already achieve $\kappa=2^{-56}$ under the printed constants of~\cite[Prop.~14]{OAI26}.
+\begin{table}[!ht]
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{3pt}
+\centering
+\footnotesize
+\caption{Comparison of the asymptotic saving exponent $\kappa$ in $O\bigl(n(\log n)^{1-\kappa}\bigr)$ across architectures and network-constant regimes. Row~1 is the bound of~\cite{OAI26}, whose parameter choices~\cite[\S9.1]{OAI26} notes are deliberately conservative; Row~2 is proved in Appendix~\ref{app:bluestein}, and Rows~3 and~4 in Section~\ref{sec:main}, with Row~4 formally verified in Lean~4 (Theorem~\ref{thm:lean}). Additional comparison rows, including exposed-parameter Bluestein retunings ($2^{-85}$, $2^{-84}$) and $C_1=20$ ($2^{-47}$), appear in Appendix~\ref{app:bluestein}.}
+\label{tab:kappa}\label{tab:exponents}
+\setlength{\tabcolsep}{2.1pt}
+\begin{tabular}{@{}llllllc@{}}
+\toprule
+Algorithm & Front end & Middle transform & $(\beta,\,C_1)$ & $(1-\tau,\,1-\sigma)$ & Binding gap & $\kappa$ \\
+\midrule
+\cite{OAI26} & CRT + resampling & Bluestein + chunk swaps & $(\frac12,\,20)$ & $(2^{-50},\,2^{-50})$ & $\eps c(1-\tau)$ & $2^{-182}$ \\
+Bluestein, retuned $(\eps,c)$ & Frac.-shift bridge & Bluestein + chunk swaps & $(\frac12,\,20)$ & $(2^{-50},\,2^{-50})$ & $\eps c(1-\tau)$ & $2^{-108}$ \\
+Ours (printed) & Frac.-shift bridge & Direct FFT + Walsh perm. & $(\frac12,\,20)$ & $(2^{-50},\,2^{-50})$ & $\eps(1-\lambda')$ & $2^{-56}$ \\
+Ours (Thms.~\ref{thm:main}, \ref{thm:lean}) & Frac.-shift bridge & Direct FFT + Walsh perm. & $(\frac1{64},\,14)$ & $(2^{-40},\,2^{-42})$ & $\eps(1-\lambda')$ & $2^{-46}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:kappa} separates the architectural gain from exposing internal layer parameters, with $k=\log_2 R$, $d=\lfloor k^\eps\rfloor$, and $K=\lfloor d^c\rfloor$. Row~1 is the bound of~\cite{OAI26} at $\eps=2^{-75}$ and $c=2^{-56}$. Retuning $(\eps,c)$ under the same printed constants with our bridge and $O(d)$ exposures raises the Bluestein route to $2^{-108}$ in Row~2, while~\eqref{eq:overview-quad-cap} still traps any chunk-swap layout below $\beta(1-\tau)^2/(C_1\tau)\approx 2^{-105.3}<(1-\tau)^2/(C_1\tau)\approx 2^{-104.3}$. Comparing Rows~2 and~3 holds $(\beta,\tau,\sigma,C_1)$ fixed and replaces Bluestein convolutions and chunk swaps by Walsh permutations and \textsf{TensorFFT}, lifting $\kappa$ from $2^{-108}$ to $2^{-56}$.
+
+Comparing Rows~3 and~4 isolates parameter exposure at $h=100$ and $m=10^6$, where the complex network of~\cite{OAI26} has exact relative deficit $\eta_c=(W_c m - s_c)/(W_c m)=73/19{,}906{,}842{,}167{,}500$. Using $\ln 10^6 < 14$ via $e^7>\sum_{j=0}^{11}7^j/j!>1000$ in place of $\ln m<20$, Proposition~\ref{prop:deficits} certifies $s_c/W_c < m^\sigma$ at $\sigma=1-\xi$ with $\xi=2^{-42}$, since $73\cdot 2^{42} > 14\cdot 19{,}906{,}842{,}167{,}500$, and $\tau=1-4\xi=1-2^{-40}$ for the bit network. Meanwhile, the network amplitude bound $B_{\mathrm{net}}<10^{66}=m^{11}$ gives guard exponent $C_1=11+3=14$ in Proposition~\ref{prop:prop14-param}, matching~\cite[\S5.4]{OAI26}. Setting $\eps=1/15$, $\beta=1/64$, $c=\xi/256$, $\lambda=1-\frac{63}{64}\xi$, and $\lambda'=1-\frac{31}{32}\xi$ in Section~\ref{sec:main-rows} gives $g_{\mathrm{lay}}=\frac{31}{480}\xi > \frac{1}{16}\xi = 2^{-46}$, reaching the linear ceiling $(1-\sigma)/C_1\approx 2^{-45.8}$.\looseness=-1
+
+The following remark summarizes the exact dyadic ceilings of our direct route under printed constants and of the chunk-exchange Bluestein route under exposed constants.
+
+\begin{remark}[Printed constants and the Bluestein ceiling]\label{rem:intro-printed}
+Keeping the structural constants $\beta=\frac12$, $\tau=\sigma=1-2^{-50}$, and $C_1=20$ printed in~\cite[Prop.~14]{OAI26} fixed and varying only the outer schedule exponents, our direct-FFT cost analysis already gives $\kappa=2^{-56}$, the largest dyadic exponent $2^{-j}$ that our analysis admits with those constants (Section~\ref{sec:main}). Conversely, if the direct tensor FFT is replaced by a Bluestein middle transform whose layout is executed by chunk interchanges, the saving is capped quadratically at $\kappa<(1-\tau)^2/(C_1\tau)\approx 2^{-83.8}$ even with our certified parameters (largest dyadic value $\kappa=2^{-84}$). At the parameters of~\cite{OAI26}, the same Bluestein analysis reproduces $\kappa=2^{-182}$ (Appendix~\ref{app:bluestein}).
+\end{remark}
+
+A second remark notes how the small $O((\log n)^2)$-bit inner scalar products are handled in the written proof and in the Lean~4 formalization.
+
+\begin{remark}[Inner integer products without CRT]\label{rem:intro-inner}
+Theorem~\ref{thm:main} requires only $\mathsf M(N)=N(\log N)^{O(1)}$ for the independent inner multiplier on $O((\log n)^2)$-bit operands, so classical Sch\"onhage--Strassen multiplication~\cite{SS71} suffices as a black box. Instantiating $\mathsf M$ instead with the two-dimensional fractional-shift multiplier of~\cite{MS} eliminates Chinese remainder maps and prime lengths from the inner scalar products as well (Section~\ref{sec:main}). Its written analysis uses faithful phase and filter tables as in Section~\ref{sec:bridge}; Theorem~\ref{thm:lean} uses our independent Lean~4 formalization \texttt{IntMulTM.\allowbreak intMul\_\allowbreak TM2\_\allowbreak nlogn} (Section~\ref{sec:lean}), separate from the Lean development of~\cite{MS}.
+\end{remark}
 
 \subsection{Formal verification}\label{sec:overview-lean}
 
-Section~\ref{sec:lean} describes our Lean~4 formalization~\cite{Lean26} of Theorem~\ref{thm:lean}. It constructs a single finite-alphabet multi-stack Turing machine in Mathlib's \texttt{Turing.TM2ComputableInTime} model and proves \texttt{SubNLogN.Challenge.IntMulSubNLogN} (exact multiplication of all $(a,b)\in\N^2$ within $C\,L\,(\log_2 L)^{1-2^{-46}}$ steps for input length $L\ge N_0$) from Lean's three standard axioms alone. That development verifies both $h=100$ finite networks, their rank and endpoint certificates, all stream and parameter-transfer procedures, and the analytical error bounds from scratch. The formal proposition does not express syntactic CRT-freeness and formalizes only the $\kappa=2^{-46}$ Walsh machine (deriving $2^{-47}$, $2^{-56}$, and $o(n\log n)$ by exponent monotonicity). It differs from the text primarily in two respects. First, it uses tie-upward nearest rounding (our bridge theorems are proved in Lean for arbitrary nearest rounding). Second, it instantiates the inner $O(N\log N)$ multiplier and its root offset via our independent Lean~4 formalization (\texttt{IntMulTM.\allowbreak intMul\_\allowbreak TM2\_\allowbreak nlogn}, kernel-checked within~\cite{Lean26}) of the two-dimensional multiplier of~\cite{MS}, which distributes its own separate Lean development.
+Section~\ref{sec:lean} describes our Lean~4 formalization~\cite{Lean26} of Theorem~\ref{thm:lean}, which verifies the complete $\kappa=2^{-46}$ machine and its network certificates from Lean's three standard axioms alone. It constructs a concrete finite-alphabet machine in Mathlib's multi-stack model \texttt{Turing.FinTM2}, where each stack acts as a tape accessed at its top cell, wrapped by \texttt{Turing.TM2ComputableInTime}. On that machine it proves \texttt{SubNLogN.Challenge.IntMulSubNLogN}: exact multiplication of all $(a,b)\in\N^2$ within $C\,L\,(\log_2 L)^{1-2^{-46}}$ steps for input length $L\ge N_0$. Both $h=100$ finite networks, their rank and endpoint certificates, all stream and parameter-transfer procedures, and the analytical bridge error bounds are proved from scratch.
+
+The formal theorem statement records the asymptotic complexity bound; it does not formalize the structural claim that the construction uses no Chinese remainder map. The development formalizes the $\kappa=2^{-46}$ Walsh machine directly and derives $2^{-47}$, $2^{-56}$, and $o(n\log n)$ by exponent monotonicity. It differs from the written text in two minor ways. First, the formalized machine fixes tie-upward nearest rounding, while our Lean bridge theorems hold for arbitrary nearest rounding. Second, it instantiates the inner $O(N\log N)$ multiplier via our independent Lean~4 proof \texttt{IntMulTM.\allowbreak intMul\_\allowbreak TM2\_\allowbreak nlogn} of the two-dimensional multiplier of~\cite{MS}, kernel-checked within~\cite{Lean26} and separate from the Lean archive distributed with~\cite{MS}.
+
+\normalsize
+\setlength{\floatsep}{12.0pt plus 2.0pt minus 2.0pt}
+\setlength{\textfloatsep}{20.0pt plus 2.0pt minus 4.0pt}
+\setlength{\intextsep}{12.0pt plus 2.0pt minus 2.0pt}

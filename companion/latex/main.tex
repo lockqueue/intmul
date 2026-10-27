@@ -14,6 +14,9 @@
 \usepackage{microtype}
 \usepackage{listings}
 \usepackage{fancyvrb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algtext*{EndProcedure}
 \usepackage{hyperref}
 
 % Unicode symbols occurring in quoted Lean 4 statements (pdflatex + inputenc utf8).
@@ -40,7 +43,7 @@
 \emergencystretch=1.5em
 
 \hypersetup{
-  pdftitle={Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof},
+  pdftitle={Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof},
   pdfauthor={Piaoyang Cui, Yiming Liu, David P. Woodruff},
   colorlinks=true,
   linkcolor=black,
@@ -95,7 +98,7 @@
 \newcommand{\ord}{\operatorname{ord}}
 \newcommand{\eps}{\varepsilon}
 
-\title{\textbf{Integer multiplication in $O(n\log n)$ time on a single two-dimensional grid,\\ with a machine-checked proof}\thanks{This work was carried out with substantial assistance from AI agents (Gemini~4 and other models), including proof development, auditing, and the Lean~4 formalization; see Section~\ref{sec:intro-verification}.}}
+\title{\textbf{Integer multiplication in $O(n\log n)$ time on a single two-dimensional grid,\\ with a formally verified proof}\thanks{This work was carried out with substantial assistance from AI agents (Gemini~4 and other models), including proof development, auditing, and the Lean~4 formalization; see Section~\ref{sec:intro-verification}.}}
 \author{%
   \begin{tabular}[t]{@{}c@{}}
     Piaoyang Cui\thanks{Authors are listed in alphabetical order.}\\[0.4ex]

@@ -3,10 +3,10 @@
 This document records the measured single-core and 64-thread benchmark results,
 machine configuration, algorithm identity, and raw-log provenance for
 `intmul_fastdft.c`, cited as `[CGMP26]` in the main paper (*A simpler algorithm
-for integer multiplication below $n\log n$, with a machine-checked proof*,
+for integer multiplication below $n\log n$, with a formally verified proof*,
 Piaoyang Cui, Yiming Liu, and David P. Woodruff, 2026) and as `[CGMP26]` in the
 companion manuscript `[MS]` (*Integer multiplication in O(n log n) time on a
-single two-dimensional grid, with a machine-checked proof*, Piaoyang Cui, Yiming
+single two-dimensional grid, with a formally verified proof*, Piaoyang Cui, Yiming
 Liu, and David P. Woodruff, 2026).
 
 Every number in the measured tables below is copied directly from a committed
@@ -20,7 +20,7 @@ raw log in [`logs/`](logs/) (nothing is estimated or extrapolated).
   $O(n \log n)$ fractional-shift synthetic-FFT integer multiplication
   algorithm** from:
   * `[MS]` Piaoyang Cui, Yiming Liu, and David P. Woodruff,
-    *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof*
+    *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*
     (2026; companion manuscript).
   * **Primary benchmarked variant (`algo=1`, `sinc`)**: real windowed
     sinc–Gaussian kernel $g(t) = \operatorname{sinc}(t)\, e^{-\pi t^2/\alpha^2}$
@@ -39,7 +39,7 @@ raw log in [`logs/`](logs/) (nothing is estimated or extrapolated).
     `solve_nyquist_col`).
 * **What this program does NOT implement**: it does **not** implement
   **Algorithm 1** of *A simpler algorithm for integer multiplication below
-  $n\log n$, with a machine-checked proof*, does **not** implement the
+  $n\log n$, with a formally verified proof*, does **not** implement the
   $d$-dimensional bridge ($d > 2$) or the negative half-bin complex phase
   carrier $e^{-\pi i s / t_a}$, and does **not** implement the sub-$n\log n$
   machinery ($h = 100$ finite linear networks, chunk interchanges, or
@@ -62,7 +62,7 @@ raw log in [`logs/`](logs/) (nothing is estimated or extrapolated).
   [`MACHINE.txt`](MACHINE.txt) for the source SHA-256 digests — `measured:`
   `4d0040f4a8c1da7010ae33aee9b74112f893821c3e6aca8821322a139ed44de2` (`1704`
   lines) and `published:`
-  `ff1600721b583ab2597645c4e20c7147a65f46d82c6a1fd8dfaeca63822de8c0` (`1710`
+  `f571c8454c1fa93862d195f0b62cf79c3532d5e71eec5df1d804205c08d610ae` (`1710`
   lines), where the published file in this directory (`companion/impl/` of the repository) differs from the measured file only
   in the header comment, the removal of an unused internal build `#ifdef`
   include branch, and the `#if defined(_OPENMP) && !defined(INTMUL_NO_OPENMP)`

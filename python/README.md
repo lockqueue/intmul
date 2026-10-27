@@ -4,7 +4,7 @@ This directory contains the Python 3.13 reference implementation described in Ap
 ("Reference implementation") of
 
 > Piaoyang Cui, Yiming Liu, and David P. Woodruff,
-> *A simpler algorithm for integer multiplication below n log n, with a machine-checked proof* (2026),
+> *A simpler algorithm for integer multiplication below n log n, with a formally verified proof* (2026),
 
 cited there as [Code26]. It is a companion to the written proofs and to the Lean 4 formalization of the
 paper; it is **not** a fast multiplier, it does not simulate multitape Turing-machine head steps, and no
@@ -163,7 +163,7 @@ requirements-lock.txt   pinned versions of every dependency
   an in-code cross-reference); Lemma 3, Lemma 12, Lemma 13, Prop. 14, Lemma 16, Lemma 17, Prop. 18,
   eq. (20)/(22)/(23), etc. are numbered as in [OAI26].
 * **MS**: the companion manuscript *Integer multiplication in O(n log n) time on a single two-dimensional
-  grid, with a machine-checked proof* (2026). Docstrings cite its results by the numbering of the earlier
+  grid, with a formally verified proof* (2026). Docstrings cite its results by the numbering of the earlier
   version from which this code was developed; in the current manuscript these are: Def. 2.1 → Definition 3.1
   (fixed-point grids and rounding), Lemma 2.2 → Lemma 3.2 (elementary functions and faithful tables),
   Lemma 2.3 → Lemma 3.4 (two-call real cyclic convolution), Lemma 2.4 → Lemma 3.3 (multitape transposition

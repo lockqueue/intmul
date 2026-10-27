@@ -1,38 +1,52 @@
 \section{Multiplier, cost analysis, and proof of the main theorem}\label{sec:main}
 
-This section assembles the integer multiplier along the Walsh route, verifies the size hypotheses of all components on
-the root parameter family, and proves exact recovery of the product from two bridge transforms. It then analyzes the
-normalized cost gaps, fixes the primary parameter tuple yielding $\kappa=2^{-46}$ with explicit positive slack, and
-proves Theorem~\ref{thm:main}.
+This section assembles the complete integer multiplication algorithm from the fractional-shift bridge of
+Section~\ref{sec:bridge} and the direct tensor FFT of Section~\ref{sec:direct-fft}, balances its parameters, and proves
+Theorem~\ref{thm:main}. Two $n$-bit integers are cut into $(\log n)$-bit digits, packed into a single complex vector of
+power-of-two length~$R$, and multiplied via two bridge calls, one pointwise squaring, nearest-integer rounding, and
+carry propagation. Summing the normalized tape costs of all stages shows that each stage falls short of $n\log n$ by a positive power of
+$\log n$. These five exponent gaps are collected in~\eqref{eq:gaps}, and the explicit parameter tuple of
+Table~\ref{tab:walsh-rows} yields the saving exponent $\kappa=2^{-46}$ with strict positive slack. A first-time reader interested primarily in how the components fit together
+and why $\kappa=2^{-46}$ emerges can read Sections~\ref{sec:main-alg}--\ref{sec:main-rows} and skim the symbolic cutoff
+calculation in Section~\ref{sec:main-thm}.
 
 \subsection{The algorithm and its root parameter family}\label{sec:main-alg}
 
-Given two $n$-bit integers (for $n$ above the cutoff $n_*$ of Section~\ref{sec:main-thm}; below $n_*$ the machine
-invokes the independent inner multiplier directly), let $b=\lfloor\log_2n\rfloor$ and $N_{\rm dig}=\lceil n/b\rceil$,
-and let $R=2^k$ be the least power of two with $R\ge2N_{\rm dig}$. Given fixed rational exponents $\eps,c$ (chosen in
-Section~\ref{sec:main-rows}), define
+This subsection defines the power-of-two grid dimensions as functions of the input bit length~$n$ and summarizes how the
+top-level multiplier connects its subroutines.
+
+\paragraph{Parameters of the root family.}
+We consider two $n$-bit integers with $n$ at least the threshold $n_*$ defined in Section~\ref{sec:main-thm}; for
+$n<n_*$, the machine invokes the independent inner multiplier directly. Let $b=\lfloor\log_2n\rfloor$ and
+$N_{\rm dig}=\lceil n/b\rceil$, and let $R=2^k$ be the least power of two satisfying $R\ge2N_{\rm dig}$. Given fixed
+rational exponents $\eps$ and $c$, chosen in Section~\ref{sec:main-rows}, define
 \begin{equation}\label{eq:root-sizes}
   p=2b+2k+6,\qquad d=\lfloor k^\eps\rfloor,\qquad \ell=\lceil k/d\rceil,\qquad r=2^\ell,\qquad K=\lfloor d^c\rfloor.
 \end{equation}
 Because $0\le d\ell-k<d$, we set the first $d\ell-k$ axis lengths to $r/2$ and the remaining axis lengths, including
-$t_d$, to $r$; then $\prod_{i=1}^dt_i=R$. The alias width~$\tw$, internal working precision~$P$, grid precision
-$q=P+2$, and component width $w=q+2$ are determined by the bridge schedule~\eqref{eq:schedule}; we call these sizes the
-\emph{root family}. Fixed rational powers are computed by exact integer comparisons: for $\eps=\eps_1/\eps_2$, the
-integer $d=\lfloor k^\eps\rfloor$ is the largest $y\in\N$ satisfying $y^{\eps_2}\le k^{\eps_1}$. Every Fourier length is
-a power of two; no prime length, Chinese remainder map, or coprime-length resampling occurs. As in
-Section~\ref{sec:direct-fft}, $\mathsf M(N)=N\,\mathsf m(N)$ denotes the cost of the independent inner multiplier on
-$N$-bit integers.
+$t_d$, to $r$, so that $\prod_{i=1}^dt_i=R$. The alias width~$\tw$, internal working precision~$P$, grid precision
+$q=P+2$, and component width $w=q+2$ follow the bridge schedule~\eqref{eq:schedule}; we call these sizes the \emph{root
+family}. Fixed rational powers are computed by exact integer comparisons: for $\eps=\eps_1/\eps_2$, the integer
+$d=\lfloor k^\eps\rfloor$ is the largest $y\in\N$ satisfying $y^{\eps_2}\le k^{\eps_1}$. Every transform length in this
+root family is a power of two. As in Section~\ref{sec:direct-fft}, $\mathsf M(N)=N\,\mathsf m(N)$ denotes the cost of
+the independent inner multiplier on $N$-bit integers.
 
+\paragraph{Top-level pipeline.}
 The multiplier packs the radix-$2^b$ digits of the two inputs into one complex vector of length~$R$ and recovers the
-product polynomial from two one-dimensional transforms $F_R$ (Proposition~\ref{prop:root-packing}). Each $F_R$ is
-evaluated by the fractional-shift bridge of Theorem~\ref{thm:bridge-precision}, using direct axis exposures
-(Lemma~\ref{lem:bridge-D}) and spreading along axes $a=d,\dots,2$ with the negative half-bin carrier. It then applies
-the direct complex tensor FFT middle transform of Corollary~\ref{cor:walsh-middle} (whose layout $L$ and restoring map
-$U=(LB)^{-1}$ are executed by Theorem~\ref{thm:positional-perm}), followed by chronological deconvolutions
-$B_2^{-1},\dots,B_d^{-1}$.
+product polynomial from two one-dimensional transforms $F_R$ via the root-packing proposition
+(Proposition~\ref{prop:root-packing}). Each $F_R$ is evaluated by the fractional-shift bridge under the bridge precision contract
+(Theorem~\ref{thm:bridge-precision}); the axis exposures of Lemma~\ref{lem:bridge-D} bring each axis $a=d,\dots,2$
+innermost for spreading with the negative half-bin carrier. Inside the bridge, the direct tensor FFT of
+Corollary~\ref{cor:walsh-middle} evaluates the tensor transform. Its two address permutations, the layout map~$L$ and the
+restoring map $U=(LB)^{-1}$ of Section~\ref{sec:direct-fft-layout}, are executed without error by the
+positional-permutation theorem (Theorem~\ref{thm:positional-perm}). Finally, chronological deconvolutions
+$B_2^{-1},\dots,B_d^{-1}$ undo the spreading to working precision.
 
-The next lemma verifies the size and band hypotheses of all components along the root family, uniformly in~$n$, at both
-the bridge grid precision~$q$ and the lifted precision $q+8d$ of the Walsh gadgets (Lemma~\ref{lem:walsh-lift}).
+The butterfly layer, the Walsh permutation routines, and the direct tensor FFT of
+Sections~\ref{sec:walsh}--\ref{sec:direct-fft} assume that the dimension~$d$, the last-axis length~$r$, the chunk
+width~$K$, and the grid precision stay inside fixed comparison bands. When $0<\eps<\frac1{14}$, $c>0$, and
+$\eps(1+c)<1$, the next lemma verifies all of these size and growth conditions simultaneously for all sufficiently
+large~$n$, both at the bridge grid precision~$q$ and at the lifted precision $q+8d$ of Lemma~\ref{lem:walsh-lift}.
 
 \begin{lemma}[Uniform root family]\label{lem:root-family}
 Fix any rational exponents $0<\eps<\frac1{14}$ and $c>0$ with $\eps(1+c)<1$ (in particular the primary parameter tuple
@@ -48,29 +62,40 @@ that is, $a_d(q')^{\eps}\le d\le b_d(q')^{\eps}$ and $2^{a_rq'/d}\le r\le2^{b_rq
 $K/\log P\to\infty$, and $r/P^j\to\infty$ for every fixed~$j$.
 \end{lemma}
 
+\emph{Proof idea.} From $R=\Theta(n/\log n)$ and $b=\Theta(\log n)$, the linear bridge schedule~\eqref{eq:schedule} pins
+both $q$ and $q+8d$ within constant multiples of $k=\lg R$. Substituting $16k\le q'\le 64k$ and $\eps<1/14$ into the
+definitions of $d$, $\ell$, and $K$ directly verifies each band constant in~\eqref{eq:bands} and the asymptotic growth
+ratios.
+
 \begin{proof}
 \emph{Sizes.} From $2N_{\rm dig}\le R<4N_{\rm dig}$ we have $k\le b\le2k$ for large $n$ and $b/k\to1$, so the bridge
 schedule~\eqref{eq:schedule} gives $P/k\to20$ and $q/k\to20$. In particular, $16k\le q\le32k$ for all $k\ge4096$, and
 $q+8d\le64k$. Since $R=\Theta(n/\log n)$, we also have $RP=\Theta(n)$.
 
-\emph{Bands.} Because $0<\eps<\frac1{14}$, once $k^\eps\ge2$ we have $\frac12k^\eps\le d\le k^\eps$. Hence, for
-$q'\in\{q,q+8d\}$,
+\emph{Bands.} Because $0<\eps<\frac1{14}$, once $k^\eps\ge2$ we have $\frac12k^\eps\le d\le k^\eps$. Since
+$64^{1/14}=2^{3/7}<2$, for $q'\in\{q,q+8d\}$ we obtain
 \[
-  d\ge\tfrac12\Bigl(\frac{q'}{64}\Bigr)^\eps\ge\tfrac12\,64^{-1/14}(q')^\eps>\tfrac14(q')^\eps
+  d\ge\tfrac12\Bigl(\frac{q'}{64}\Bigr)^\eps\ge\tfrac12\,64^{-1/14}(q')^\eps>\tfrac14(q')^\eps,
 \]
-(since $64^{1/14}=2^{3/7}<2$), while $d\le k^\eps\le(q')^\eps$. Because $k/d\le\ell\le2k/d$ and $16k\le q'\le64k$, we
-obtain $q'/(128d)\le\ell\le q'/(8d)$. The remaining constants of~\eqref{eq:bands} hold as well: $d\ell\le k+d\le2k<q'$
-and $\lg(2\cdot R/r)\le k+1<2q'$. The nine-field headers have length $O(k)\le C_{\rm desc}q'$, and the component widths
+while $d\le k^\eps\le(q')^\eps$. Because $k/d\le\ell\le2k/d$ and $16k\le q'\le64k$, we obtain
+$q'/(128d)\le\ell\le q'/(8d)$. The remaining constants of~\eqref{eq:bands} hold as well: $d\ell\le k+d\le2k<q'$ and
+$\lg(2\cdot R/r)\le k+1<2q'$. The nine-field headers have length $O(k)\le C_{\rm desc}q'$, and the component widths
 $w=q+2$ and $w_*=q+2+8d$ satisfy $q'+2\le w_{q'}\le2q'$.
 
-\emph{Growth.} Finally, $dK/k=O(k^{\eps(1+c)-1})\to0$, which implies $K=o(\ell)$ since $\ell=\Theta(k/d)$; the limits
+\emph{Growth.} Finally, $dK/k=O(k^{\eps(1+c)-1})\to0$, which implies $K=o(\ell)$ since $\ell=\Theta(k/d)$. The limits
 $K/\log P\to\infty$ and $r/P^j\to\infty$ follow from $\eps c>0$ and $\ell\ge k^{1-\eps}$.
 \end{proof}
 
 \subsection{Exact recovery}\label{sec:main-recovery}
 
-By the two-call convolution identity~\eqref{eq:two-call}, two bridge transforms and a pointwise squaring approximate the
-product polynomial to error well below~$\frac12$, so nearest-integer rounding recovers its exact coefficients.
+This subsection proves that two approximate bridge transforms and one rounded pointwise squaring determine every integer
+convolution coefficient without error.
+
+Packing the radix-$2^b$ digits of the two inputs as $x_j=2^{-b}(x^{(0)}_j+ix^{(1)}_j)$ lets the two-call
+identity~\eqref{eq:two-call} express their cyclic convolution through two forward transforms $F_R$. The next proposition
+tracks the bridge error bound~\eqref{eq:bridge-total} through the squaring and second transform to show that, at target
+precision $p=2b+2k+6$, every scaled output entry lies within $\frac12$ of the true integer convolution coefficient.
+Nearest-integer rounding and carry propagation then recover the exact $2n$-bit product.
 
 \begin{proposition}[Two-call root packing]\label{prop:root-packing}
 Let $x^{(0)}_j,x^{(1)}_j\in[0,2^b)$ ($0\le j<N_{\rm dig}$) be the radix-$2^b$ digits of the two $n$-bit inputs (with
@@ -83,6 +108,12 @@ by the bridge. Then
 equals the exact convolution coefficient $\sum_{u+v=j}x^{(0)}_u x^{(1)}_v$, and radix-$2^b$ carry propagation returns
 the exact $2n$-bit product. Outside the two bridge calls, the cost is $O(R\,\mathsf M(P)+n)=O(RP\,\mathsf m(P)+n)$.
 \end{proposition}
+
+\emph{Proof idea.} Because $R\ge 2N_{\rm dig}$, the cyclic convolution of length~$R$ coincides with the non-cyclic digit
+convolution. Applying the bridge error bound $0.177021\cdot 2^{-p}X$ of~\eqref{eq:bridge-total} twice, with
+$X=\max(1,\|\cdot\|_\infty)$ evaluated on each bridge input, and accounting for the intermediate squaring and rounding
+bounds the unscaled error by $1.2391\cdot 2^{-p}$. Multiplying by $2^{2b-1}R^2=2^{p-7}$ keeps the final error below
+$1.2391\cdot 2^{-7}<\frac12$.
 
 \begin{proof}
 \emph{The identity.} Applying~\eqref{eq:two-call} to $2^{-b}x^{(0)}$ and $2^{-b}x^{(1)}$ gives
@@ -97,13 +128,13 @@ to $\Cg_{p+2}$ adds at most $\frac{\sqrt2}{8}u_0<0.17678\,u_0$. Hence $\|\hat w-
 and $\|\hat w\|_\infty<2.0001$. The second bridge call adds less than $0.177021\cdot2.0001\,u_0<0.35406\,u_0$, and
 $\|F_R\|_\infty\le1$, so $\|\hat z-F_R(\overline{y\odot y})\|_\infty<1.2391\,u_0$. Multiplying by
 $2^{2b-1}R^2=2^{2b+2k-1}=2^{p-7}$ yields an error below $1.2391\cdot2^{-7}<\frac12$, so rounding to the nearest integer
-recovers every $c_j$ exactly. On $\Cg_{p+2}$, if $n_j\in\Z$ is the numerator of $\mathrm{Im}\,\hat z_j$, then
+recovers every $c_j$ without error. On $\Cg_{p+2}$, if $n_j\in\Z$ is the numerator of $\mathrm{Im}\,\hat z_j$, then
 $-2^{2b-1}R^2\,\mathrm{Im}\,\hat z_j=-n_j/512$.
 
 \emph{Carries and cost.} Each coefficient satisfies $0\le c_j\le N_{\rm dig}(2^b-1)^2$. Setting $s_0=0$,
-$\gamma_j=(c_j+s_j)\bmod2^b$ and $s_{j+1}=\lfloor(c_j+s_j)/2^b\rfloor$ produces the radix-$2^b$ digits $\gamma_j$ of the
-product, which is strictly below $2^{2n}$, emitting $2n$ bits. Pointwise squaring uses $R$ complex multiplications on
-$O(P)$-bit integers, and all remaining steps are linear scans.
+$\gamma_j=(c_j+s_j)\bmod2^b$, and $s_{j+1}=\lfloor(c_j+s_j)/2^b\rfloor$ produces the radix-$2^b$ digits $\gamma_j$ of
+the product, which is strictly below $2^{2n}$, emitting $2n$ bits. Pointwise squaring uses $R$ complex multiplications
+on $O(P)$-bit integers, and all remaining steps are linear scans.
 \end{proof}
 
 By Proposition~\ref{prop:root-packing}, the total running time $\mathsf M_{\rm W}(n)$ of the multiplier satisfies
@@ -115,54 +146,64 @@ $\mathsf M_{\rm W}$ itself.
 
 \subsection{Cost analysis of a bridge call}\label{sec:main-tables}
 
-Put $V=RP$. Because $\eps C_1<1$, all internal and external component widths (including the layer guard
-$\Delta=\lceil C_0d^{C_1}\rceil=o(P)$ and the $8d$-bit Walsh lift) are $O(P)$, so $V$ is the stored bit volume up to
-constant factors. One-time and per-line or per-record setup work that is not repeated per coefficient (cycle
+This subsection tallies all setup work, inner integer multiplications, and tape-routing steps in one bridge call,
+normalizing each contribution by the stored bit volume $V=RP$.
+
+Put $V=RP$. Because $\eps C_1<1$, all internal and external component widths, including the layer guard
+$\Delta=\lceil C_0d^{C_1}\rceil=o(P)$ and the $8d$-bit Walsh lift, remain $O(P)$, so $V$ is the stored bit volume up to
+constant factors. One-time and per-line or per-record setup work that is not repeated per coefficient covers cycle
 decompositions, masks, headers, named-slot lists, filter taps, solver parameters, phase tables, and recursion
-descriptors) takes time polynomial in~$P$ per object across at most $(R/r+r)P^{O(1)}$ objects. Hence, for fixed
-constants $C_{\rm set},D_{\rm set}$, the setup cost satisfies
+descriptors. Each such object is built in time polynomial in~$P$ across at most $(R/r+r)P^{O(1)}$ objects. Hence, for
+fixed constants $C_{\rm set},D_{\rm set}$, the setup cost satisfies
 \begin{equation}\label{eq:setup}
   \mathcal S(R,P)\le C_{\rm set}\bigl((R/r)P^{D_{\rm set}}+rP^{D_{\rm set}}+P^{D_{\rm set}}\bigr)=o(RP),
 \end{equation}
 by Lemma~\ref{lem:root-family} and $R/r\ge r/2$.
 
-\paragraph{Operand widths of all inner integer products.} Per-coefficient multiplications are delegated to an
-independent integer multiplier of cost $\mathsf M(N)=N\,\mathsf m(N)$ on $N$-bit operands, where we assume only
-$\mathsf m(N)=(\lg N)^{O(1)}$ (for instance Sch\"onhage--Strassen~\cite{SS71}, with
-$\mathsf m(N)=O(\lg N\lg\lg N)$). Its operands and output occupy dedicated work tapes, leaving the caller's other tapes
-untouched and cleaning its workspace on return; fixing a regular majorant $\overline{\mathsf M}(N)=A\,N(\lg(2N))^J$ of
-$\mathsf M$ gives $\overline{\mathsf M}(c'N)=O(\overline{\mathsf M}(N))$ for every constant $c'>0$. Every ordinary
-integer product on the Walsh route occurs at one of four sites and has at most $O(P^2)=O((\log n)^2)$ bits:
+\paragraph{Operand widths of all inner integer products.}
+Per-coefficient multiplications are delegated to an independent integer multiplier of cost
+$\mathsf M(N)=N\,\mathsf m(N)$ on $N$-bit operands, assuming only $\mathsf m(N)=(\lg N)^{O(1)}$, as satisfied by
+Sch\"onhage--Strassen~\cite{SS71} with $\mathsf m(N)=O(\lg N\lg\lg N)$. Its operands and output occupy dedicated work
+tapes, leaving the caller's other tapes untouched and cleaning its workspace on return. Fixing a regular majorant
+$\overline{\mathsf M}(N)=A\,N(\lg(2N))^J$ of $\mathsf M$ gives $\overline{\mathsf M}(c'N)=O(\overline{\mathsf M}(N))$
+for every constant $c'>0$. Every ordinary integer product on the Walsh route occurs at one of four sites and has at most
+$O(P^2)=O((\log n)^2)$ bits:
 \begin{enumerate}[label=(\arabic*),leftmargin=*]
-  \item \emph{Root packing} (Proposition~\ref{prop:root-packing}): $R$ complex squarings on $\Cg_{p+2}$, using
+  \item \emph{Root packing} in Proposition~\ref{prop:root-packing}: $R$ complex squarings on $\Cg_{p+2}$, using
     $O(P)$-bit integer products of total cost $O(R\,\mathsf M(P))=O(V\,\mathsf m(P))$.
-  \item \emph{Direct tensor FFT} (Theorem~\ref{thm:direct-fft} at $q=P+2$): $\ell$ last-axis levels and at most $\ell$
-    record-axis combined twiddles, each performing four exact $(q+2)$-bit integer products per complex multiplication
-    (Lemma~\ref{lem:disk-product}), of total cost $O(V\ell\,\mathsf m(P))$. (The butterfly layers of
-    Proposition~\ref{prop:prop14-param} and the positional permutations of Theorem~\ref{thm:positional-perm} perform no
-    general multiplications.)
-  \item \emph{Cyclic deconvolution} (Lemma~\ref{lem:bridge-C}(iv)): $O(1)$ multiplications per entry on operands of at
-    most $P+k+8=O(P)$ bits across $d-1$ axes, of total cost $O(Vd\,\mathsf m(P))$. Truncated binary powering on
-    $O(P+k)$-bit integers for the closures in Lemma~\ref{lem:bridge-C}(v) and rational series evaluation on $O(P)$-bit
-    integers in Lemma~\ref{lem:bridge-C}(iii) and Lemma~\ref{lem:phase-table} belong to the setup term~\eqref{eq:setup}.
-  \item \emph{Line spreading} (Lemma~\ref{lem:bridge-C}(ii)): on each of $d-1$ axes, overlap-add blocks of
-    $W_t=\min(2P+1,t_a)=\Theta(P)$ entries packed via signed Kronecker substitution into $(4P+16)$-bit slots perform
-    four exact products of integers of at most $W_t(4P+16)+1=O(P^2)$ bits per block across $O(R/P)$ blocks per axis,
-    costing $O(Vd\,\mathsf m(P^2))$.
+
+  \item \emph{Direct tensor FFT} in Theorem~\ref{thm:direct-fft} at $q=P+2$: $\ell$ last-axis levels and at most $\ell$
+    record-axis combined twiddles, each performing four exact $(q+2)$-bit integer products per complex multiplication by
+    Lemma~\ref{lem:disk-product}, of total cost $O(V\ell\,\mathsf m(P))$. Neither the butterfly layers of
+    Proposition~\ref{prop:prop14-param} nor the positional permutations of Theorem~\ref{thm:positional-perm} perform
+    general multiplications.
+
+  \item \emph{Cyclic deconvolution} in part~(iv) of Lemma~\ref{lem:bridge-C}: $O(1)$ multiplications per entry on
+    operands of at most $P+k+8=O(P)$ bits across $d-1$ axes, of total cost $O(Vd\,\mathsf m(P))$. Truncated binary
+    powering on $O(P+k)$-bit integers for the closures in part~(v) of Lemma~\ref{lem:bridge-C} and rational-series
+    evaluations on $O(P)$-bit integers in part~(iii) of Lemma~\ref{lem:bridge-C} and Lemma~\ref{lem:phase-table} belong
+    to the setup term~\eqref{eq:setup}.
+
+  \item \emph{Line spreading} in part~(ii) of Lemma~\ref{lem:bridge-C}: on each of $d-1$ axes, overlap-add blocks of
+    $W_t=\min(2P+1,t_a)=\Theta(P)$ entries are packed via signed Kronecker substitution into $(4P+16)$-bit slots. Each
+    block performs four exact products of integers of at most $W_t(4P+16)+1=O(P^2)$ bits across $O(R/P)$ blocks per
+    axis, costing $O(Vd\,\mathsf m(P^2))$.
 \end{enumerate}
 In particular, because no polynomial-ring multiplication in $\Rr_r$ is performed, no $\Theta(rP)$-bit packed product
 arises, and both $\mathsf m(P)$ and $\mathsf m(P^2)$ are $(\lg P)^{O(1)}$.
 
-Combining Theorem~\ref{thm:positional-perm} (under which both $L$ and $U=(LB)^{-1}$ cost
-$O(V[(m_0/d+K)d^{\lambda'}+K])=O(V\ell d^{\lambda'})$), Theorem~\ref{thm:direct-fft}, Lemma~\ref{lem:bridge-D} and
-Lemma~\ref{lem:bridge-C} yields the normalized cost breakdown in Table~\ref{tab:cost-walsh}.
+Under Theorem~\ref{thm:positional-perm}, both $L$ and $U=(LB)^{-1}$ cost
+$O(V[(m_0/d+K)d^{\lambda'}+K])=O(V\ell d^{\lambda'})$. Combining this bound with Theorem~\ref{thm:direct-fft},
+Lemma~\ref{lem:bridge-D}, and Lemma~\ref{lem:bridge-C} yields the normalized cost breakdown in
+Table~\ref{tab:cost-walsh}.
 
 \begin{table}[ht]
 \centering
 \small
-\caption{Cost of one bridge call on the Walsh route, divided by $V=RP$, with $d=\Theta(P^\eps)$,
-$\ell=\Theta(P^{1-\eps})$ and $K=\Theta(P^{\eps c})$. A row with gap $g$ has normalized cost $O(P^{1-g})$, up to
-polylogarithmic factors in~$P$ where indicated (Section~\ref{sec:main-gaps}).}\label{tab:cost-walsh}
+\caption{Normalized running time of each stage in one bridge call on the Walsh route. Costs are divided by the bit
+volume $V=RP$, with $d=\Theta(P^\eps)$, $\ell=\Theta(P^{1-\eps})$, and $K=\Theta(P^{\eps c})$; a row with gap $g$ has
+normalized cost $O(P^{1-g})$ up to polylogarithmic factors in~$P$ where indicated
+(Section~\ref{sec:main-gaps}).}\label{tab:cost-walsh}
 \begin{tabular}{@{}lll@{}}
 \toprule
 operation & normalized cost & gap below $P^1$\\
@@ -188,6 +229,10 @@ basis changes of Proposition~\ref{prop:prop14-param} are already included in $d^
 
 \subsection{Gaps and slack}\label{sec:main-gaps}
 
+This subsection expresses the condition for saving a power of $\log n$ in terms of five exponent gaps. It also shows why
+replacing chunk exchanges by Walsh permutations makes the exponent depend linearly, rather than quadratically, on the
+network deficit introduced in Section~\ref{sec:overview}.
+
 By Table~\ref{tab:cost-walsh}, a row with gap $g$ contributes $O(V\,P^{1-g}(\lg P)^{O(1)})$ steps. An admissible
 parameter tuple therefore yields the saving exponent $\kappa$ whenever $0<\kappa<g_{\min}$, where $g_{\min}$ is the
 minimum of the five gaps
@@ -201,13 +246,13 @@ Any strict positive slack $s=g_{\min}-\kappa>0$ absorbs fixed powers of $\lg P$:
 \]
 by the $j$-th term of the exponential series for $e^{s\ln P}$.
 
-\paragraph{Linear vs.\ quadratic bottleneck.} On the Walsh route, the binding gap is the butterfly-layer gap
-$g_{\rm lay}=\eps(1-\lambda')$. Since the layer hypotheses require $\lambda'>\sigma$ and $\eps<1/C_1$, this gap is at
-most $(1-\sigma)/C_1$, which is \emph{linear} in the complex network's exponent deficit $1-\sigma$. By contrast, if the
-layout $L$ is executed by width-$K$ chunk exchanges as on a Bluestein middle transform
-(Appendix~\ref{app:bluestein}, \eqref{eq:old-bottleneck}), the normalized cost term $PK^{\tau-1}$ introduces the
-additional gap $g_{\rm chunk}=\eps c(1-\tau)$; because Proposition~\ref{prop:prop14-param} requires
-$c<\beta(1-\tau)/\tau$ and $\eps<1/C_1$, this forces
+\paragraph{Linear vs.\ quadratic bottleneck.}
+On the Walsh route, the binding gap is the butterfly-layer gap $g_{\rm lay}=\eps(1-\lambda')$. Since the layer
+hypotheses require $\lambda'>\sigma$ and $\eps<1/C_1$, this gap is at most $(1-\sigma)/C_1$, which is \emph{linear} in
+the complex network's exponent deficit $1-\sigma$. By contrast, if the layout $L$ is executed by width-$K$ chunk
+exchanges as on a Bluestein middle transform in~\eqref{eq:old-bottleneck} of Appendix~\ref{app:bluestein}, the
+normalized cost term $PK^{\tau-1}$ introduces the additional gap $g_{\rm chunk}=\eps c(1-\tau)$. Because
+Proposition~\ref{prop:prop14-param} requires $c<\beta(1-\tau)/\tau$ and $\eps<1/C_1$, this forces
 \[
   g_{\rm chunk}=\eps c(1-\tau)<\frac{\beta(1-\tau)^2}{C_1\tau}<\frac{(1-\tau)^2}{C_1\tau},
 \]
@@ -215,16 +260,21 @@ capping $\kappa$ quadratically in $1-\tau$.
 
 \subsection{Parameter choice}\label{sec:main-rows}
 
-By Proposition~\ref{prop:deficits} (Appendix~\ref{app:parameter-transfer}), at $h=100$ ($m=10^6$) with $\xi=2^{-42}$,
-the exact network counts of Fact~\ref{fact:oai-networks} together with the rational bound $\ln 10^6<14$ certify that
-$\tau=1-4\xi=1-2^{-40}$ and $\sigma=1-\xi=1-2^{-42}$ satisfy $s_b/W_b<m^\tau$ and $s_c/W_c<m^\sigma$. Likewise,
-$B_{\rm net}<m^{11}$ ($\nu_{\mathrm{net}}=11$ in~\eqref{eq:walsh-guard-constants}) certifies that the guard exponent
-$C_1=\nu_{\mathrm{net}}+3=14$ is admissible in Proposition~\ref{prop:prop14-param}.
+This subsection fixes the explicit rational parameter tuple for Theorem~\ref{thm:main} and verifies all admissibility
+inequalities and positive cost gaps in exact rational arithmetic.
+
+Proposition~\ref{prop:deficits} in Appendix~\ref{app:parameter-transfer} fixes the network exponents at $h=100$ and
+$m=10^6$. With $\xi=2^{-42}$, the exact network counts of Fact~\ref{fact:oai-networks} together with the rational bound
+$\ln 10^6<14$ certify that $\tau=1-4\xi=1-2^{-40}$ and $\sigma=1-\xi=1-2^{-42}$ satisfy $s_b/W_b<m^\tau$ and
+$s_c/W_c<m^\sigma$. Likewise, the
+bound $B_{\rm net}<m^{11}$, which gives $\nu_{\mathrm{net}}=11$ in~\eqref{eq:walsh-guard-constants}, certifies that the
+guard exponent $C_1=\nu_{\mathrm{net}}+3=14$ is admissible in Proposition~\ref{prop:prop14-param}.
 Table~\ref{tab:walsh-rows} records the parameter tuple used to prove Theorem~\ref{thm:main}.
 
 \begin{table}[ht]
 \centering
-\caption{Primary parameter tuple for the Walsh route ($\xi=2^{-42}$), yielding $\kappa=2^{-46}$ in
+\caption{Explicit rational parameters for the primary Walsh multiplier. With $\xi=2^{-42}$, this tuple satisfies all
+butterfly-layer and root-family constraints and yields the saving exponent $\kappa=2^{-46}$ in
 Theorem~\ref{thm:main}.}\label{tab:walsh-rows}
 \begin{tabular}{@{}lcccccccc@{}}
 \toprule
@@ -244,15 +294,19 @@ Table~\ref{tab:walsh-rows} in exact rational arithmetic:
     $\lambda-\tau(1+c/\beta)=\frac{177}{64}\xi+\xi^2>0$. Moreover $\sigma+\beta(1-\sigma)=1-\frac{63}{64}\xi=\lambda$, so
     $\max\{\lambda,\sigma+\beta(1-\sigma)\}=\lambda<\lambda'=1-\frac{31}{32}\xi<1$ with margin
     $\lambda'-\lambda=\frac{\xi}{64}>0$. Finally, $C_1=14$ is admissible and $1-\eps C_1=\frac1{15}>0$.
+
   \item \emph{Gaps and slack.} Evaluating~\eqref{eq:gaps} gives
     \[
       g_{\rm lay}=\frac{31}{480}\xi,\qquad g_{\rm axis}=\frac{56}{15}\xi,\qquad g_{\rm last}=\frac1{15},\qquad
       g_{\rm short}=\frac{14}{15},\qquad g_{\rm pre}=\frac{14}{15}-\frac{\xi}{3840}>\frac{13}{15}.
     \]
     The unique minimum is $g_{\min}=g_{\rm lay}=\frac{31}{480}\xi$. Comparing against $\kappa=2^{-46}=\frac{\xi}{16}
-    =\frac{30}{480}\xi$ gives strict positive slack $s=g_{\min}-\kappa=\frac{\xi}{480}>0$ (with ratio
-    $g_{\min}/\kappa=31/30$).
+    =\frac{30}{480}\xi$ gives strict positive slack $s=g_{\min}-\kappa=\frac{\xi}{480}>0$, with ratio
+    $g_{\min}/\kappa=31/30$.
 \end{itemize}
+
+The next remark isolates the architectural gain of the Walsh middle transform by evaluating the saving exponent under
+the untuned network constants printed in~\cite{OAI26}.
 
 \begin{remark}[Exponent with the printed constants of~\cite{OAI26}, and comparison rows]\label{rem:printed-optimal}
 To isolate the gain of the Walsh middle transform from parameter retuning, fix the structural constants $\beta=\frac12$,
@@ -271,17 +325,21 @@ parameters of~\cite[(38)]{OAI26} and reaching $2^{-84}$ with retuned parameters)
 
 \subsection{The cutoff and proof of Theorem~\ref{thm:main}}\label{sec:main-thm}
 
-Because the tape procedures derived from Facts~\ref{fact:oai-streams}--\ref{fact:oai-networks} have unspecified implied
-constants and eventual thresholds, we define the fallback threshold symbolically (see Section~\ref{sec:discussion} on
-the resulting astronomical activation sizes).
+This subsection defines the symbolic input-length threshold $n_*$ above which all asymptotic bounds activate
+simultaneously, and completes the proof of Theorem~\ref{thm:main}.
 
-For the tuple of Table~\ref{tab:walsh-rows}, put $s=g_{\min}-\kappa=\xi/480>0$. Fix integers $C\ge2$, $j\ge1$ and
+Because the tape procedures derived from Facts~\ref{fact:oai-streams}--\ref{fact:oai-networks} have unspecified implied
+constants and eventual thresholds, we define the fallback threshold symbolically; Section~\ref{sec:discussion} discusses
+the resulting astronomical activation sizes.
+
+\paragraph{Cutoff parameters.}
+For the tuple of Table~\ref{tab:walsh-rows}, put $s=g_{\min}-\kappa=\xi/480>0$. Fix integers $C\ge2$, $j\ge1$, and
 $D_{\rm set}\ge1$ such that every normalized cost term in~\eqref{eq:cost-W} and~\eqref{eq:root-cost} is at most
 $CP^{1-g_{\min}}(\lg(2P))^j$ and~\eqref{eq:setup} holds with coefficient at most~$C$ and degree at most $D_{\rm set}$.
-Let $P_{\rm tape}$ be a common precision threshold, under the bands~\eqref{eq:bands}, for the butterfly layer
-(Proposition~\ref{prop:prop14-param}) and the arbitrary-width interchange (Lemma~\ref{lem:transfer12}), and let $C_0$
-be the guard constant~\eqref{eq:walsh-guard-constants} of Proposition~\ref{prop:prop14-param}
-(Appendix~\ref{app:parameter-transfer}). For $\alpha_0>0$ and $b_*\ge1$ put
+Let $P_{\rm tape}$ be a common precision threshold under the bands~\eqref{eq:bands} for both the butterfly layer of
+Proposition~\ref{prop:prop14-param} and the arbitrary-width interchange of Lemma~\ref{lem:transfer12}. Let $C_0$ be the
+guard constant~\eqref{eq:walsh-guard-constants} of Proposition~\ref{prop:prop14-param} from
+Appendix~\ref{app:parameter-transfer}. For $\alpha_0>0$ and $b_*\ge1$ put
 $\Phi(\alpha_0,b_*)=2^{\lceil(64b_*/\alpha_0)^2\rceil}$, and put
 $K_{\log}=2^{\lceil\max\{2,(16j/s)^2,(8/s)\lg(2C)\}\rceil}$. Define the constant
 \begin{equation}\label{eq:cutoff}
@@ -291,36 +349,44 @@ $K_{\log}=2^{\lceil\max\{2,(16j/s)^2,(8/s)\lg(2C)\}\rceil}$. Define the constant
   &\Phi\bigl(1-\eps,\lceil D_{\rm set}+2+\lg(8C)\rceil\bigr),\ K_{\log}\Bigr\}\Bigr\rceil
 \end{aligned}
 \end{equation}
-(where $K_*$ is a fixed threshold, not the chunk width $K$) and set $n_*=2^{4K_*}$.
+and set $n_*=2^{4K_*}$; here $K_*$ is a fixed threshold rather than the chunk width~$K$.
 
-For $n\ge n_*$ we have $b=\lfloor\log_2n\rfloor\ge4K_*$, so $2N_{\rm dig}\ge2n/b>2^{2K_*}$ and hence $k\ge K_*$. Let us
+For $n\ge n_*$ we have $b=\lfloor\log_2n\rfloor\ge4K_*$, so $2N_{\rm dig}\ge2n/b>2^{2K_*}$ and hence $k\ge K_*$. We now
 verify that $k\ge K_*$ activates all asymptotic bounds simultaneously. If $k\ge\Phi(\alpha_0,b_*)$ and $z=\log_2k$, then
 $z\ge(64b_*/\alpha_0)^2$ implies $(\ln2)\alpha_0z\ge32b_*\sqrt z\ge\ln(b_*(z+5)^2)$, so $k^{\alpha_0}\ge b_*(z+5)^2$.
-Taking $\alpha_0=\eps c$ and $b_*=1$ makes $K\ge6$ and $K/\log P$ large (since $q\le32k$ gives $\log_2q\le z+5$); taking
+Since $q\le32k$ gives $\log_2q\le z+5$, taking $\alpha_0=\eps c$ and $b_*=1$ makes $K\ge6$ and $K/\log P$ large. Taking
 $\alpha_0=1-\eps$ and $b_*=\lceil D_{\rm set}+2+\lg(8C)\rceil$ gives $r\ge8CP^{D_{\rm set}+1}$ and
 $R/r\ge r/2\ge4CP^{D_{\rm set}+1}$, so the setup~\eqref{eq:setup} is at most $RP$. The term $(4C_0)^{1/(1-\eps C_1)}$
 ensures $\Delta\le C_0k^{\eps C_1}+1\le k/2$, and the terms $2^{2/\eps}$ and $2^{2/(1-\eps(1+c))}$ ensure $d\ge2$ and
 $dK\le k/4$. Finally, $K_{\log}$ ensures $\ln C+j\ln\lg(2P)\le\frac s2\ln P$, so half of the slack $s$ survives all
 implied constants and polylogarithmic factors.
 
+\emph{Proof idea.} Below the fixed threshold $n_*$, the machine delegates multiplication directly to a standard
+$N(\log N)^{O(1)}$ inner multiplier in bounded time. For $n\ge n_*$, the cutoff~\eqref{eq:cutoff} makes every size band,
+guard-bit margin, and setup bound derived in Sections~\ref{sec:main-alg}--\ref{sec:main-rows} hold simultaneously. Two
+calls to the fractional-shift bridge, instantiated with the direct complex tensor FFT and exact Walsh-layer address
+permutations, recover the exact $2n$-bit product by Proposition~\ref{prop:root-packing}. The strict slack
+$s=g_{\min}-\kappa=\xi/480>0$ absorbs all polylogarithmic factors in $P=\Theta(\log n)$, yielding total step count
+$O(n(\log n)^{1-2^{-46}})$ on a single uniform multitape machine.
+
 \begin{proof}[Proof of Theorem~\ref{thm:main}]
-Fix the parameter tuple of Table~\ref{tab:walsh-rows} ($\kappa=2^{-46}$) and the cutoff $n_*=2^{4K_*}$
-from~\eqref{eq:cutoff}. Let the independent inner multiplier have cost $\mathsf M(N)=N(\log N)^{O(1)}$ (for instance
-Sch\"onhage--Strassen~\cite{SS71}), and for $n<n_*$ invoke this inner multiplier directly on the two $n$-bit inputs. We
+Fix the parameter tuple of Table~\ref{tab:walsh-rows} with $\kappa=2^{-46}$ and the cutoff $n_*=2^{4K_*}$
+from~\eqref{eq:cutoff}. Let the independent inner multiplier have cost $\mathsf M(N)=N(\log N)^{O(1)}$, such as
+Sch\"onhage--Strassen~\cite{SS71}, and for $n<n_*$ invoke this inner multiplier directly on the two $n$-bit inputs. We
 verify parameter admissibility, correctness, outer CRT-freeness, running time, and machine uniformity for $n\ge n_*$.
 
 \emph{Admissibility.} Proposition~\ref{prop:deficits} certifies the network exponents $\tau=1-2^{-40}$ and
 $\sigma=1-2^{-42}$ and the admissibility of $C_1=14$ at $h=100$, and the strict margins of
 Proposition~\ref{prop:prop14-param} hold as checked after Table~\ref{tab:walsh-rows}. Since $\eps=1/15<1/14$ and
 $\eps(1+c)<1$, Lemma~\ref{lem:root-family} guarantees the comparison bands~\eqref{eq:bands}, component widths, complete
-rectangular shapes and long-record conditions at both precisions $q=P+2$ and $q_*=q+8d$.
+rectangular shapes, and long-record conditions at both precisions $q=P+2$ and $q_*=q+8d$.
 
 \emph{Correctness and outer structure.} All transform lengths $R=2^k$ and $t_1,\dots,t_d\in\{r/2,r\}$ are powers of two;
 the outer reduction uses no Chinese remainder map, no prime transform length, no coprime-length resampling, and no
 Fourier-grid expansion. Inside each bridge call, Theorem~\ref{thm:positional-perm} executes the layout map $L$ and the
-restoring map $U=(LB)^{-1}$ exactly on $\Cg_q$, returning from the lifted precision $q+8d$ to $\Cg_q$ at proved exact
-permutation boundaries. Theorem~\ref{thm:direct-fft} and Corollary~\ref{cor:walsh-middle} therefore supply a middle
-transform at grid precision $q$ with $E_{\rm mid}=12\ell$ and $\delta_{\rm mid}=0$. By
+restoring map $U=(LB)^{-1}$ without error on $\Cg_q$, returning from the lifted precision $q+8d$ to $\Cg_q$ at proved
+exact permutation boundaries. Theorem~\ref{thm:direct-fft} and Corollary~\ref{cor:walsh-middle} therefore supply a
+middle transform at grid precision~$q$ with $E_{\rm mid}=12\ell$ and $\delta_{\rm mid}=0$. By
 Theorem~\ref{thm:bridge-precision} and Lemma~\ref{lem:bridge-D}, the two bridge transforms satisfy the precision
 bound~\eqref{eq:bridge-total}, and Proposition~\ref{prop:root-packing} recovers the exact $2n$-bit product.
 
@@ -333,9 +399,12 @@ Lemma~\ref{lem:root-family}, this is $O(n(\log n)^{1-2^{-46}})$ uniformly for $n
 lengths $n<n_*$, the direct call to the inner multiplier takes bounded time, absorbed into the implied constant.
 
 \emph{Uniformity.} All lists of axis lengths, masks, phase and filter tables, and positional-map decompositions are
-generated deterministically by the machine as tape data, and all subroutines are sequential compositions of fixed-tape
-procedures with a fixed finite alphabet and tape count independent of~$n$.
+generated deterministically by the machine as tape data. Moreover, every subroutine is a sequential composition of
+fixed-tape procedures over a fixed finite alphabet and tape count independent of~$n$.
 \end{proof}
+
+Finally, the next remark explains how the black-box inner multiplier $\mathsf M$ is instantiated when one also wishes to
+avoid prime transform lengths inside the $O((\log n)^2)$-bit scalar products, as in our Lean~4 formalization.
 
 \begin{remark}[CRT-free inner multiplication]\label{rem:crt-free}\label{cor:crt-free}
 Theorem~\ref{thm:main} treats the inner multiplier $\mathsf M$ as a black box on $O((\log n)^2)$-bit integers and does

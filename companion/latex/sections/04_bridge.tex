@@ -1,10 +1,12 @@
 \section{The two-dimensional bridge on a power-of-two grid}\label{sec:bridge}
 
-We next combine two ingredients on the same $t_1 \times r$ grid: the classical polynomial-transform reduction of a two-dimensional power-of-two DFT $F_{t_1, r}$ to one polynomial transform $G_{t_1}$ and $t_1$ recursive one-dimensional DFTs $F_r$ (Section~\ref{sec:twisted}), and the fractional-shift Poisson identity connecting $F_{t_1, r}$ of a row-spread array directly to the one-dimensional DFT $F_{t_1 r}$ (Section~\ref{sec:poisson}).
+This section establishes the two exact identities that reduce a one-dimensional Fourier transform $F_R$ of power-of-two length $R = t_1 r$ to $t_1$ recursive transforms $F_r$ on the same $t_1 \times r$ grid. Section~\ref{sec:twisted} reduces the two-dimensional transform $F_{t_1, r}$ to one multiplication-free polynomial transform $G_{t_1}$ and $t_1$ calls to $F_r$. Section~\ref{sec:poisson} then proves the fractional-shift Poisson identity, which expresses $F_{t_1, r}$ of a row-spread input array as a column-wise alias sum of $F_R x$. Together, these identities eliminate both Chinese remaindering and grid-expanding resampling from the recursion of Theorem~\ref{thm:main}. Readers who saw the overview in Sections~\ref{sec:overview-grid}--\ref{sec:overview-poly} and trust Proposition~\ref{thm:twisted} and Theorem~\ref{thm:poisson} may skip directly to Section~\ref{sec:deconv}.
 
 \subsection{Polynomial-transform reduction (\texorpdfstring{$F_{t_1, r} \to t_1 F_r$}{F(t1, r) to t1 F(r)})}\label{sec:twisted}
 
-Reducing a two-dimensional power-of-two DFT to a polynomial transform over $\C[y]/(y^r + 1)$ and $t_1$ one-dimensional transforms via an odd-stride index permutation is due to Nussbaumer and Quandalle~\cite{NQ79,Nussbaumer82}, using standard negacyclic-to-cyclic root weighting $y \mapsto \zeta^{2u_2 - 1}$ (cf.\ \cite{SS71,CF94}).
+We first show how to evaluate the two-dimensional transform $F_{t_1, r}$ without complex butterfly multiplications along the $t_1$-axis. The construction is due to Nussbaumer and Quandalle~\cite{NQ79,Nussbaumer82} and uses the standard negacyclic-to-cyclic twist $y \mapsto \zeta^{2u_2 - 1}$ of Section~\ref{sec:overview-poly}~\cite{SS71,CF94}.
+
+Proposition~\ref{thm:twisted} states that twisting each row by powers of $\zeta = e^{\pi i / r}$, applying the multiplication-free polynomial transform $G_{t_1}$ over $\C[y]/(y^r + 1)$, untwisting, running $t_1$ recursive transforms $F_r$, and permuting each column by the odd stride $2u_2 - 1$ recovers $F_{t_1, r} U$ exactly. We need this reduction so that the $t_1$-axis costs zero scalar multiplications, leaving only the $2R$ twist multiplications of Steps~1 and~3 per call, plus the $t_1$ recursive calls of length $r$.
 
 \begin{proposition}[Polynomial-transform reduction; Nussbaumer--Quandalle~\cite{NQ79,Nussbaumer82}]\label{thm:twisted}
 Let $t_1 \mid r$ be powers of two, $\nu = r / t_1 \in \{1, 2\}$, $R = t_1 r$, and $\zeta := e^{\pi i / r}$ (so $\zeta^r = -1$). Given any $U \in \C^{t_1 \times r}$, perform the following five steps:
@@ -49,7 +51,9 @@ Since $e^{2\pi i / t_1}$ is $t_1$-periodic in the exponent, setting $u_1 := (2u_
 
 \subsection{Fractional-shift Poisson identity (\texorpdfstring{$F_{t_1 r} \leftrightarrow F_{t_1, r}$}{F(t1 r) <-> F(t1, r)})}\label{sec:poisson}
 
-Approximating fractional shifts by convolving with a localized smooth kernel and analyzing the resulting alias series via Poisson summation is the standard gridding mechanism of the nonuniform discrete Fourier transform (NUFFT)~\cite{DR93,PST01,GL04,BMK19}, and is related to the Gaussian resampling step of~\cite{HvdH21}. Here, because $F_{t_1 r}$ and $F_{t_1, r}$ act on the same $t_1 \times r$ grid and the fractional shift $j_1 / t_1$ is constant across row $j_1$, row-wise spreading requires no grid oversampling and produces a cyclic alias mixture along each column $u_2$ that is inverted by a two-term recurrence.
+We next connect the one-dimensional transform $F_{t_1 r} x$ to the two-dimensional transform $F_{t_1, r}$ on the same $t_1 \times r$ grid. Convolving shifted samples with a localized smooth kernel and expanding the resulting alias sum via Poisson summation is the classical gridding mechanism of the nonuniform discrete Fourier transform~\cite{DR93,PST01,GL04,BMK19}. The same Poisson-summation principle underlies the Gaussian resampling step of Harvey and van der Hoeven~\cite{HvdH21}. Because $F_{t_1 r}$ and $F_{t_1, r}$ act on the same $t_1 \times r$ grid and the fractional shift $j_1 / t_1$ is constant across row $j_1$, spreading each row requires no grid oversampling.
+
+Theorem~\ref{thm:poisson} gives an exact formula for $F_{t_1, r} U^\circ$ when each row $j_1$ of the input is convolved cyclically modulo $r$ with the shifted sinc-Gaussian kernel $g(\cdot + j_1/t_1)$. For every column $u_2$, the two-dimensional transform equals an infinite sum of shifted entries of the target one-dimensional transform $F_R x$ weighted by $\hat{g}(u_2/r - m)$. We need this identity because Section~\ref{sec:deconv} shows that all weights with $m \notin \{0, 1\}$ are negligibly small, turning each column into a two-term linear system for $F_R x$. That system is invertible on every column except the Nyquist column $u_2 = r/2$, where the exact alternating sum of the input closes it.
 
 \begin{theorem}[Fractional-shift Poisson identity]\label{thm:poisson}
 Let $R = t_1 r$ with $t_1, r \in \Z_{\ge 1}$, and for $\alpha > 0$ define the windowed sinc-Gaussian kernel
@@ -70,16 +74,19 @@ Then for all $(u_1, u_2) \in \{0, \dots, t_1-1\} \times \{0, \dots, r-1\}$, the 
 \end{equation}
 \end{theorem}
 
+\noindent\emph{Proof idea.} Unfolding the modulo-$r$ periodization turns each row's cyclic filter sum into a single sum over all integers $k \in \Z$. Applying one-dimensional Poisson summation along each row and combining the resulting phase factors modulo~$1$ recovers the mixed-radix one-dimensional transform $F_R x$.
+
 \begin{proof}
-Since $g \in \mathcal{S}(\R)$ is a Schwartz function ($\sinc$ is smooth with $\lvert\sinc^{(k)}\rvert \le \pi^k$ on $\R$ for every $k$, being the inverse Fourier transform of the bounded, compactly supported $\mathbf{1}_{[-1/2,1/2]}$, and the product of such a function with the Gaussian $e^{-\pi t^2/\alpha^2}$ is a Schwartz function), the periodized sum defining $h^{(j_1),\mathrm{per}}_d$ converges absolutely. Expanding $F_{t_1, r} U^\circ$ gives
+The function $\sinc$ is smooth with $\lvert\sinc^{(k)}\rvert \le \pi^k$ on $\R$ for every $k$, being the inverse Fourier transform of the bounded, compactly supported indicator $\mathbf{1}_{[-1/2,1/2]}$. Multiplying $\sinc$ by the Gaussian $e^{-\pi t^2/\alpha^2}$ therefore yields a Schwartz function $g \in \mathcal{S}(\R)$, so the periodized sum defining $h^{(j_1),\mathrm{per}}_d$ converges absolutely. Expanding $F_{t_1, r} U^\circ$ gives
 \[
   \bigl(F_{t_1, r} U^\circ\bigr)_{u_1, u_2} = \frac{1}{t_1 r} \sum_{j_1=0}^{t_1-1} e^{2\pi i j_1 u_1 / t_1} \sum_{j_2=0}^{r-1} x(j_1 + t_1 j_2) \left(\sum_{k_2=0}^{r-1} \sum_{a \in \Z} g\!\left(j_2 + \frac{j_1}{t_1} - (k_2 + a r)\right) e^{2\pi i k_2 u_2 / r}\right).
 \]
-Because $e^{2\pi i (k_2 + a r) u_2 / r} = e^{2\pi i k_2 u_2 / r}$ for all $a \in \Z$, as $k_2$ ranges over $\{0, \dots, r-1\}$ and $a$ ranges over $\Z$, the integer $k := k_2 + a r$ ranges over $\Z$ bijectively. Hence the inner parenthesized sum equals
+Because $e^{2\pi i (k_2 + a r) u_2 / r} = e^{2\pi i k_2 u_2 / r}$ for all $a \in \Z$, as $k_2$ ranges over $\{0, \dots, r-1\}$ and $a$ ranges over $\Z$, the integer $k := k_2 + a r$ ranges over $\Z$ bijectively. Hence the inner sum equals
 \[
   S(j_1, j_2, u_2) := \sum_{k \in \Z} g(z - k) e^{2\pi i k u_2 / r}, \qquad \text{where } z := j_2 + \frac{j_1}{t_1}.
 \]
-Because $\mathcal{F}\{\sinc\}(\xi) = \mathbf{1}_{[-1/2, 1/2]}(\xi)$ in $L^2(\R)$ and $\mathcal{F}\{e^{-\pi t^2 / \alpha^2}\}(\xi) = \alpha e^{-\pi\alpha^2\xi^2}$, the convolution theorem gives \eqref{eq:ghat} ($\sinc$ is in $L^2$ but not $L^1$; the identity $\mathcal{F}(\sinc\cdot\phi) = \mathcal{F}(\sinc) * \mathcal{F}(\phi)$ holds for Schwartz $\phi$, and both sides of~\eqref{eq:ghat} are continuous, so it holds pointwise). Fix $z \in \R$ and $\xi := u_2 / r$, and define $f(t) := g(z - t) e^{2\pi i \xi t} \in \mathcal{S}(\R)$. Substituting $s = z - t$ gives the continuous Fourier transform of $f$ at frequency $m \in \Z$:
+
+In $L^2(\R)$ we have $\mathcal{F}\{\sinc\}(\xi) = \mathbf{1}_{[-1/2, 1/2]}(\xi)$, while $\mathcal{F}\{e^{-\pi t^2 / \alpha^2}\}(\xi) = \alpha e^{-\pi\alpha^2\xi^2}$. Although $\sinc$ lies in $L^2(\R)$ rather than $L^1(\R)$, the convolution identity $\mathcal{F}(\sinc\cdot\phi) = \mathcal{F}(\sinc) * \mathcal{F}(\phi)$ holds for every Schwartz function $\phi$. Both sides of~\eqref{eq:ghat} are continuous, so~\eqref{eq:ghat} holds pointwise. Fix $z \in \R$ and $\xi := u_2 / r$, and define $f(t) := g(z - t) e^{2\pi i \xi t} \in \mathcal{S}(\R)$. Substituting $s = z - t$ gives the continuous Fourier transform of $f$ at frequency $m \in \Z$:
 \[
   \hat{f}(m) = \int_{-\infty}^\infty g(z - t) e^{2\pi i (\xi - m) t} \, dt = e^{2\pi i (\xi - m) z} \int_{-\infty}^\infty g(s) e^{-2\pi i (\xi - m) s} \, ds = \hat{g}(\xi - m) e^{2\pi i (\xi - m) z}.
 \]

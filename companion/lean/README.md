@@ -1,9 +1,9 @@
 # Lean 4 Formalization (`IntMul`): Integer Multiplication in $O(n \log n)$ Time on a Single Two-Dimensional Grid
 
-This directory contains the machine-checked Lean 4 formalization described in Section 8 ("Formal verification in Lean 4") of the paper:
+This directory contains the Lean 4 formalization described in Section 8 ("Formal verification in Lean 4") of the paper:
 
 > Piaoyang Cui, Yiming Liu, and David P. Woodruff,
-> *Integer multiplication in $O(n \log n)$ time on a single two-dimensional grid, with a machine-checked proof* (2026).
+> *Integer multiplication in $O(n \log n)$ time on a single two-dimensional grid, with a formally verified proof* (2026).
 
 The library `IntMul` (`IntMul.lean` and 26 modules under `IntMul/`, comprising 27 files and 82,377 lines) formalizes Theorem 2 and the supporting analytic, fixed-point, and Turing-machine complexity results indexed in Table 3 of Section 8.
 
@@ -13,7 +13,7 @@ License: Apache License, Version 2.0 (see `LICENSE`).
 
 ## Headline Declarations
 
-To audit the machine-checked $O(n \log n)$ Turing-machine bound, a reader only needs to inspect the bit encodings in `IntMul/Defs.lean`, the uniformity and elementary-operation predicates in `IntMul/TMPrimitives.lean` and `IntMul.lean`, Mathlib's `Turing.FinTM2` / `Turing.EvalsToInTime`, and the headline declarations in `IntMul/TMEndToEnd.lean`, `IntMul/EndToEnd.lean`, and `IntMul.lean`:
+To audit the $O(n \log n)$ Turing-machine bound, a reader only needs to inspect the bit encodings in `IntMul/Defs.lean`, the uniformity and elementary-operation predicates in `IntMul/TMPrimitives.lean` and `IntMul.lean`, Mathlib's `Turing.FinTM2` / `Turing.EvalsToInTime`, and the headline declarations in `IntMul/TMEndToEnd.lean`, `IntMul/EndToEnd.lean`, and `IntMul.lean`:
 
 - **Input and output bit encodings (`IntMul/Defs.lean`)**:
   - `IntMul.encodeNatBits (w x : ℕ) : List Bool` — fixed-width $w$-bit little-endian binary list of $x$.

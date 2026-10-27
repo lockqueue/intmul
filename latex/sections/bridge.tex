@@ -1,44 +1,59 @@
 \section{The fractional-shift bridge}\label{sec:bridge}\label{sec:bridge-precision}
 
-This section relates the one-dimensional transform $F_R$ to the tensor transform $F_{\mathbf t}$ on the same
-power-of-two grid $R=t_1\cdots t_d$, with no Chinese remainder map, prime axis length, or grid expansion. It then turns
-that identity into a fixed-point multitape algorithm with a complete error budget.
+This section builds the fractional-shift bridge, the steps \textsf{Spread}, \textsf{TensorFFT}, and \textsf{Deconvolve}
+of Algorithm~\ref{alg:main} (Section~\ref{sec:overview-five-steps}), which reduces a one-dimensional discrete Fourier transform $F_R$
+to a $d$-dimensional tensor transform $F_{\mathbf t}$ on the same power-of-two grid $R=t_1\cdots t_d$. Before the tensor
+transform, each axis above the first is smoothed by a shifted complex sinc-Gaussian filter; afterwards, for each
+smoothed axis, a two-term cyclic recurrence in the frequency domain undoes that smoothing to working precision. For
+Theorem~\ref{thm:main}, this reduction avoids prime transform lengths and grid expansion, and sets the linear
+working-precision budget $P=O(p+\lg R)$ used throughout the multiplier. A first-time reader willing to treat the bridge
+as a black box needs only Definition~\ref{def:middle-contract} for the middle-transform contract,
+Theorem~\ref{thm:bridge-precision} for the bridge precision contract, and Lemma~\ref{lem:bridge-D} for the axis-exposure
+bound, and may skip directly to Section~\ref{sec:walsh}.
 
-In Sections~\ref{sec:bridge-conventions}--\ref{sec:bridge-B} we carry out the exact analysis. The input is spread along
-the axes $a=d,d-1,\dots,2$, in descending order, with a negative half-bin phase carrier. Lemma~\ref{lem:bridge-A}
-expresses the tensor DFT of the spread array exactly as $\cA_2\cdots\cA_d F_R x$, a product of non-commuting alias
-operators $\cA_a$. By Lemma~\ref{lem:bridge-B}, each $\cA_a$ lies within $0.120\cdot 2^{-\tw}$ of a two-term cyclic
-operator $B_a$ whose inverse has $\ell^\infty$ norm at most $4t_a/7\le t_a$, uniformly in its cycle length $A_a$.
-Applying $B_2^{-1},\dots,B_d^{-1}$ in chronological order recovers $F_R x$ up to~\eqref{eq:lemma-B-total}. Two negative
-results in Appendix~\ref{app:deferred} (Propositions~\ref{prop:positive-fails} and~\ref{prop:real-kernel-fails}) show
-that within this two-alias framework both the sign of the half-bin carrier and the use of a complex kernel are needed
-for uniform bounds. Sections~\ref{sec:bridge-alg}--\ref{sec:bridge-C} then establish the fixed-point algorithm and
-precision contract (Lemma~\ref{lem:bridge-C} and Theorem~\ref{thm:bridge-precision}, with the series evaluation of the
-filter and phase tables proved in Lemma~\ref{lem:phase-tables} of Appendix~\ref{app:deferred}).
-Section~\ref{sec:bridge-D} gives the $O(d)$ direct axis-exposure schedule on tapes (Lemma~\ref{lem:bridge-D}).
+Sections~\ref{sec:bridge-conventions}--\ref{sec:bridge-B} carry out the continuous and exact Fourier analysis. We spread
+the input along axes $a=d,d-1,\dots,2$ in descending order using a negative half-bin phase carrier, and the triangular
+alias identity (Lemma~\ref{lem:bridge-A}) expresses the tensor DFT of the spread array as an ordered product
+$\cA_2\cdots\cA_d F_R x$ of non-commuting alias operators. Lemma~\ref{lem:bridge-B} then approximates each $\cA_a$ to
+within $0.120\cdot 2^{-\tw}$ by a two-term cyclic operator $B_a$ whose inverse has $\ell^\infty$ norm at most
+$4t_a/7\le t_a$, uniformly in its cycle length $A_a$. Applying $B_2^{-1},\dots,B_d^{-1}$ in that order therefore
+recovers $F_R x$ up to the omitted-alias error bounded in~\eqref{eq:lemma-B-total}. Two converse results in
+Appendix~\ref{app:deferred}, Propositions~\ref{prop:positive-fails} and~\ref{prop:real-kernel-fails}, show that within
+this two-alias framework both the negative sign of the half-bin carrier and a complex kernel are required for uniform
+bounds.
+
+Sections~\ref{sec:bridge-alg}--\ref{sec:bridge-C} turn this analytic reduction into a fixed-point algorithm and prove
+its error and bit-width bounds in Lemma~\ref{lem:bridge-C} and Theorem~\ref{thm:bridge-precision}. The rational-series
+evaluation of the filter and phase tables is deferred to Lemma~\ref{lem:phase-tables} in Appendix~\ref{app:deferred}.
+Finally, Section~\ref{sec:bridge-D} gives the $O(d)$ direct axis-exposure schedule on multitape machines in
+Lemma~\ref{lem:bridge-D}.
 
 \subsection{Index conventions and the carrier}\label{sec:bridge-conventions}
 
-Let $R=t_1\cdots t_d=2^k$ with every $t_i\ge 2$ a power of two, and put $A_a=\prod_{i<a}t_i$ for $1\le a\le d+1$, so
-that $A_1=1$ and $A_{d+1}=R$. We write input indices as $j=\sum_{i=1}^d j_i A_i$ with $0\le j_i<t_i$, so $j_1$ is the
-least significant digit, and identify $x\in\C^R$ with the tensor $x_{j_1,\dots,j_d}$. Frequencies use the reversed digit
-order:
+This subsection fixes the mixed-radix indexing of inputs and frequencies on the tensor grid and defines the shifted
+complex filter used on each spread axis.
+
+\paragraph{Parameters and index conventions.}
+Let $R=t_1\cdots t_d=2^k$ with every $t_i\ge 2$ a power of two, where $k$ denotes $\lg R$ throughout the paper. Put
+$A_a=\prod_{i<a}t_i$ for $1\le a\le d+1$, so that $A_1=1$ and $A_{d+1}=R$. We write input indices as
+$j=\sum_{i=1}^d j_i A_i$ with $0\le j_i<t_i$, making $j_1$ the least significant digit, and identify $x\in\C^R$ with
+the tensor $x_{j_1,\dots,j_d}$. Frequencies use the reversed digit order:
 \begin{equation}\label{eq:freq-digits}
   f(\mathbf u)=\sum_{i=1}^d u_i\,\frac{R}{A_{i+1}},\qquad 0\le u_i<t_i,
 \end{equation}
 so $u_d$ is the least significant digit. The map $\mathbf u\mapsto f(\mathbf u)$ is a bijection onto $[R]$, and we write
-$u_a(f)$ for the $a$-th frequency digit of $f\in[R]$. (Throughout, $k$ is reserved for $\lg R$.) For $2\le a\le d$, the
-\emph{fractional shift} of axis~$a$ is
+$u_a(f)$ for the $a$-th frequency digit of $f\in[R]$. For $2\le a\le d$, the \emph{fractional shift} of axis~$a$ is
 \begin{equation}\label{eq:delta}
   \delta_a(\mathbf j)=\frac{\sum_{i<a}j_i A_i}{A_a}\in[0,1),
 \end{equation}
 which depends only on the input digits below~$a$. In a multi-axis Cooley--Tukey decomposition of $F_R$, the twiddle
-factor coupling axis~$a$ to the lower axes is a fractional shift by $\delta_a(\mathbf j)$ along axis~$a$, generalizing
-the two-dimensional observation of~\cite{MS}.
+factor coupling axis~$a$ to the lower axes acts as a fractional shift by $\delta_a(\mathbf j)$ along axis~$a$,
+generalizing the two-dimensional observation of~\cite{MS}.
 
-As in~\cite{MS}, the base kernel is a sinc-Gaussian whose Fourier transform $G$ is a smoothed indicator of
-$[-\tfrac12,\tfrac12]$. On each spread axis $a\ge 2$ we modulate it by a negative half-bin phase, shifting the frequency
-samples from $u/t_a$ to the half-bin midpoints $(u+\tfrac12)/t_a$.
+As in~\cite{MS}, our base smoothing kernel is a sinc-Gaussian whose Fourier transform $G$ approximates the indicator of
+$[-\tfrac12,\tfrac12]$. On each spread axis $a\ge 2$, we multiply this base kernel by a negative half-bin phase so that
+frequency samples move from the grid points $u/t_a$ to the midpoints $(u+\tfrac12)/t_a$. The next definition records
+this modulated carrier and its $t_a$-periodic folded filter, which supply the weights for axis spreading.
 
 \begin{definition}[Kernel and carrier]\label{def:carrier}
 Let $\tw\ge 8$ be the alias width, and fix $\alpha$ satisfying
@@ -72,9 +87,12 @@ for $s\in e+t_a\Z$,
 \end{equation}
 Periodizing $g_0$ first and multiplying by the carrier afterwards would drop the alternating signs $(-1)^{(e-s)/t_a}$.
 Identity~\eqref{eq:negacyclic} also shows that $H^{(a)}_\delta$ can be applied as a real negacyclic convolution between
-two diagonal phase scans; the algorithm of Section~\ref{sec:bridge-alg} evaluates the complex filter directly.
+two diagonal phase scans. In Section~\ref{sec:bridge-alg}, our algorithm evaluates the complex filter directly.
 
 \subsection{Triangular alias identity}\label{sec:bridge-A}
+
+This subsection shows that spreading the axes in descending order expresses the tensor transform of the spread array as
+an exact ordered product of one-axis alias operators applied to $F_R x$.
 
 We spread one axis at a time. For $2\le a\le d$, let $\mathcal S_a$ spread axis~$a$ while holding all other coordinates
 fixed:
@@ -91,14 +109,18 @@ stages. Hence
 In the opposite order, $\delta_a$ would be evaluated after lower digits had already been replaced by spread indices, and
 \eqref{eq:spread-product} would fail.
 
-For $2\le a\le d$, the \emph{alias operator} $\cA_a$ on $\C^R$ collects the frequency aliases $f-\nu R/A_a$ ($\nu\in\Z$)
-generated by Poisson summation along axis~$a$, weighted by half-bin samples of~$G$:
+For $2\le a\le d$, the \emph{alias operator} $\cA_a$ on $\C^R$ collects the frequency aliases $f-\nu R/A_a$ for integer
+shifts $\nu\in\Z$ generated by Poisson summation along axis~$a$, weighted by half-bin samples of~$G$:
 \begin{equation}\label{eq:alias-op}
   (\cA_a Z)_f=\sum_{\nu\in\Z}G\Bigl(\frac{u_a(f)+1/2}{t_a}-\nu\Bigr)\,Z_{(f-\nu R/A_a)\bmod R}.
 \end{equation}
 The weights of $\cA_a$ depend only on the digit $u_a(f)$, whereas shifting $f$ by a multiple of $R/A_a$ alters only the
-more significant digits $u_1,\dots,u_{a-1}$. Thus in the product $\cA_2\cA_3\cdots\cA_d$ each factor shifts only digits
-that no factor to its right reads. This triangular dependency yields Lemma~\ref{lem:bridge-A}.
+more significant digits $u_1,\dots,u_{a-1}$.
+
+In the product $\cA_2\cA_3\cdots\cA_d$, each factor shifts only frequency digits that no factor to its right reads. The
+next lemma uses this triangular dependency to express the tensor transform of the spread array $U$ directly in terms of
+the target transform $Z=F_R x$. Because the alias operators do not commute, their order dictates the left-to-right order
+in which deconvolution later inverts their truncations.
 
 \begin{lemma}[Triangular alias identity]\label{lem:bridge-A}
 With $U=\mathcal S_2\mathcal S_3\cdots\mathcal S_d x$ and $Z=F_R x$,
@@ -115,10 +137,13 @@ where $\boldsymbol\nu=(\nu_2,\dots,\nu_d)$. The operators $\cA_a$ do not commute
 holds in the stated order.
 \end{lemma}
 
-\begin{proof}
-We first derive~\eqref{eq:lemma-A-explicit} by Poisson summation along each spread axis, and then expand the operator
-product~\eqref{eq:lemma-A}.
+\emph{Proof idea.} We unfold the periodic filter on each spread axis and apply Poisson summation to express
+$(F_{\mathbf t}U)_{\mathbf u}$ as an absolutely convergent sum over alias vectors $\boldsymbol\nu\in\Z^{d-1}$. Comparing
+mixed-radix phases modulo~$1$ identifies each inner sum over the input grid with a shifted entry of $Z=F_R x$, yielding
+\eqref{eq:lemma-A-explicit}. Expanding $\cA_2\cA_3\cdots\cA_d Z$ from left to right then shows that earlier frequency
+shifts never modify the frequency digit read by a later operator.
 
+\begin{proof}
 \emph{Explicit formula.} For any Schwartz function $\phi$ and real $z,\xi$, applying Poisson summation to
 $s\mapsto\phi(z-s)e^{2\pi i\xi s}$ yields
 \begin{equation}\label{eq:poisson}
@@ -139,8 +164,8 @@ By the Gaussian decay of $g_a$ and $\hat g_a$, all sums converge absolutely and 
   \frac1R\sum_{\mathbf j}x_{\mathbf j}
   \exp\Bigl(2\pi i\Bigl[\frac{j_1 u_1}{t_1}+\sum_{a=2}^d(j_a+\delta_a)\Bigl(\frac{u_a}{t_a}-\nu_a\Bigr)\Bigr]\Bigr).
 \]
-Since $A_i/A_{a+1}\in\Z$ for $i>a$, we have $j/A_{a+1}\equiv(j_a+\delta_a)/t_a\pmod 1$ and $j/A_a\equiv\delta_a\pmod 1$;
-moreover $j/t_1\equiv j_1/t_1\pmod 1$ and $\nu_a j_a\in\Z$. The phase in brackets is therefore congruent modulo~$1$ to
+Since $A_i/A_{a+1}\in\Z$ for $i>a$, we have $j/A_{a+1}\equiv(j_a+\delta_a)/t_a\pmod 1$ and $j/A_a\equiv\delta_a\pmod 1$.
+Moreover, $j/t_1\equiv j_1/t_1\pmod 1$ and $\nu_a j_a\in\Z$. The phase in brackets is therefore congruent modulo~$1$ to
 \[
   \frac{j}{R}\Bigl(\sum_{i=1}^d u_i\,\frac{R}{A_{i+1}}-\sum_{a=2}^d\nu_a\,\frac{R}{A_a}\Bigr),
 \]
@@ -148,7 +173,7 @@ so the inner normalized sum over $\mathbf j$ equals $Z_{(f(\mathbf u)-\sum_{a=2}
 $\hat g_a(u_a/t_a-\nu_a)=G((u_a+\tfrac12)/t_a-\nu_a)$ yields~\eqref{eq:lemma-A-explicit}.
 
 \emph{Product form.} Subtracting $\nu R/A_a$ from $f$ modifies only the digits $u_1,\dots,u_{a-1}$, because $R/A_a$ is
-the positional weight of $u_{a-1}$ in~\eqref{eq:freq-digits} and borrows propagate toward $u_1$; the lower digits
+the positional weight of $u_{a-1}$ in~\eqref{eq:freq-digits} and borrows propagate toward $u_1$. The lower digits
 $u_a,\dots,u_d$ remain unchanged. When $(\cA_2\cA_3\cdots\cA_d Z)_{f(\mathbf u)}$ is expanded from left to right, every
 frequency shift accumulated before the weight of $\cA_a$ is evaluated comes from factors $\cA_{a'}$ with $a'<a$, which
 leave the digit $u_a$ invariant. Every weight in the expansion is therefore evaluated at the original digit $u_a$ of
@@ -156,8 +181,10 @@ $f(\mathbf u)$, matching the right-hand side of~\eqref{eq:lemma-A-explicit}. In 
 $\cA_{a+1}$ can alter $u_a$ before $\cA_a$ reads it, so the factors do not commute.
 \end{proof}
 
-Consequently, deconvolution must invert the factors from left to right: first $B_2^{-1}$, then $B_3^{-1}$, and so on
-through $B_d^{-1}$, where $B_a$ is the two-alias truncation of $\cA_a$ analyzed next.
+Consequently, deconvolution must invert the approximate factors from left to right: first $B_2^{-1}$, then $B_3^{-1}$,
+and so on through $B_d^{-1}$, where $B_a$ is the two-alias truncation of $\cA_a$ analyzed in
+Section~\ref{sec:bridge-B}. The next remark illustrates why reversing this order fails already in dimension three, the
+smallest case with two alias operators.
 
 \begin{remark}[Non-commutativity in dimension three]\label{rem:bridge-d3}
 Take $\mathbf t=(2,2,2)$, so $R=8$, $A_2=2$, $A_3=4$, $j=j_1+2j_2+4j_3$, and $f=4u_1+2u_2+u_3$, with retained aliases
@@ -175,6 +202,9 @@ $c_{2,0}(0)=G(\tfrac14)>G(\tfrac34)=c_{2,0}(1)$ and $c_{3,1}(0)>0$.
 
 \subsection{Two-term cyclic deconvolution}\label{sec:bridge-B}
 
+This subsection replaces each infinite alias operator $\cA_a$ by a two-term cyclic operator $B_a$ and proves that $B_a$
+is well conditioned uniformly in its cycle length.
+
 Because each $\cA_a$ sums over all $\nu\in\Z$, the algorithm inverts its two-alias truncation. For $2\le a\le d$, the
 \emph{two-term cyclic operator} $B_a$ retains the terms $\nu\in\{0,1\}$ of~\eqref{eq:alias-op}: with
 $y=(u_a(f)+\tfrac12)/t_a\in(0,1)$,
@@ -187,10 +217,12 @@ length $L=A_a$, each with constant coefficients $(c_0,c_1)$. In the balanced sha
 $A_a$ grows up to $R/r$, far larger than $t_a$, so the conditioning of $B^{-1}$ must be independent of the cycle length
 $L$.
 
-The negative half-bin carrier makes both the omitted-alias error uniform in $t_a$ and the inverse norm uniform in $L$.
-Every sample $y=(u+\tfrac12)/t_a$ lies strictly inside $(0,1)$, keeping all omitted aliases at distance more than
-$\tfrac12$ from the Gaussian center, and since $t_a$ is even no sample hits the Nyquist midpoint $y=\tfrac12$ where
-$c_0=c_1$.
+Because the negative half-bin carrier places every sample $y=(u+\tfrac12)/t_a$ strictly inside $(0,1)$, all omitted
+aliases lie at distance greater than $\tfrac12$ from the Gaussian center. Since $t_a$ is even, no sample hits the
+Nyquist midpoint $y=\tfrac12$ where $c_0$ and $c_1$ would tie. The next lemma turns these two geometric margins into a
+uniform $O(2^{-\tw})$ truncation bound on $\cA_a-B_a$ and a cycle-length-independent bound
+$\|B_a^{-1}\|_\infty\le 4t_a/7$, ensuring that inverting $B_2,\dots,B_d$ recovers $F_R x$ up to the omitted-alias error
+of order $(d-1)(R/t_1)2^{-\tw}\|x\|_\infty$ in~\eqref{eq:lemma-B-total}.
 
 \begin{lemma}[Negative half-bin kernel and conditioning]\label{lem:bridge-B}
 Let $\tw\ge 8$, let $\alpha$ satisfy~\eqref{eq:alpha}, and let $t=t_a\ge 2$ be a power of two ($2\le a\le d$). For every
@@ -210,10 +242,14 @@ frequency digit $0\le u<t$, with $y=(u+\tfrac12)/t$, $c_0=G(y)$, and $c_1=G(y-1)
 \end{enumerate}
 \end{lemma}
 
-\begin{proof}
-Parts~(i)--(iv) estimate the Gaussian-smoothed weights $G(y-\nu)$; parts~(v)--(vi) bound the cyclic inverses.
+\emph{Proof idea.} Parts~(i)--(iii) bound the row sums, omitted Gaussian tails, and passband weight of $G$ by tiling
+$\R$ with unit intervals and using the convexity of the complementary error function. Part~(iv) lower-bounds the weight
+gap $|c_0-c_1|$ by differentiating $G(\tfrac12-e)-G(\tfrac12+e)$ and using the half-bin distance $|y-\tfrac12|\ge 1/(2t)$
+from the midpoint. Parts~(v)--(vi) invert each cyclic bidiagonal block via a finite Neumann series whose row sum cancels
+the cycle-closure denominator, and then telescope the product error across axes.
 
-\emph{(i) Norms.} The intervals $[\xi-\nu-\tfrac12,\xi-\nu+\tfrac12]$ ($\nu\in\Z$) tile $\R$, so
+\begin{proof}
+\emph{(i) Norms.} The intervals $[\xi-\nu-\tfrac12,\xi-\nu+\tfrac12]$ for $\nu\in\Z$ tile $\R$, so
 $\sum_{\nu\in\Z}G(\xi-\nu)=\int_{\R}\alpha e^{-\pi\alpha^2 s^2}\,ds=1$ with all terms positive. The absolute row sums of
 $\cA_a$ and $B_a$ are at most $\sum_{\nu\in\Z}G(y-\nu)=1$ and $c_0+c_1<1$, respectively.
 
@@ -221,11 +257,10 @@ $\cA_a$ and $B_a$ are at most $\sum_{\nu\in\Z}G(y-\nu)=1$ and $c_0+c_1<1$, respe
 $(-\infty,y-\tfrac32]\cup[y+\tfrac12,\infty)$, so the omitted alias weight at $y$ is
 $\Psi(y)=\tfrac12\erfc(\alpha_\pi(y+\tfrac12))+\tfrac12\erfc(\alpha_\pi(\tfrac32-y))$, which bounds every absolute row
 sum of $\cA_a-B_a$. Since $\erfc''>0$ on $(0,\infty)$, $\Psi$ is convex on $[0,1]$ and symmetric about $\tfrac12$, whence
-$\Psi(y)\le\Psi(0)$ for all $y\in(0,1)$. Using $\erfc z\le e^{-z^2}/(\sqrt\pi z)$ ($z>0$) and
-$\alpha_\pi/2\ge\sqrt{\tw\ln 2}$,
+$\Psi(y)\le\Psi(0)$ for all $y\in(0,1)$. Using $\erfc z\le e^{-z^2}/(\sqrt\pi z)$ for $z>0$ and
+$\alpha_\pi/2\ge\sqrt{\tw\ln 2}$, we obtain for $\tw\ge 8$ that
 \[
-  \Psi(0)\le\frac{2^{-\tw}}{2\sqrt{\pi\tw\ln 2}}+\frac{2^{-9\tw}}{6\sqrt{\pi\tw\ln 2}}<0.120\cdot 2^{-\tw}
-  \qquad(\tw\ge 8).
+  \Psi(0)\le\frac{2^{-\tw}}{2\sqrt{\pi\tw\ln 2}}+\frac{2^{-9\tw}}{6\sqrt{\pi\tw\ln 2}}<0.120\cdot 2^{-\tw}.
 \]
 Because every half-bin sample $y=(u+\tfrac12)/t$ lies in $(0,1)$, this bound is uniform in $t\ge 2$.
 
@@ -248,45 +283,52 @@ concavity of $\erf$ on $[0,\infty)$ and $2/t\le 1$,
 \[
   \erf\Bigl(\frac{\alpha_\pi}{2t}\Bigr)\ge\frac{2}{t}\,\erf\Bigl(\frac{\alpha_\pi}{4}\Bigr)\ge\frac{2}{t}\,\erf(\sqrt{2\ln 2}),
 \]
-since $\alpha_\pi/4\ge\tfrac12\sqrt{\tw\ln 2}\ge\sqrt{2\ln 2}$. The tail bound of~(iii) gives
+since $\alpha_\pi/4\ge\tfrac12\sqrt{\tw\ln 2}\ge\sqrt{2\ln 2}$. The tail bound of part~(iii) gives
 $\erf(\sqrt{2\ln 2})>1-\frac{1}{4\sqrt{2\pi\ln 2}}>\frac{22}{25}$, and therefore
 \[
   t\,|c_0-c_1|\ge t\,\Delta_G\Bigl(\frac{1}{2t}\Bigr)>2\,(1-2^{-16})\,\frac{22}{25}>\frac{7}{4}.
 \]
 
 \emph{(v) Conditioning.} Set $\rho=\min(c_0,c_1)/c_{\max}<1$ and let $T$ be the cyclic shift $(TZ)_j=Z_{(j-1)\bmod L}$.
-If $c_0>c_1$, then $BZ=Y$ reads $(I+\rho T)Z=Y/c_0$; if $c_1>c_0$, it reads $(I+\rho T^{-1})Z=T^{-1}Y/c_1$. For
+If $c_0>c_1$, then $BZ=Y$ reads $(I+\rho T)Z=Y/c_0$. If $c_1>c_0$, it reads $(I+\rho T^{-1})Z=T^{-1}Y/c_1$. For
 $S\in\{T,T^{-1}\}$, the Neumann identity gives $(I+\rho S)^{-1}=(1-(-\rho)^L)^{-1}\sum_{i<L}(-\rho S)^i$. Since the $L$
 powers of $S$ occupy distinct columns in each row, every absolute row sum of $(I+\rho S)^{-1}$ equals
 $(1+\rho+\cdots+\rho^{L-1})/|1-(-\rho)^L|$, which is $1/(1-\rho)$ for even $L$ and
 $\frac{1-\rho^L}{1+\rho^L}\cdot\frac{1}{1-\rho}\le\frac{1}{1-\rho}$ for odd $L$. Because $c_{\max}(1-\rho)=|c_0-c_1|$,
-it follows that $\|B^{-1}\|_\infty\le 1/|c_0-c_1|\le 4t/7$ by~(iv). Since $B_a$ is a direct sum of such operators on
-cycles of even length $A_a$, $\|B_a^{-1}\|_\infty\le 4t_a/7\le t_a$.
+part~(iv) gives $\|B^{-1}\|_\infty\le 1/|c_0-c_1|\le 4t/7$. Since $B_a$ is a direct sum of such operators on cycles of
+even length $A_a$, we have $\|B_a^{-1}\|_\infty\le 4t_a/7\le t_a$.
 
-\emph{(vi) Product.} Submultiplicativity of $\|\cdot\|_\infty$ and~(v) give
-$\|(B_2\cdots B_d)^{-1}\|_\infty=\|B_d^{-1}\cdots B_2^{-1}\|_\infty\le\prod_{a=2}^d(4t_a/7)=(4/7)^{d-1}R/t_1\le R/t_1$.
+\emph{(vi) Product.} By submultiplicativity of $\|\cdot\|_\infty$ and part~(v), we obtain
+$\|(B_2\cdots B_d)^{-1}\|_\infty=\allowbreak\|B_d^{-1}\cdots B_2^{-1}\|_\infty\le\allowbreak\prod_{a=2}^d(4t_a/7)=\allowbreak(4/7)^{d-1}R/t_1\le\allowbreak R/t_1$.
 Telescoping
 \[
   \cA_2\cdots\cA_d-B_2\cdots B_d=\sum_{a=2}^d B_2\cdots B_{a-1}(\cA_a-B_a)\cA_{a+1}\cdots\cA_d
 \]
-and applying the product bound, parts~(i)--(ii), $\|F_R x\|_\infty\le\|x\|_\infty$, and Lemma~\ref{lem:bridge-A} yields
-\eqref{eq:lemma-B-total}.
+and applying the product bound together with parts~(i) and~(ii), $\|F_R x\|_\infty\le\|x\|_\infty$, and
+Lemma~\ref{lem:bridge-A} yields~\eqref{eq:lemma-B-total}.
 \end{proof}
 
-Notice that the bridge has unit grid expansion in every dimension. Appendix~\ref{app:deferred} proves two converse
-bounds within this two-alias framework. With the positive carrier $e^{+\pi i s/t_a}g_0(s)$ and retained pair
-$\nu\in\{0,1\}$, the sample $u=0$ lands at $y=-\frac{1}{2t_a}\notin(0,1)$ and loses uniform $O(2^{-\tw})$ alias decay
-(Proposition~\ref{prop:positive-fails}). For any real-valued kernel, $|c_0|=|c_1|$ at the Nyquist sample $\xi=\tfrac12$,
-forcing $\|B^{-1}\|_\infty\ge\Omega(L)$ on cycles of length $L=A_a$ (Proposition~\ref{prop:real-kernel-fails}).
+Notice that the spread array has the same shape $t_1\times\cdots\times t_d$ as the input: the bridge expands no axis.
+Appendix~\ref{app:deferred} proves two converse bounds within this two-alias framework. With the positive carrier $e^{+\pi i s/t_a}g_0(s)$ and retained pair
+$\nu\in\{0,1\}$, the sample $u=0$ lands at $y=-\frac{1}{2t_a}\notin(0,1)$ and loses uniform $O(2^{-\tw})$ alias decay,
+as shown in Proposition~\ref{prop:positive-fails}. Likewise, for any real-valued kernel, $|c_0|=|c_1|$ at the Nyquist
+sample $\xi=\tfrac12$, forcing $\|B^{-1}\|_\infty\ge\Omega(L)$ on cycles of length $L=A_a$ by
+Proposition~\ref{prop:real-kernel-fails}.
 
 \subsection{The fixed-point bridge algorithm and middle-transform contract}\label{sec:bridge-alg}
 
-Throughout the remainder of this section, $R=t_1\cdots t_d=2^k$ has \emph{balanced shape}: $d\ge 2$, $t_d=r=2^\ell$ with
-$\ell\ge 2$, and $t_i\in\{r/2,r\}$ for $1\le i<d$. We write $X=\max(1,\|x\|_\infty)$ for the input $x$, and $v=2^{-q}$
-for the unit of the $q$-grid, where $q=P+2$ is the dyadic grid precision and $P$ is the internal working precision of
-the bridge.
+This subsection specifies the five-step fixed-point bridge algorithm on dyadic grids and states the interface contract
+required of its middle transform.
 
-The bridge interacts with the multidimensional transform at its core solely through the following interface.
+\paragraph{Parameters.}
+Throughout the remainder of this section, $R=t_1\cdots t_d=2^k$ has \emph{balanced shape}: $d\ge 2$, $t_d=r=2^\ell$ with
+$\ell\ge 2$, and $t_i\in\{r/2,r\}$ for $1\le i<d$. For the input $x$, we write $X=\max(1,\|x\|_\infty)$. We denote by
+$P$ the internal working precision of the bridge, by $q=P+2$ its dyadic grid precision, and by $v=2^{-q}$ the unit of
+the $q$-grid $\Cg_q$.
+
+The bridge interacts with the multidimensional transform at its core solely through a black-box accuracy and bit-width
+interface. The next definition states this contract: given a bounded spread tensor on the $q$-grid, the middle transform
+must return an approximation to $F_{\mathbf t}U$ on the $q$-grid within $E_{\rm mid}v$ in natural frequency order.
 
 \begin{definition}[Middle-transform contract]\label{def:middle-contract}
 A \emph{middle transform at precision $q$ with error factor $E_{\rm mid}$ and widening $\delta_{\rm mid}$} is a
@@ -298,43 +340,61 @@ $(u_1,\dots,u_d)$, with component width at most $q+2+\delta_{\rm mid}$ ($0\le\de
 \]
 \end{definition}
 
-In our main algorithm, Corollary~\ref{cor:walsh-middle} (Section~\ref{sec:direct-fft}) supplies a middle transform at
-precision $q$ with $E_{\rm mid}=12\ell$ and $\delta_{\rm mid}=0$ for every parameter tuple $(q,d,r,K)$ satisfying the
-hypotheses of Theorem~\ref{thm:direct-fft} at precision $q$. Lemma~\ref{lem:root-family} verifies those hypotheses along
-the root family of Section~\ref{sec:main}. (The Bluestein middle transform analyzed for comparison in
-Appendix~\ref{app:bluestein}, Lemma~\ref{lem:bridge-E}, likewise satisfies Definition~\ref{def:middle-contract}, with
-$E_{\rm mid}=\sqrt2\,M(3\ell+1)+12d+16$ and $\delta_{\rm mid}=\lg M$, where $M=R/r$.)
+In our main algorithm, the Walsh middle-transform corollary (Corollary~\ref{cor:walsh-middle} in
+Section~\ref{sec:direct-fft}) supplies a middle transform at precision $q$ with $E_{\rm mid}=12\ell$ and
+$\delta_{\rm mid}=0$. It applies to every parameter tuple $(q,d,r,K)$ satisfying the hypotheses of the direct tensor FFT
+theorem (Theorem~\ref{thm:direct-fft}) at precision~$q$. Lemma~\ref{lem:root-family} verifies those hypotheses along
+the root parameter family of Section~\ref{sec:main-alg}, the grid sizes and precisions that the top-level multiplier uses
+as functions of~$n$. For comparison, the Bluestein middle transform analyzed in Lemma~\ref{lem:bridge-E}
+of Appendix~\ref{app:bluestein} also satisfies Definition~\ref{def:middle-contract}, with
+$E_{\rm mid}=\sqrt2\,M(3\ell+1)+12d+16$ and $\delta_{\rm mid}=\lg M$, where $M=R/r$.
 
 Given $x\in\Cg_{p+2}^R$ with $\|x\|_\infty\le 2^p$, the bridge computes $\widehat F_R x$ in five steps:
 \begin{enumerate}[label=(\arabic*),leftmargin=*]
   \item \emph{Pre-scaling.} Scan $x$ once to find an integer $H$ with $X\le 2^H<4X$, set
-    $S=2^{H+\lceil(\lg(R/t_1))/2\rceil+4}$, and form $x'=x/S$ exactly on the $q$-grid.
+    $S=2^{H+\lceil(\lg(R/t_1))/2\rceil+4}$, and form $x'=x/S$ without rounding on the $q$-grid.
+
   \item \emph{Spreading.} Reorder the input digits $(j_d,\dots,j_1)$ into natural tensor order $(j_1,\dots,j_d)$ and
     spread the axes $a=d,d-1,\dots,2$ in descending order via~\eqref{eq:spread-axis}, exposing each axis~$a$ as the
     innermost axis by Lemma~\ref{lem:bridge-D}. Along each exposed line of length $t_a$, spreading is a complex cyclic
     convolution with the reflected filter $e\mapsto H^{(a)}_{\delta_a(\mathbf j)}(-e)$ truncated to unfolded offsets
-    $|s|\le P$, whose taps are generated once per line. We evaluate each line by overlap-add with signed Kronecker
-    packing (cf.~\cite{MS}). First, partition the line into blocks of $W_t=\min(2P+1,t_a)$ entries, and pack each
-    block's signed real and imaginary numerators $(u_j)_{j<W_t}$ (and those of the $W_t$-tap reflected filter) into one
-    signed integer $\sum_{j<W_t}u_j B_0^j$ in base $B_0=2^{4P+16}$ via a one-pass borrow scan across $(4P+16)$-bit
-    slots. Second, compute four exact real integer products per block, and extract the exact convolution coefficients
-    sequentially in the balanced range $[-B_0/2,B_0/2)$ (subtracting each balanced residue modulo $B_0$ and shifting
-    right by $4P+16$ bits). Third, accumulate the overlaps at fractional scale $2q$ (wrapping modulo $t_a$) and round
-    each completed line entry once to $\Cg_q$ by $\Quant_q$.
-  \item \emph{Middle transform.} Apply a middle transform at precision $q$ (Definition~\ref{def:middle-contract}) to the
-    computed spread array $\widehat U$, producing $\widehat Y$.
-  \item \emph{Deconvolution.} Apply two-pass cyclic streaming solvers for $B_2^{-1},B_3^{-1},\dots,B_d^{-1}$ in
-    chronological order on the array in natural one-dimensional frequency order (Lemma~\ref{lem:bridge-C}(iv)--(v) and
-    Section~\ref{sec:bridge-D}).
-  \item \emph{Output.} Multiply the deconvolved array exactly by $S$ and round once to $\Cg_{p+2}$ by $\Quant_{p+2}$.
+    $|s|\le P$, whose taps are generated once per line.
+
+    We evaluate each line by overlap-add with signed Kronecker packing (cf.~\cite{MS}). First, partition the line into
+    blocks of $W_t=\min(2P+1,t_a)$ entries. For each block, pack its signed real and imaginary numerators
+    $(u_j)_{j<W_t}$, and those of the $W_t$-tap reflected filter, each into one signed integer $\sum_{j<W_t}u_j B_0^j$
+    in base $B_0=2^{4P+16}$ via a one-pass borrow scan across $(4P+16)$-bit slots. Second, compute four exact real integer
+    products per block, and extract the exact convolution coefficients sequentially in the balanced range
+    $[-B_0/2,B_0/2)$ by subtracting each balanced residue modulo $B_0$ and shifting right by $4P+16$ bits. Third,
+    accumulate the overlaps at fractional scale $2q$, wrapping positions modulo $t_a$, and round each completed line
+    entry once to $\Cg_q$ by $\Quant_q$.
+
+  \item \emph{Middle transform.} Apply a middle transform at precision $q$ satisfying
+    Definition~\ref{def:middle-contract} to the computed spread array $\widehat U$, producing $\widehat Y$.
+
+  \item \emph{Deconvolution.} Apply two-pass cyclic streaming solvers for $B_2^{-1},B_3^{-1},\dots,B_d^{-1}$ in that
+    order on the array in natural one-dimensional frequency order, as analyzed in parts~(iv) and~(v) of
+    Lemma~\ref{lem:bridge-C} and Section~\ref{sec:bridge-D}.
+
+  \item \emph{Output.} Scale the deconvolved array by the power-of-two factor $S$ without rounding, and round once to
+    $\Cg_{p+2}$ by $\Quant_{p+2}$.
 \end{enumerate}
-All precomputed tables (folded taps, solver parameters, and unit phases) are faithful approximations certified to error
-at most $v$ for real entries and $2v$ for complex taps and unit phases (Lemma~\ref{lem:bridge-C}(iii)).
+
+All precomputed tables of folded taps, solver parameters, and unit phases are faithful approximations in the sense of
+Section~\ref{sec:prelim-model}, certified in part~(iii) of Lemma~\ref{lem:bridge-C}.
 
 \subsection{Component error bounds and the precision contract}\label{sec:bridge-C}\label{sec:bridge-thm}
 
-We first establish the per-stage numerical and bit-complexity bounds of the bridge components, and then combine them
-into the end-to-end precision contract.
+This subsection bounds the numerical error and bit cost of each finite-precision bridge stage and combines them into the
+bridge precision contract (Theorem~\ref{thm:bridge-precision}).
+
+Before assembling the full bridge, we bound each local source of finite-precision error on the $q$-grid ($q=P+2$,
+$v=2^{-q}$) for $P\ge 20$, $8\le\tw\le P$, and rational $\lambda_G\in[1,4]$ in $\alpha^2=4\lambda_G\tw\ln 2/\pi$. The
+next lemma shows that truncating the unfolded filter to $|e|\le P$ leaves an exponentially small spatial tail. With taps
+certified within $2v$, Kronecker-packed spreading of a $q$-grid array of norm at most~$1$ loses at most $4(P+1)v$ per
+axis. Rational series evaluate all kernel and phase tables without a transcendental oracle. Moreover, on even cycles with
+faithfully stored parameters and $v\le 1/(64t_a)$, the two-pass cyclic solver for $B_a^{-1}$ incurs error at most
+$32t_a^2 v\max(1,\|Y\|_\infty)$, independently of the cycle length.
 
 \begin{lemma}[Finite-precision spreading and deconvolution]\label{lem:bridge-C}
 Let $P\ge 20$, $q=P+2$, $v=2^{-q}$, and $8\le\tw\le P$. Let $\alpha^2=4\lambda_G\tw\ln 2/\pi$ with a fixed rational
@@ -371,6 +431,13 @@ $\lambda_G\in[1,4]$ (so $\alpha$ satisfies~\eqref{eq:alpha}), and let $t=t_a$ ($
 \end{enumerate}
 \end{lemma}
 
+\emph{Proof idea.} Part~(i) bounds the filter norms via Parseval's identity and estimates the truncated Gaussian tail by
+an exponential integral. Part~(ii) combines this tail with tap approximation error and checks that the Kronecker base
+$B_0=2^{4P+16}$ prevents carry wrap during signed overlap-add. Parts~(iv) and~(v) analyze the two-pass cyclic recurrence
+for $(I+\hat\rho T)^{-1}$. For even cycle length~$L$, the geometric sum $S_L=\sum_{j<L}\hat\rho^j$ multiplies the
+per-step rounding error in the prefix pass and cancels against the closure denominator $1-\hat\rho^L$, yielding a bound
+independent of~$L$.
+
 \begin{proof}
 \emph{(i) Filter norms and spatial tail.} For $u\in[t]$, unfolding $H^{(a)}_\delta$ and applying~\eqref{eq:poisson}
 gives $\sum_{e\in[t]}H^{(a)}_\delta(e)e^{-2\pi i eu/t}=\sum_{\nu\in\Z}G(\frac{u+1/2}{t}-\nu)e^{2\pi i\delta(u/t-\nu)}$,
@@ -378,44 +445,47 @@ whose modulus is at most $\sum_{\nu\in\Z}G(\frac{u+1/2}{t}-\nu)=1$. Parseval's i
 $\|H^{(a)}_\delta\|_2\le 1$, and Cauchy--Schwarz gives $\|H^{(a)}_\delta\|_1\le\sqrt{t}$. For the spatial tail,
 $|g_a(s)|\le e^{-\pi s^2/\alpha^2}/(\pi|s|)$. Since $\alpha\le 4\sqrt{\tw\ln 2/\pi}$ and $\tw\le P$, we have
 $\alpha\sqrt{P\ln 2/\pi}\le(4\ln 2/\pi)\sqrt{\tw P}<P$. Thus on each side of $[-P,P]$, the first omitted sample
-contributes less than $2^{-P}/(\pi P)$, and the remaining samples contribute at most
-$\int_P^\infty e^{-\pi s^2/\alpha^2}(\pi s)^{-1}\,ds\le 2^{-P}/(2\pi P\ln 2)$ (via $z=\pi s^2/\alpha^2$ and
-$\int_b^\infty e^{-z}z^{-1}\,dz\le e^{-b}/b$ for $b\ge P\ln 2$). Summing both sides gives
+contributes less than $2^{-P}/(\pi P)$. Substituting $z=\pi s^2/\alpha^2$ and using
+$\int_b^\infty e^{-z}z^{-1}\,dz\le e^{-b}/b$ for $b\ge P\ln 2$ bounds the remaining samples by
+$\int_P^\infty e^{-\pi s^2/\alpha^2}(\pi s)^{-1}\,ds\le 2^{-P}/(2\pi P\ln 2)$. Summing both sides gives
 $\sum_{|e|>P}|g_a(e+\delta)|\le(\frac{2}{\pi P}+\frac{1}{\pi P\ln 2})2^{-P}<0.06\cdot 2^{-P}<0.10\cdot 2^{-P}=0.40\,v$
 for $P\ge 20$.
 
-\emph{(ii) Spreading.} Truncating the unfolded kernel to $|s|\le P$ leaves at most $2P+1$ effective taps (folded modulo
-$t$ when $t<2P+1$), each certified to error at most $2v$, while the omitted spatial tail adds at most $0.40\,v$ by~(i).
-Hence the effective filter error has $\ell^1$ norm at most $(4P+2.4)v$; since $\|z\|_\infty\le 1$ and the single final
-rounding $\Quant_q$ adds at most $\frac{\sqrt2}{2}v<v$, each output entry differs from $\mathcal S_a z$ by at most
-$(4P+3.4)v<4(P+1)v$. Because $\|z\|_\infty\le 1$ and every certified tap has modulus below $2$ (since
-$\|H^{(a)}_\delta\|_\infty\le\|H^{(a)}_\delta\|_2\le 1$ by~(i)), each numerator satisfies $|u_j|<2\cdot 2^q<B_0/2$
-($B_0=2^{4P+16}$), so $|\sum_{j<W_t}u_j B_0^j|<B_0^{W_t}/2<2^{W_t(4P+16)}$ has at most $W_t(4P+16)+1$ signed bits and is
-formed by a linear borrow scan in $O(W_t P)$ bit operations. Likewise, every real product coefficient $c_m$ and overlap
-sum at fractional scale $2q$ has magnitude at most $16(2P+1)2^{2q}<2^{4P+15}=B_0/2$, so $c_m\in(-B_0/2,B_0/2)$ is the
-unique balanced residue of $\sum_{k\ge m}c_k B_0^{k-m}$ modulo $B_0$. Reading $(4P+16)$-bit slots from low to high,
-subtracting $c_m$, and shifting right by $4P+16$ bits recovers all $c_m$ and accumulates overlaps at scale $2q$ with no
-wrap or intermediate rounding. Partitioning the line into $\lceil t/W_t\rceil\le 2t/W_t$ blocks gives four exact integer
-products of width at most $W_t(4P+16)+1$ bits per block, plus $O(tP)$ bit operations for packing, extraction, and
-accumulation.
+\emph{(ii) Spreading.} Truncating the unfolded kernel to $|s|\le P$ leaves at most $2P+1$ effective taps, folded modulo
+$t$ when $t<2P+1$. Each tap is certified to error at most $2v$, while the omitted spatial tail adds at most $0.40\,v$
+by part~(i). Hence the effective filter error has $\ell^1$ norm at most $(4P+2.4)v$. Since $\|z\|_\infty\le 1$ and the
+single final rounding $\Quant_q$ adds at most $\frac{\sqrt2}{2}v<v$, each output entry differs from $\mathcal S_a z$ by
+at most $(4P+3.4)v<4(P+1)v$.
+
+For the packing width, $\|z\|_\infty\le 1$, and part~(i) gives $\|H^{(a)}_\delta\|_\infty\le\|H^{(a)}_\delta\|_2\le 1$,
+so every certified tap has modulus below~$2$. At base $B_0=2^{4P+16}$, each numerator satisfies
+$|u_j|<2\cdot 2^q<B_0/2$, so $|\sum_{j<W_t}u_j B_0^j|<B_0^{W_t}/2<2^{W_t(4P+16)}$ fits in at most $W_t(4P+16)+1$ signed
+bits and is formed by a linear borrow scan in $O(W_t P)$ bit operations. Likewise, every real product coefficient $c_m$
+and overlap sum at fractional scale $2q$ has magnitude at most $16(2P+1)2^{2q}<2^{4P+15}=B_0/2$, so
+$c_m\in(-B_0/2,B_0/2)$ is the unique balanced residue of $\sum_{k\ge m}c_k B_0^{k-m}$ modulo $B_0$. Reading
+$(4P+16)$-bit slots from low to high, subtracting $c_m$, and shifting right by $4P+16$ bits recovers all $c_m$ and
+accumulates overlaps at scale $2q$ with no wrap or intermediate rounding. Partitioning the line into
+$\lceil t/W_t\rceil\le 2t/W_t$ blocks gives four exact integer products of width at most $W_t(4P+16)+1$ bits per block,
+plus $O(tP)$ bit operations for packing, extraction, and accumulation.
 
 \emph{(iii) Tables and phases.} This is Lemma~\ref{lem:phase-tables}, proved in Appendix~\ref{app:deferred}.
 
 \emph{(iv) Cyclic solver.} Assume $c_0>c_1$; the opposite case $c_1>c_0$ reduces to the same forward recurrence via the
-reorientation $z_i=Z_{(-i)\bmod L}$ and $y'_i=Y_{(1-i)\bmod L}$, encoding the one-step shift of the proof of
-Lemma~\ref{lem:bridge-B}(v). Let $T$ be the cyclic shift $(TZ)_j=Z_{(j-1)\bmod L}$. Starting from $z=0$, the first pass
-computes $b_j=\Quant_q(\hat\mu Y_j)$ and updates $z\leftarrow b_j+\Quant_q(-\hat\rho z)$ for $j=0,\dots,L-1$; it then
+reorientation $z_i=Z_{(-i)\bmod L}$ and $y'_i=Y_{(1-i)\bmod L}$, encoding the one-step shift from part~(v) of the proof
+of Lemma~\ref{lem:bridge-B}. Let $T$ be the cyclic shift $(TZ)_j=Z_{(j-1)\bmod L}$. Starting from $z=0$, the first pass
+computes $b_j=\Quant_q(\hat\mu Y_j)$ and updates $z\leftarrow b_j+\Quant_q(-\hat\rho z)$ for $j=0,\dots,L-1$. It then
 closes the cycle via $\widehat Z_{L-1}=\Quant_q(\hat\gamma z)$, and a second pass from $z=\widehat Z_{L-1}$ computes
 $\widehat Z_0,\dots,\widehat Z_{L-2}$ by the same recurrence.
 
-By Lemma~\ref{lem:bridge-B}(iii)--(iv) and $v\le 1/(64t)$, we have $\rho\le 1-7/(4t)$, so
-$0\le\hat\rho\le 1-1/(2t)$, $\|(I+\rho T)^{-1}\|_\infty\le t$, and $\|(I+\hat\rho T)^{-1}\|_\infty\le 2t$; moreover
-$c_{\max}^{-1}<2.0000001$, so $|\hat\mu|<2.01$. By the resolvent identity, the exact solution
-$\tilde Z=\hat\mu(I+\hat\rho T)^{-1}Y$ for the stored parameters $(\hat\mu,\hat\rho)$ satisfies
+By parts~(iii) and~(iv) of Lemma~\ref{lem:bridge-B} and $v\le 1/(64t)$, we have $\rho\le 1-7/(4t)$, which implies $0\le\hat\rho\le 1-1/(2t)$,
+$\|(I+\rho T)^{-1}\|_\infty\le t$, and $\|(I+\hat\rho T)^{-1}\|_\infty\le 2t$. Moreover $c_{\max}^{-1}<2.0000001$, so
+$|\hat\mu|<2.01$. By the resolvent identity, the exact solution $\tilde Z=\hat\mu(I+\hat\rho T)^{-1}Y$ for the stored
+parameters $(\hat\mu,\hat\rho)$ satisfies
 $\|\tilde Z-Z\|_\infty\le(2t+2.01\cdot 2t^2)v\|Y\|_\infty\le 6t^2 v\|Y\|_\infty$. Each step of the first pass introduces
-at most two nearest roundings of $\frac{\sqrt2}{2}v$ each (at most $2v$ total), damped by powers of $\hat\rho$, so at the
-end of the pass the accumulated prefix error is at most $2v S_L$ with $S_L=\sum_{j<L}\hat\rho^j$. Because $L$ is even,
-$(I+\hat\rho T)^{-1}$ closes with denominator $1-(-\hat\rho)^L=1-\hat\rho^L$, giving the exact cancellation
+at most two nearest roundings of $\frac{\sqrt2}{2}v$ each, adding at most $2v$ in total. Because earlier steps are
+damped by powers of $\hat\rho$, the accumulated prefix error at the end of the pass is at most $2v S_L$ with
+$S_L=\sum_{j<L}\hat\rho^j$. Since $L$ is even, $(I+\hat\rho T)^{-1}$ closes with denominator
+$1-(-\hat\rho)^L=1-\hat\rho^L$, giving the exact cancellation
 \[
   \frac{S_L}{1-\hat\rho^L}=\frac{1}{1-\hat\rho}\le 2t.
 \]
@@ -437,11 +507,20 @@ error at most $2L\cdot 2^{-Q}$ and never exceeds $\hat\rho^L$. Since $1-\hat\rho
 and truncated denominators are at least $1/(2t)$, where the derivative of $x\mapsto(1-x)^{-1}$ is at most $4t^2$. The
 powering error therefore perturbs $(1-\hat\rho^L)^{-1}$ by at most $4t^2\cdot 2L\cdot 2^{-Q}\le v/2048$, and one guarded
 division followed by nearest rounding to $2^{-q}\Z$ stays within error $v$. Because $\hat\gamma$ is computed from the
-stored dyadic $\hat\rho$ (without any exact power oracle), the cancellation $S_L/(1-\hat\rho^L)=1/(1-\hat\rho)$ in~(iv)
-holds with no condition relating $L$ to $2^P$.
+stored dyadic $\hat\rho$ without any exact power oracle, the cancellation $S_L/(1-\hat\rho^L)=1/(1-\hat\rho)$ in
+part~(iv) holds with no condition relating $L$ to $2^P$.
 
-\emph{(vi) Product norm.} This is Lemma~\ref{lem:bridge-B}(vi).
+\emph{(vi) Product norm.} This is part~(vi) of Lemma~\ref{lem:bridge-B}.
 \end{proof}
+
+We now combine the stage bounds of Lemma~\ref{lem:bridge-C} with the truncation estimate of Lemma~\ref{lem:bridge-B} to
+state the main precision interface of the bridge. For $p\ge\max(8,k)$ and an input $x$ on the $(p+2)$-grid of norm at
+most $2^p$, assume the precision schedule~\eqref{eq:schedule} (which makes $P=O(p+\lg R)$), default~$\alpha$, faithful
+tables, guarded closure parameters, and any middle transform at precision~$q$ satisfying
+Definition~\ref{def:middle-contract}. Then the fixed-point bridge computes $F_R x$ within $\ell^\infty$ error below
+$0.18\cdot 2^{-p}\max(1,\|x\|_\infty)$, with the constant made explicit in~\eqref{eq:bridge-total}. Every stored and
+intermediate number stays within $O(P)$ bits. Later sections invoke the bridge solely through this schedule~$P$, the grid
+precision $q=P+2$, and the component width $w=q+2$.
 
 \begin{theorem}[Bridge precision contract]\label{thm:bridge-precision}
 Let $p\ge\max(8,k)$ and let $x\in\Cg_{p+2}^R$ satisfy $\|x\|_\infty\le 2^p$, with $X=\max(1,\|x\|_\infty)$. Set
@@ -463,6 +542,13 @@ most $2^{-p-23}X$, while the final rounding adds at most $\frac{\sqrt2}{8}\,2^{-
 component has width $O(P)$ bits (Table~\ref{tab:widths}), with $P=O(p+\lg R)$.
 \end{theorem}
 
+\emph{Proof idea.} From the linear precision schedule~\eqref{eq:schedule} we first derive a single master margin
+inequality~\eqref{eq:master-margin}, which simultaneously discharges all smallness hypotheses of Lemma~\ref{lem:bridge-C}.
+Pre-scaling shrinks the input by $\Theta(\sqrt{R/t_1})$ so that every intermediate spread array stays within norm $1/8$,
+meeting the input bound of Definition~\ref{def:middle-contract}. Propagating the spreading, middle-transform, and
+cyclic-solver errors through $B_2^{-1},\dots,B_d^{-1}$ yields bounds that do not depend on the cycle lengths $A_a$, and
+adding the omitted-alias bound and final rounding gives~\eqref{eq:bridge-total}.
+
 \begin{proof}
 Write $U=\mathcal S_2\cdots\mathcal S_d x'$ for the exact spread array of $x'=x/S$ and $\widehat U$ for the computed
 spread array passed to the middle transform.
@@ -483,16 +569,16 @@ $16\sqrt{R/t_1}\,X\le S<128\sqrt{R/t_1}\,X$, whence $\|x'\|_\infty\le 1/(16\sqrt
 $(p+2)+H+\lceil(\lg(R/t_1))/2\rceil+4\le 2p+\lceil(\lg(R/t_1))/2\rceil+7\le q$ fractional bits, so $x'\in\Cg_q^R$ is
 exact.
 
-\emph{Spreading.} By Lemma~\ref{lem:bridge-C}(i), $\|\mathcal S_a\|_\infty\le\sqrt{t_a}$, so every exact partial spread
-has $\ell^\infty$ norm at most $\|x'\|_\infty\prod_{a=2}^d\sqrt{t_a}=\|x'\|_\infty\sqrt{R/t_1}\le 1/16$. By
-Lemma~\ref{lem:bridge-C}(ii) and induction over the $d-1$ stages $a=d,\dots,2$, the spreading error
+\emph{Spreading.} By part~(i) of Lemma~\ref{lem:bridge-C}, $\|\mathcal S_a\|_\infty\le\sqrt{t_a}$, so every exact partial
+spread has $\ell^\infty$ norm at most $\|x'\|_\infty\prod_{a=2}^d\sqrt{t_a}=\|x'\|_\infty\sqrt{R/t_1}\le 1/16$. By
+part~(ii) of Lemma~\ref{lem:bridge-C} and induction over the $d-1$ stages $a=d,\dots,2$, the spreading error
 $E_{\rm spread}=\|\widehat U-U\|_\infty$ satisfies
 \[
   E_{\rm spread}\le 4(P+1)v\sum_{a=2}^d\prod_{j=2}^{a-1}\sqrt{t_j}\le 16d(P+1)\sqrt{R/t_1}\,v<\frac{1}{16}
 \]
 by~\eqref{eq:master-margin}. Every computed partial spread therefore has norm at most $\frac{1}{16}+\frac{1}{16}=\frac18\le 1$,
-maintaining the input bound of Lemma~\ref{lem:bridge-C}(ii) at each stage and ensuring $\|\widehat U\|_\infty\le 1/8$
-for Definition~\ref{def:middle-contract}.
+maintaining the input bound of part~(ii) of Lemma~\ref{lem:bridge-C} at each stage and ensuring
+$\|\widehat U\|_\infty\le 1/8$ for Definition~\ref{def:middle-contract}.
 
 \emph{Middle transform.} Applying Definition~\ref{def:middle-contract} to $\widehat U$ and using
 $\|F_{\mathbf t}\|_\infty\le 1$, $E_{\rm mid}\le 16R(k+1)$, and $k+1\le P+1$, the middle-transform output $\widehat Y$
@@ -500,16 +586,17 @@ satisfies $\|\widehat Y-F_{\mathbf t}U\|_\infty\le E_Y:=E_{\rm spread}+E_{\rm mi
 $\|\widehat Y\|_\infty<\frac18+\frac{1}{100}<1$.
 
 \emph{Deconvolution.} Put $R_a=\prod_{j=2}^a t_j$ for $2\le a\le d$ and $R_1=1$, so $R_d=R/t_1$. Because
-$32v\sum_{a=2}^d t_a<\ln 2$, induction with Lemma~\ref{lem:bridge-C}(iv) and $\|B_a^{-1}\|_\infty\le t_a$ shows that the
-input to solver stage~$a$ has norm at most $2R_{a-1}$. Stage~$a$ therefore introduces local error at most
+$32v\sum_{a=2}^d t_a<\ln 2$, induction with part~(iv) of Lemma~\ref{lem:bridge-C} and $\|B_a^{-1}\|_\infty\le t_a$ shows
+that the input to solver stage~$a$ has norm at most $2R_{a-1}$. Stage~$a$ therefore introduces local error at most
 $32t_a^2 v\cdot 2R_{a-1}$, which the subsequent exact inverses $B_d^{-1}\cdots B_{a+1}^{-1}$ amplify by at most
 $R_d/R_a$. Since $t_a^2 R_{a-1}(R_d/R_a)=t_a(R/t_1)$, which does not depend on the cycle lengths $A_a$, the total solver
 error satisfies
 \[
   E_{\rm solver}\le 64\,\frac{R}{t_1}\,v\sum_{a=2}^d t_a\le 64dR^2 v.
 \]
-Meanwhile $E_Y$ is amplified by $\|(B_2\cdots B_d)^{-1}\|_\infty\le R/t_1\le R$ (Lemma~\ref{lem:bridge-C}(vi)). The
-normalized arithmetic error is thus at most $(R/t_1)E_Y+E_{\rm solver}\le 96d(P+1)R^2 v$, and after exact scaling by
+Meanwhile, part~(vi) of Lemma~\ref{lem:bridge-C} bounds the amplification of $E_Y$ by
+$\|(B_2\cdots B_d)^{-1}\|_\infty\le R/t_1\le R$.
+The normalized arithmetic error is thus at most $(R/t_1)E_Y+E_{\rm solver}\le 96d(P+1)R^2 v$, and after exact scaling by
 $S<128\sqrt{R/t_1}\,X\le 128RX$,
 \[
   E_{\rm arith}\le 2^{14}d(P+1)R^3 v X\le 2^{-p-12}X
@@ -518,18 +605,19 @@ by~\eqref{eq:master-margin}.
 
 \emph{Aliases and output.} Applying~\eqref{eq:lemma-B-total} to $x'$ and rescaling by $S$ bounds the omitted-alias error
 by $0.120(d-1)(R/t_1)2^{-\tw}X<0.120\cdot 2^{-p-20}X<2^{-p-23}X$, since $(d-1)2^{-\lceil\lg d\rceil}<1$ and $R/t_1<2^k$.
-Finally, nearest rounding $\Quant_{p+2}$ adds at most $\frac{\sqrt2}{2}2^{-p-2}=\frac{\sqrt2}{8}2^{-p}\le\frac{\sqrt2}{8}2^{-p}X$
-(as $X\ge 1$). Using $\sqrt2<1.4142136$ (since $1.4142136^2>2$), rational arithmetic gives
-$\frac{\sqrt2}{8}+2^{-12}+2^{-23}<0.17702096<0.177021$, proving~\eqref{eq:bridge-total}. All component widths match
-Table~\ref{tab:widths}; any middle-transform widening $\delta_{\rm mid}$ is stripped only after verifying
-$\|\widehat Y\|_\infty<1$, which alters no value.
+Because $X\ge 1$, nearest rounding $\Quant_{p+2}$ adds at most
+$\frac{\sqrt2}{2}2^{-p-2}=\frac{\sqrt2}{8}2^{-p}\le\frac{\sqrt2}{8}2^{-p}X$. Since $1.4142136^2>2$ gives
+$\sqrt2<1.4142136$, rational arithmetic yields $\frac{\sqrt2}{8}+2^{-12}+2^{-23}<0.17702096<0.177021$,
+proving~\eqref{eq:bridge-total}. All component widths match Table~\ref{tab:widths}; any middle-transform widening
+$\delta_{\rm mid}$ is stripped only after verifying $\|\widehat Y\|_\infty<1$, which alters no value.
 \end{proof}
 
 \begin{table}[ht]
 \centering
 \small
-\caption{Component bit widths in the bridge precision contract (Theorem~\ref{thm:bridge-precision}, $q=P+2$). On the
-direct tensor FFT route of Section~\ref{sec:direct-fft}, $\delta_{\rm mid}=0$.}\label{tab:widths}
+\caption{Bit widths of all stored and intermediate quantities inside the fixed-point bridge. Widths follow the precision
+schedule of Theorem~\ref{thm:bridge-precision} at grid precision $q=P+2$; on the direct tensor FFT route of
+Section~\ref{sec:direct-fft}, the middle-transform widening is $\delta_{\rm mid}=0$.}\label{tab:widths}
 \begin{tabular}{@{}>{\raggedright}p{0.38\textwidth}>{\raggedright\arraybackslash}p{0.58\textwidth}@{}}
 \toprule
 Object & Width or scale\\
@@ -548,12 +636,21 @@ final exact scaling by $S$ and output & add $\log_2 S$ to exponent; one rounding
 
 \subsection{Axis exposures and streaming layout}\label{sec:bridge-D}
 
-Spreading operates on the lines of one axis $a$ at a time, which are contiguous on the tape only when that axis is
-innermost. Bubbling axis~$a$ inward through $O(d)$ adjacent swaps would incur cost $O(Vd^2\ell^\tau)$ and exceed
-linear-logarithmic time at our dimension exponents $\eps$. Lemma~\ref{lem:bridge-D} instead exchanges axis~$a$ directly
-with the innermost axis in a single call to the arbitrary-width interchange of Lemma~\ref{lem:transfer12}.
-(Note that the Walsh positional permutations of Section~\ref{sec:walsh} are not used here, because bridge line
-operations carry $O(P)$-bit scalar entries rather than length-$r$ polynomial payloads.)
+This subsection shows how to expose each spread axis on a multitape Turing machine and stream the cyclic deconvolutions
+without full array transpositions.
+
+Spreading operates on the lines of one axis~$a$ at a time, which lie contiguously on the tape only when that axis is
+innermost. Bubbling each axis inward through $O(d)$ adjacent swaps would cost $O(Vd^2\ell^\tau)$ steps per sweep over
+the $d$ axes, more than the cost analysis of Section~\ref{sec:main} can absorb at our dimension exponent~$\eps$.
+Instead, we exchange axis~$a$ directly with the innermost axis in a single call to the arbitrary-width interchange
+(Lemma~\ref{lem:transfer12}). The Walsh positional
+permutations of Section~\ref{sec:walsh} do not apply here because bridge line operations carry $O(P)$-bit scalar entries
+rather than length-$r$ polynomial payloads.
+
+To run a line operation along axis~$a$, we swap axis~$a$ directly with axis~$d$ and swap it back afterwards. The next
+lemma bounds the tape cost of each exposure and restoration by $O(V(1+\ell^\tau))$ steps even when the two axis
+bit-widths differ by one bit, so sweeping across all $d$ axes costs $O(Vd(1+\ell^\tau))$ steps rather than
+$O(Vd^2\ell^\tau)$.
 
 \begin{lemma}[Axis exposures via chunk interchanges]\label{lem:bridge-D}
 Let $\tau\in(0,1)$ be any rational interchange exponent satisfying $s_b/W_b<m^\tau$ in Lemma~\ref{lem:transfer12} (for
@@ -566,37 +663,46 @@ operations over all axes uses at most $2(d-1)$ such exchanges, and reversing the
 $\lfloor d/2\rfloor$ more, so a constant number of sweeps costs $O(Vd(1+\ell^\tau))$ steps.
 \end{lemma}
 
+\emph{Proof idea.} We collapse the axes before the chosen axis~$a$ into a prefix field, the axes strictly between~$a$ and
+the innermost axis~$d$ into a gap field, and the record payload into a suffix field, as Lemma~\ref{lem:transfer12}
+requires. When the two axes have equal bit-width, one interchange suffices; when their widths differ by one bit, we split
+off the extra bit and combine one equal-width interchange with one linear-time single-bit move.
+
 \begin{proof}
 Collapse all axes preceding the chosen axis~$a$ into the prefix field $A$, all axes strictly between~$a$ and the
 innermost axis~$d$ into the gap field $G$, and the scalar payload into the suffix $B$ of Lemma~\ref{lem:transfer12}. If
-axes $a$ and $d$ have equal bit-width ($\ell$ or $\ell-1$), one call to Lemma~\ref{lem:transfer12} exchanges them in
-$O(V\ell^\tau)$ steps, independently of the size of $G$. If their widths differ by one bit and the earlier field is
-longer, write it as $(x_0,X)$ with $|X|=|Y|$ ($Y$ the later field) and execute
-$(x_0,X,G,Y)\mapsto(x_0,Y,G,X)\mapsto(Y,G,x_0,X)$: one equal-width interchange of cost $O(V\ell^\tau)$ followed by one
-single-bit move (Fact~\ref{fact:oai-streams}(1) / Lemma~\ref{lem:transfer-streams}(2)) of cost $O(V)$, totaling
-$O(V(1+\ell^\tau))$. If the later field is longer, execute $(X,G,y_0,Y)\mapsto(y_0,X,G,Y)\mapsto(y_0,Y,G,X)$. Running
-the inverse sequence after the line operation restores the layout. Axis~$d$ requires no exchange, so a full sweep uses
-at most $2(d-1)$ exchanges, and reversing the $d$ axes factors into $\lfloor d/2\rfloor$ disjoint exchanges of the same
-form.
+axes $a$ and $d$ have equal bit-width $\ell$ or $\ell-1$, one call to Lemma~\ref{lem:transfer12} exchanges them in
+$O(V\ell^\tau)$ steps, independently of the size of $G$.
+
+Now suppose their widths differ by one bit. If the earlier field is longer, write it as $(x_0,X)$ with $|X|=|Y|$, where
+$Y$ is the later field, and execute $(x_0,X,G,Y)\mapsto(x_0,Y,G,X)\mapsto(Y,G,x_0,X)$. This uses one equal-width
+interchange of cost $O(V\ell^\tau)$ followed by one single-bit move of cost $O(V)$ from item~(1) of
+Fact~\ref{fact:oai-streams} and item~(2) of Lemma~\ref{lem:transfer-streams}, totaling $O(V(1+\ell^\tau))$. If the later
+field is longer, execute $(X,G,y_0,Y)\mapsto(y_0,X,G,Y)\mapsto(y_0,Y,G,X)$. Running the inverse sequence after the line
+operation restores the layout. Axis~$d$ requires no exchange, so a full sweep uses at most $2(d-1)$ exchanges, and
+reversing the $d$ axes factors into $\lfloor d/2\rfloor$ disjoint exchanges of the same form.
 \end{proof}
 
 Two streaming observations complete the tape implementation of Section~\ref{sec:bridge-alg}:
 \begin{itemize}[leftmargin=*]
   \item \emph{Deconvolution without transposition.} In natural one-dimensional frequency order, write any frequency
     $f\in[R]$ as $f=j\,(R/A_a)+s$ with $0\le j<A_a$ and $0\le s<R/A_a$. For each fixed $s$, the entries
-    $j=0,1,\dots,A_a-1$ form a single cycle of $B_a$ (along which $u_a(f)$ is constant), while the tape stores, for
-    $j=0,1,\dots,A_a-1$ in order, the contiguous row of all $s\in[R/A_a]$. On a sequential state tape, we maintain one
-    $O(P)$-bit solver state record for each $s\in[R/A_a]$, holding the current state $z$ and the column parameters
-    $(\hat\mu,\hat\rho,\hat\gamma)$ (which depend only on $(a,u_a)$ and are replayed rather than recomputed). We then
-    scan each data row $j$ in lockstep with the state tape and rewind only the state tape after each row. This costs $O(V)$ tape
-    movement per pass and per axis~$a$, independently of $A_a$ (with the $O(1)$ multiplications per entry charged in
-    Section~\ref{sec:main-tables}). Columns with $c_0>c_1$ and $c_1>c_0$ are processed in two masked passes; for
-    $c_1>c_0$, linear-time row-block reversals implement the index reflections $j\mapsto(-j)\bmod A_a$ and
-    $j\mapsto(1-j)\bmod A_a$ of the proof of Lemma~\ref{lem:bridge-C}(iv) and undo them afterwards. This lockstep scan
-    relies on Definition~\ref{def:middle-contract} returning $\widehat Y$ in natural frequency order.
+    $j=0,1,\dots,A_a-1$ form a single cycle of $B_a$ along which $u_a(f)$ is constant, while the tape stores, for
+    $j=0,1,\dots,A_a-1$ in order, the contiguous row of all $s\in[R/A_a]$.
+
+    On a sequential state tape, we maintain one $O(P)$-bit solver state record for each $s\in[R/A_a]$, holding the
+    current state $z$ and the column parameters $\hat\mu,\hat\rho,\hat\gamma$. Because these parameters depend only on
+    $a$ and $u_a$, they are replayed rather than recomputed. We scan each data row $j$ in lockstep with the state tape
+    and rewind only the state tape after each row. This costs $O(V)$ tape movement per pass and per axis~$a$,
+    independently of $A_a$, while the $O(1)$ multiplications per entry are charged in Section~\ref{sec:main-tables}.
+    Columns with $c_0>c_1$ and $c_1>c_0$ are processed in two masked passes. For $c_1>c_0$, linear-time row-block
+    reversals implement the index reflections $j\mapsto(-j)\bmod A_a$ and $j\mapsto(1-j)\bmod A_a$ from the proof of
+    part~(iv) of Lemma~\ref{lem:bridge-C} and undo them afterwards. This lockstep scan relies on
+    Definition~\ref{def:middle-contract} returning $\widehat Y$ in natural frequency order.
+
   \item \emph{Amortized tap and table generation.} Each exposed axis~$a$ has $R/t_a\le 2R/r$ lines, and generating the
-    $O(P)$ folded taps of a line takes $\mathrm{poly}(P,k)$ bit operations by Lemma~\ref{lem:bridge-C}(iii). Even
-    regenerating taps for every line therefore costs $O(dR(P+k)^{O(1)}/r)$ steps, which is $o(RP)$ whenever $r$ grows
-    faster than every fixed polynomial in $P$ (as holds along the root family of Lemma~\ref{lem:root-family}); the same
-    applies to the solver and phase tables.
+    $O(P)$ folded taps of a line takes $\mathrm{poly}(P,k)$ bit operations by part~(iii) of Lemma~\ref{lem:bridge-C}. Even
+    regenerating taps for every line therefore costs $O(dR(P+k)^{O(1)}/r)$ steps, which is $o(RP)$ whenever $r$
+    exceeds every fixed polynomial in~$P$ for large~$P$, as holds along the root family of Lemma~\ref{lem:root-family}.
+    The same bound applies to the solver and phase tables.
 \end{itemize}

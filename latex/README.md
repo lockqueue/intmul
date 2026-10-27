@@ -2,7 +2,7 @@
 
 This directory contains the LaTeX sources and parameter-verification script for the paper
 
-> **A simpler algorithm for integer multiplication below $n\log n$, with a machine-checked proof**
+> **A simpler algorithm for integer multiplication below $n\log n$, with a formally verified proof**
 > (Piaoyang Cui, Yiming Liu, and David P. Woodruff)
 
 In addition to the written proofs in this paper, a separate Lean 4 formalization in Mathlib's
@@ -16,8 +16,8 @@ any result of [OAI26].
 |---|---|
 | `main.tex` | Master LaTeX file (unnumbered title/abstract page, Sections 1--9, Appendices A--E) |
 | `sections/abstract.tex` | Abstract |
-| `sections/intro.tex` | Section 1: Introduction, Algorithm 1 and main theorems, component and exponent comparisons, formal verification, executability, and AI-tool disclosure |
-| `sections/overview.tex` | Section 2: Technical overview (five-step algorithm, pipeline, half-bin kernel, and selective-Walsh figures) |
+| `sections/intro.tex` | Section 1: Introduction, main theorems and remarks (dependencies, executability, formal verification, and exponent), AI-tool disclosure, and reader's guide |
+| `sections/overview.tex` | Section 2: Technical overview (Algorithm 1, two-axis showcase, component and exponent comparisons in Tables 1--2, cost balance, and overview figures) |
 | `sections/prelim.tex` | Section 3: Preliminaries, notation, fixed-point model, DFTs, and black-box ingredients from [OAI26] |
 | `sections/bridge.tex` | Section 4: The fractional-shift bridge and finite-precision contract |
 | `sections/walsh.tex` | Section 5: Walsh-layer positional permutations |
@@ -39,6 +39,7 @@ any result of [OAI26].
 ## Building the paper
 
 Requirements: `pdflatex` (with standard LaTeX packages including `tikz`), `bibtex`, and `python3`.
+Building the PDF requires the LaTeX packages `algorithms` and `algorithmicx` (included in every full TeX Live; `texlive-science` on Debian/Ubuntu).
 Run:
 
     make clean && make
@@ -60,25 +61,20 @@ and the comparison rows of Appendix C. Every check prints `OK` or `FAIL`, ending
 ## Availability of software artifacts
 
 The exact rational parameter-verification script `tools/h5_rows_check.py` is included in this source
-directory (`latex/` in the repository). All three software artifacts cited in the paper are available
+directory (`latex/` in the repository). Both software artifacts cited in the paper are available
 at <https://github.com/lockqueue/intmul> and are included directly in the consolidated release
 archive:
 
 - `[Lean26]` (`../lean/` in the repository): the Lean 4 formalization accompanying
   this paper (`SubNLogN/Challenge.lean`, Section 8; Lean 4.33.1, Mathlib `0df444a3`), with
   comment-stripped `.lean` sources byte-identical to commit `3480d37` and source snapshot
-  `00b8a4d2b263` (first 12 hex digits of the SHA-256 of `MANIFEST.sha256`). In addition to the
+  `b706618497aa` (first 12 hex digits of the SHA-256 of `MANIFEST.sha256`). In addition to the
   1,062-file sub-$n\log n$ development (`SubNLogN`), it includes an independent Lean 4 formalization
   of the two-dimensional multiplier of `[MS]` (949 files, about 185,000 lines; headline
   `IntMulTM.intMul_TM2_nlogn`), developed for this paper and kernel-checked as part of it; `[MS]`
-  (*Integer multiplication in $O(n\log n)$ time on a single two-dimensional grid, with a machine-checked
+  (*Integer multiplication in $O(n\log n)$ time on a single two-dimensional grid, with a formally verified
   proof*, `../companion/`) distributes its own, separate Lean development (`../companion/lean/`,
   headline `IntMul.tmIntMul_evalsToInTime_n_log_n`).
-- `[Code26]` (`../python/` in the repository, content snapshot `1348960a99cd`, first 12 hex digits of
+- `[Code26]` (`../python/` in the repository, content snapshot `a4d39ed31d0e`, first 12 hex digits of
   the SHA-256 of `python/MANIFEST.sha256`):
   the Python 3.13 exact-arithmetic reference implementation of Algorithm 1 (Appendix E).
-- `[CGMP26]` (`../companion/impl/` in the repository, content snapshot `51ce9e412e5e`, first 12 hex
-  digits of the SHA-256 of `companion/impl/MANIFEST.sha256`):
-  the C/GMP/MPFR implementation (`intmul_fastdft.c`), benchmark runner, and raw logs
-  (`bench/BENCHMARK.md`, `bench/logs/`) of the two-dimensional $O(n\log n)$ multiplier of `[MS]`
-  (Sections 1.4 and 9.2).

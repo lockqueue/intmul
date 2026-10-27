@@ -20,7 +20,7 @@ is far beyond the 900 s build cap in the Lean interpreter.
 The run below therefore uses a small POST header, `(p, pSub, t1, r, pChild) = (3, 2, 2, 2, 4)`
 (`H = 8`), with the column tables of the `W9_columns` node test: column `u2 = 0` is forward
 and `u2 = 1` is Nyquist. `pureS` checks that the Barrett columns equal the exact columns on this
-input. `ColumnOK` itself is not machine-checked here.
+input. `ColumnOK` itself is not formally verified here.
 -/
 
 namespace WP.F9.PostLevelRunC

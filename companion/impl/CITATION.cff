@@ -19,7 +19,7 @@ keywords:
   - MPFR
 preferred-citation:
   type: unpublished
-  title: "Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof"
+  title: "Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof"
   authors:
     - family-names: Cui
       given-names: Piaoyang
@@ -31,7 +31,7 @@ preferred-citation:
   notes: "companion manuscript ([MS]), whose algorithm this software implements"
 references:
   - type: unpublished
-    title: "A simpler algorithm for integer multiplication below n log n, with a machine-checked proof"
+    title: "A simpler algorithm for integer multiplication below n log n, with a formally verified proof"
     authors:
       - family-names: Cui
         given-names: Piaoyang

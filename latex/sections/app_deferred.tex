@@ -1,25 +1,14 @@
 \section{Deferred proofs for the fractional-shift bridge}\label{app:deferred}
 
-This appendix supplies two deferred parts of Section~\ref{sec:bridge}. Section~\ref{sec:bridge-negative} proves the two
-negative results justifying the negative half-bin complex carrier within our two-alias deconvolution framework, and
-Section~\ref{sec:deferred-tables} gives the certified rational-series evaluation of the bridge's filter, solver, and
-phase tables (proving Lemma~\ref{lem:bridge-C}(iii)). Throughout we follow the notation of
-Sections~\ref{sec:prelim} and~\ref{sec:bridge}: $a\in\{2,\dots,d\}$ indexes the spread axes, $\nu\in\Z$ indexes the
-frequency aliases, and $\alpha_\pi=\sqrt\pi\,\alpha$.
+This appendix supplies two deferred pieces from the fractional-shift bridge of Section~\ref{sec:bridge}. First, Section~\ref{sec:bridge-negative} explains why our smoothing kernel uses a negative half-bin complex phase rather than a positive phase or a purely real window. Second, Section~\ref{sec:deferred-tables} proves Lemma~\ref{lem:bridge-C}(iii) by showing how a multitape Turing machine computes every spreading tap, solver ratio, and unit root of unity from truncated rational power series with certified rounding bounds. Section~\ref{sec:bridge-negative} provides design motivation and is not needed for Theorem~\ref{thm:main}, whereas Section~\ref{sec:deferred-tables} closes the table-generation step of the main proof. Throughout we follow the notation of Sections~\ref{sec:prelim} and~\ref{sec:bridge}: $a\in\{2,\dots,d\}$ indexes the spread axes, $\nu\in\Z$ indexes the frequency aliases, and $\alpha_\pi=\sqrt\pi\,\alpha$.
 
 \subsection{Limits of positive-carrier and real-kernel designs}\label{sec:bridge-negative}
 
-On spread axis~$a$ of even power-of-two length $t=t_a\ge 2$, Lemma~\ref{lem:bridge-B} retains the two aliases
-$\nu\in\{0,1\}$ of~\eqref{eq:alias-op}, obtaining both an omitted-alias bound $<0.120\cdot 2^{-\tw}$ uniform over all
-$t\ge 2$ and an inverse norm $\|B_a^{-1}\|_\infty\le 4t_a/7$ independent of the cycle length $L=A_a$. The two
-propositions below show why both the sign of the half-bin modulation and the complex nature of the kernel are needed
-within this fixed two-alias design.
+This subsection explains two design choices of our carrier. With the default Gaussian width $\alpha=2\sqrt{\tw\ln 2/\pi}$ and retained alias pair $\{0,1\}$ of Lemma~\ref{lem:bridge-B}, a positive half-bin phase loses the uniform alias bound (Proposition~\ref{prop:positive-fails}). Likewise, at the Nyquist sample $\xi=\tfrac12$, no real-valued Schwartz kernel gives a uniformly conditioned two-alias cyclic solver (Proposition~\ref{prop:real-kernel-fails}). On any spread axis~$a$ of power-of-two length $t=t_a\ge 2$ (so $t$ is even), Lemma~\ref{lem:bridge-B} keeps the two aliases $\nu\in\{0,1\}$ in~\eqref{eq:alias-op}. That choice achieves an omitted-alias bound below $0.120\cdot 2^{-\tw}$ uniformly over all $t\ge 2$, together with an inverse norm $\|B_a^{-1}\|_\infty\le 4t_a/7$ independent of the cycle length $L=A_a$.
 
-First consider the \emph{positive} half-bin carrier
-$g_a^+(s)=e^{+\pi i s/t_a}\sinc(s)\,e^{-\pi s^2/\alpha^2}$, whose Fourier transform is
-$\hat g_a^+(\xi)=G(\xi-\frac{1}{2t_a})$. For $u\in[t]$, its frequency samples lie at $y=(u-\tfrac12)/t$; in particular,
-the $u=0$ sample lands at $y=-\frac{1}{2t}\notin(0,1)$, within distance $\tfrac12-\frac{1}{2t}$ of the passband of the
-omitted alias $\nu=-1$.
+To see why the carrier sign matters, consider instead the \emph{positive} half-bin carrier $g_a^+(s)=e^{+\pi i s/t_a}\sinc(s)\,e^{-\pi s^2/\alpha^2}$. Its Fourier transform is $\hat g_a^+(\xi)=G(\xi-\frac{1}{2t_a})$. For $u\in[t]$, the frequency samples sit at $y=(u-\tfrac12)/t$. In particular, the $u=0$ sample lands at $y=-\frac{1}{2t}\notin(0,1)$, within distance $\tfrac12-\frac{1}{2t}$ of the passband of the omitted alias $\nu=-1$.
+
+Proposition~\ref{prop:positive-fails} shows that when $\nu\in\{0,1\}$ is retained, this positive-carrier shift loses three quarters of the target decay exponent at $t=2$, leaving error $\Theta(\tw^{-1/2}2^{-\tw/4})$ instead of $O(2^{-\tw})$. That failure explains why Definition~\ref{def:carrier} modulates by $e^{-\pi i s/t_a}$, which shifts all samples into $(0,1)$ away from every omitted alias.
 
 \begin{proposition}[No uniform alias bound for the positive carrier with retained pair $\{0,1\}$]\label{prop:positive-fails}
 With the positive carrier $g_a^+$, Gaussian width $\alpha=2\sqrt{\tw\ln 2/\pi}$ ($\tw\ge 8$), and retained alias pair
@@ -53,18 +42,11 @@ weight at $u=0$ is $\Theta(\tw^{-1/2}2^{-\tw(1-1/t)^2})$, which exceeds $C\cdot 
 to $t$.
 \end{proof}
 
-Three modifications restore uniform $O(2^{-\tw})$ decay: reversing the sign of the carrier (our choice in
-Definition~\ref{def:carrier}), switching the retained pair at $u=0$ to $\nu\in\{-1,0\}$, or widening $\alpha$ by a
-factor $t/(t-1)$. Numerically, at $\tw=64$ the worst-column omitted weight drops from $1.5\times 10^7\cdot 2^{-64}$
-(positive carrier) to $5\times 10^{-13}\cdot 2^{-64}$ (negative carrier) at $t=4$, from $1564\cdot 2^{-64}$ to
-$3\times 10^{-7}\cdot 2^{-64}$ at $t=8$, and from $0.17\cdot 2^{-64}$ to $0.01\cdot 2^{-64}$ at $t=64$. (Note that
-Proposition~\ref{prop:positive-fails} concerns uniformity over all pairs $(\tw,t)$. When $t\ge\tw$, as along the root
-family of Lemma~\ref{lem:root-family} where $t_a\ge r/2\gg\tw$, the inequality $(1-1/t)^2\ge 1-2/t$ still bounds the
-positive carrier's omitted weight by $O(2^{-\tw})$, whereas the negative carrier holds uniformly for every $t\ge 2$ with
-no coupling between $t$ and $\tw$.)
+Three modifications restore uniform $O(2^{-\tw})$ decay. One can reverse the sign of the carrier as in Definition~\ref{def:carrier}, switch the retained pair at $u=0$ to $\nu\in\{-1,0\}$, or widen $\alpha$ by a factor $t/(t-1)$. Numerically, at $\tw=64$ the largest omitted weight over all frequency digits~$u$ drops from $1.5\times 10^7\cdot 2^{-64}$ under the positive carrier to $5\times 10^{-13}\cdot 2^{-64}$ under the negative carrier at $t=4$. At $t=8$ it drops from $1564\cdot 2^{-64}$ to $3\times 10^{-7}\cdot 2^{-64}$, and at $t=64$ from $0.17\cdot 2^{-64}$ to $0.01\cdot 2^{-64}$.
 
-The second result shows why no real-valued kernel can give a two-alias cyclic operator whose inverse is bounded
-independently of the cycle length $L$.
+Notice that Proposition~\ref{prop:positive-fails} concerns uniformity over all pairs $(\tw,t)$. When $t\ge\tw$, as along the root family of Lemma~\ref{lem:root-family} where $t_a\ge r/2\gg\tw$, the bound $(1-1/t)^2\ge 1-2/t$ still keeps the positive carrier's omitted weight within $O(2^{-\tw})$. By contrast, the negative carrier holds uniformly for every $t\ge 2$ without coupling $t$ to $\tw$.
+
+Proposition~\ref{prop:real-kernel-fails} explains why a purely real smoothing kernel cannot replace complex modulation in dimension three and higher. Because the Fourier transform of any real kernel is conjugate-symmetric, its two retained aliases at the Nyquist frequency $\xi=\tfrac12$ always have equal magnitude $|c_0|=|c_1|$. Consequently, the two-term cyclic operator is either singular or amplifies rounding errors by at least $\Omega(L)$, which grows as $A_a=\prod_{i<a}t_i$ across spread axes instead of staying bounded by $O(t_a)$.
 
 \begin{proposition}[No real kernel gives a uniformly conditioned two-alias inverse]\label{prop:real-kernel-fails}
 Let $g$ be any real-valued Schwartz kernel and retain the two aliases $\nu\in\{0,1\}$ at the Nyquist sample
@@ -90,14 +72,13 @@ $\bigl(c\,|1-(-\zeta)^L|\bigr)^{-1}\ge(2c)^{-1}$. When $g$ is even, $\hat g$ is 
 for every even $L$.
 \end{proof}
 
-On the bridge's deconvolution cycles of even length $L=A_a=\prod_{i<a}t_i$, any real kernel therefore either fails to
-be invertible or amplifies errors by at least $A_a/(2c)$ rather than $O(t_a)$.
+On the bridge's deconvolution cycles of even length $L=A_a=\prod_{i<a}t_i$, any real kernel therefore either fails to be invertible or amplifies errors by at least $A_a/(2c)$ rather than $O(t_a)$.
 
 \subsection{Certified evaluation of filter, solver, and phase tables}\label{sec:deferred-tables}
 
-We now prove Lemma~\ref{lem:bridge-C}(iii) in full detail, showing that every transcendental constant used by the bridge
-can be generated deterministically on a multitape Turing machine in polynomial bit complexity from truncated rational
-power series, with certified error bounds and no exact-rounding oracle.
+This subsection proves Lemma~\ref{lem:bridge-C}(iii) by constructing every transcendental table entry of the bridge on a deterministic multitape Turing machine. No exact-rounding or real-arithmetic oracle is assumed anywhere.
+
+Lemma~\ref{lem:phase-tables} states that all unfolded kernel samples, folded spreading taps, cyclic deconvolution ratios, and unit roots of unity can be evaluated to certified precision $2^{-b}$ or $2^{-q}$ in polynomial bit time. We need this result in Section~\ref{sec:main-tables} so that precomputing all bridge and FFT lookup tables takes negligible time compared with the main transform. In particular, folded taps land in $\Cg_q$ within $0.95\cdot 2^{-q}$ of the infinite folded sum, while unit phases land inside the closed discrete unit disk $\mathbb{D}_q$ within $2\cdot 2^{-q}$.
 
 \begin{lemma}[Certified evaluation of bridge and phase tables]\label{lem:phase-tables}
 Let $P\ge 20$, $q=P+2$, $v=2^{-q}$, and $8\le\tw\le P$. Let $\alpha^2=4\lambda_G\tw\ln 2/\pi$ with a fixed rational
@@ -124,105 +105,53 @@ $\lambda_G\in[1,4]$, and let $R=t_1\cdots t_d=2^k$ with each $t_i\ge 2$ a power 
 \end{enumerate}
 \end{lemma}
 
+\emph{Proof idea.}
+We assemble every filter tap, alias weight, and phase factor from the constants $\pi$ and $\ln 2$ together with four elementary functions at exact rational arguments: trigonometric functions, $\sinc$, $e^{-x}$, and $\erf$. We work on a fine dyadic grid $2^{-S}\Z$ with $S\approx 2b+64$ fractional bits, giving roughly $b+64$ guard bits beyond the target precision~$b$. Range reduction places every power-series argument inside a small interval where term-recurrence rounding errors either contract geometrically or stay bounded by $e^{w_z}<2^{b+7}$. One final guarded rounding from $2^{-S}\Z$ onto the $q$-grid then certifies every entry within its stated error budget in $O((b+k)^3)$ bit operations per sample.
+
 \begin{proof}
 \emph{1. Primitives and exact rational reductions.}
-With $\alpha^2=4\lambda_G\tw\ln 2/\pi$ ($\lambda_G\in[1,4]$; Theorem~\ref{thm:bridge-precision} takes $\lambda_G=1$), we
-have $\alpha_\pi^2=\pi\alpha^2=4\lambda_G\tw\ln 2$, and the Gaussian spatial exponent is
-$x=\pi s^2/\alpha^2=\pi^2 s^2/(4\lambda_G\tw\ln 2)$, which requires no square root of $\pi$. Every table entry is built
-from five scalar primitives evaluated at exact rational arguments:
+Recall that $\alpha^2=4\lambda_G\tw\ln 2/\pi$ with $\lambda_G\in[1,4]$, where Theorem~\ref{thm:bridge-precision} takes $\lambda_G=1$. Then $\alpha_\pi^2=\pi\alpha^2=4\lambda_G\tw\ln 2$, and the Gaussian spatial exponent becomes $x=\pi s^2/\alpha^2=\pi^2 s^2/(4\lambda_G\tw\ln 2)$, avoiding any square root of~$\pi$. Every table entry is assembled from five scalar primitives at exact rational arguments:
 \begin{enumerate}[label=(\roman*),nosep,leftmargin=*]
   \item the constants $\pi$, $\ln 2$, $\sqrt\pi$, and $\alpha_\pi=2\sqrt{\lambda_G\tw\ln 2}$;
-  \item $\cos(\pi\vartheta)$ and $\sin(\pi\vartheta)$ for $\vartheta\in\Q$, used for the carrier
-    $e^{-\pi i(e+\delta)/t_a}$, for $\sin(\pi s)$, and for unit phases (twiddles, twists, and chirps);
+
+  \item $\cos(\pi\vartheta)$ and $\sin(\pi\vartheta)$ for $\vartheta\in\Q$, used for the carrier $e^{-\pi i(e+\delta)/t_a}$, for $\sin(\pi s)$, and for unit twiddle, twist, and chirp phases;
+
   \item $\sinc(s)=\sum_{n\ge 0}(-1)^n(\pi s)^{2n}/(2n+1)!$ for $|s|\le\tfrac12$;
+
   \item $e^{-x}$ for $x\ge 0$;
-  \item $\erf(z)$ for $z\in\{\alpha_\pi(y+\tfrac12),\,\alpha_\pi(y-\tfrac12),\,\alpha_\pi(y-\tfrac32)\}$ at
-    $y=(u+\tfrac12)/t_a$, giving $c_0=\tfrac12[\erf(\alpha_\pi(y+\tfrac12))-\erf(\alpha_\pi(y-\tfrac12))]$ and
-    $c_1=\tfrac12[\erf(\alpha_\pi(y-\tfrac12))-\erf(\alpha_\pi(y-\tfrac32))]$.
+
+  \item $\erf(z)$ at $z\in\{\alpha_\pi(y+\tfrac12),\,\alpha_\pi(y-\tfrac12),\,\alpha_\pi(y-\tfrac32)\}$ for $y=(u+\tfrac12)/t_a$, giving $c_0=\tfrac12[\erf(\alpha_\pi(y+\tfrac12))-\erf(\alpha_\pi(y-\tfrac12))]$ and $c_1=\tfrac12[\erf(\alpha_\pi(y-\tfrac12))-\erf(\alpha_\pi(y-\tfrac32))]$.
 \end{enumerate}
-The unfolded offsets $s=e+\delta$ ($|e|\le P$, $\delta\in A_a^{-1}\Z\cap[0,1)$, $A_a\le R=2^k$), the angles $\vartheta$,
-and the half-bin coordinates $y$ are rationals with $O(k+\lg P)$-bit numerators and denominators, manipulated in exact
-rational arithmetic. Each angle $\vartheta$ is reduced modulo $2$ and then by exact octant symmetries of $\sin$ and
-$\cos$ into $[-\tfrac14,\tfrac14]$ (using $\sin(\pi s)=(-1)^e\sin(\pi\delta)$ for $s=e+\delta$), so only reduced angles
-$|\vartheta|\le\tfrac14$ multiply our approximation to $\pi$ in~(ii). Because $y\in(0,1)$, we have
-$|y+\tfrac12|,|y-\tfrac12|,|y-\tfrac32|\le\tfrac32$, so every $\erf$ argument satisfies
-$z^2\le\tfrac94\alpha_\pi^2=9\lambda_G\tw\ln 2\le 36\tw\ln 2<25P$, while $|s|<P+1$ and $\tw\ge 8$ give
-$x\le\pi^2(P+1)^2/(32\ln 2)<0.45(P+1)^2$.
+
+The unfolded offsets $s=e+\delta$ with $|e|\le P$ and $\delta\in A_a^{-1}\Z\cap[0,1)$ for $A_a\le R=2^k$, the angles $\vartheta$, and the half-bin coordinates~$y$ are all rationals with $O(k+\lg P)$-bit numerators and denominators. We manipulate these arguments in exact rational arithmetic. Each angle $\vartheta$ is reduced modulo~$2$ and folded by exact octant symmetries of $\sin$ and $\cos$ into $[-\tfrac14,\tfrac14]$, using $\sin(\pi s)=(-1)^e\sin(\pi\delta)$ for $s=e+\delta$. Thus only reduced angles $|\vartheta|\le\tfrac14$ multiply our approximation to~$\pi$ in~(ii). Because $y\in(0,1)$, each shifted offset satisfies $|y+\tfrac12|,|y-\tfrac12|,|y-\tfrac32|\le\tfrac32$, so every $\erf$ argument obeys $z^2\le\tfrac94\alpha_\pi^2=9\lambda_G\tw\ln 2\le 36\tw\ln 2<25P$. Similarly, $|s|<P+1$ and $\tw\ge 8$ give $x\le\pi^2(P+1)^2/(32\ln 2)<0.45(P+1)^2$.
 
 \emph{2. Working scale and fundamental constants.}
-Given $b\ge\max(8,P)\ge 20$, set $S=2b+8\lceil\lg b\rceil+64$, $N=4S$, and $u_S=2^{-S}$. All intermediate approximate
-values lie on the dyadic grid $2^{-S}\Z$: additions and subtractions are exact, and each multiplication or division is
-rounded once to $2^{-S}\Z$ (error at most $u_S$).
+Given $b\ge\max(8,P)\ge 20$, set $S=2b+8\lceil\lg b\rceil+64$, $N=4S$, and $u_S=2^{-S}$. All intermediate values live on the dyadic grid $2^{-S}\Z$. Additions and subtractions on $2^{-S}\Z$ are exact, while each multiplication or division rounds once to $2^{-S}\Z$ with error at most $u_S$.
 \begin{itemize}[nosep,leftmargin=*]
-  \item Sum Machin's identity $\pi=16\arctan\tfrac15-4\arctan\tfrac{1}{239}$ and the series
-    $\ln 2=2\sum_{j\ge 0}(2j+1)^{-1}3^{-2j-1}$ to $N$ terms ($0\le j<N$), obtaining each signed term directly at scale
-    $2^S$ by one rounded integer division. Their truncation tails are below $20\cdot 5^{-2N-1}<u_S$ and
-    $3^{-2N}<u_S$, respectively, yielding $|\tilde\pi-\pi|\le 21N u_S$ and $|\widetilde{\ln 2}-\ln 2|\le 3N u_S$.
-  \item Extracting integer square roots of the $2^{2S}$-scaled approximations to $\pi$ and $4\lambda_G\tw\ln 2$ gives
-    $|\widetilde{\sqrt\pi}-\sqrt\pi|\le\frac{21N u_S}{2\sqrt 3}+u_S\le 7N u_S$ and
-    $|\tilde\alpha_\pi-\alpha_\pi|\le\sqrt{\frac{\lambda_G\tw}{\ln 2}}\,3N u_S+u_S\le 8N\sqrt{P}\,u_S$ (since
-    $\sqrt{4/\ln 2}\cdot 3<7.21$), whence $|\tilde z-z|\le\tfrac32|\tilde\alpha_\pi-\alpha_\pi|+u_S\le 13N\sqrt{P}\,u_S$
-    for every $\erf$ argument $z$ in~(v).
+  \item We sum Machin's identity $\pi=16\arctan\tfrac15-4\arctan\tfrac{1}{239}$ and the series $\ln 2=2\sum_{j\ge 0}(2j+1)^{-1}3^{-2j-1}$ to $N$ terms for $0\le j<N$, computing each signed term at scale $2^S$ by one rounded integer division. Their truncation tails lie below $20\cdot 5^{-2N-1}<u_S$ and $3^{-2N}<u_S$, giving $|\tilde\pi-\pi|\le 21N u_S$ and $|\widetilde{\ln 2}-\ln 2|\le 3N u_S$.
+
+  \item Taking integer square roots of the $2^{2S}$-scaled approximations to $\pi$ and $4\lambda_G\tw\ln 2$ yields $|\widetilde{\sqrt\pi}-\sqrt\pi|\le\frac{21N u_S}{2\sqrt 3}+u_S\le 7N u_S$. Since $\sqrt{4/\ln 2}\cdot 3<7.21$, it also yields $|\tilde\alpha_\pi-\alpha_\pi|\le\sqrt{\frac{\lambda_G\tw}{\ln 2}}\,3N u_S+u_S\le 8N\sqrt{P}\,u_S$. Consequently, $|\tilde z-z|\le\tfrac32|\tilde\alpha_\pi-\alpha_\pi|+u_S\le 13N\sqrt{P}\,u_S$ holds for every $\erf$ argument~$z$ in~(v).
 \end{itemize}
 
 \emph{3. Trigonometric, sinc, and Gaussian series.}
-Primitives~(ii)--(iv) reduce to alternating power series in a nonnegative argument of magnitude at most $\pi/4$ (for
-$\cos,\sin$), $\pi/2$ (for $\sinc(s)$ on $|s|\le\tfrac12$), or $\ln 2$ (for $e^{-r}$ after range reduction). Up to sign,
-their terms follow the recurrences $T_j=T_{j-1}w_0/((2j)(2j\pm 1))$ ($w_0\le(\pi/2)^2$, multiplier $\le\pi^2/24<0.42$)
-or $T_n=T_{n-1}r/n$ ($r\le\widetilde{\ln 2}<0.70$), so every step multiplier is strictly below $0.71$. Rounding errors
-in the term recurrence are therefore geometrically damped at every step: every computed term lies within $4u_S$ of its
-exact value for the approximate argument, and the $N$-term sum incurs rounding error at most $4N u_S$, while the series
-tail beyond $N=4S$ is at most $2(1.6\,\mathrm e/N)^N\ll u_S$. All four functions are $1.01$-Lipschitz.
+Primitives~(ii)--(iv) reduce to alternating power series in a nonnegative argument of size at most $\pi/4$ for $\cos$ and $\sin$, at most $\pi/2$ for $\sinc(s)$ on $|s|\le\tfrac12$, or at most $\ln 2$ for $e^{-r}$ after range reduction. Up to sign, consecutive terms obey $T_j=T_{j-1}w_0/((2j)(2j\pm 1))$ with $w_0\le(\pi/2)^2$ and step multiplier at most $\pi^2/24<0.42$, or $T_n=T_{n-1}r/n$ with $r\le\widetilde{\ln 2}<0.70$. Every step multiplier therefore lies strictly below $0.71$.
 
-For $e^{-x}$ in~(iv), if the computed exponent satisfies $\tilde x\ge(b+5)\widetilde{\ln 2}$, then $x\ge(b+4)\ln 2$ and
-$e^{-x}\le 2^{-b-4}$, so returning $0$ incurs error at most $2^{-b-4}$. Otherwise $x<(b+6)\ln 2$: set
-$q_0=\lfloor\tilde x/\widetilde{\ln 2}\rfloor\le b+5$ and $\tilde r=\tilde x-q_0\widetilde{\ln 2}\in[0,\widetilde{\ln 2})$,
-evaluate the $N$-term Taylor series of $e^{-\tilde r}$, and shift right exactly by $q_0$ bits; the range-reduction error
-is at most $23N(b+6)u_S$. For $\sinc(s)$ when $|s|>\tfrac12$, divide the value of $(-1)^e\sin(\pi\delta)$ from~(ii) by
-$\tilde\pi s$, noting $|\tilde\pi s|>1.5$. Combining argument, recurrence, and tail errors shows that every primitive
-in~(ii)--(iv) and every unfolded kernel sample $g_a(s)$ formed from them has certified error at most
-$50N(b+P+8)u_S\le 2^{-b-4}$ (and at most $2^{-b-4}$ as well when the $e^{-x}$ cutoff triggers).
+Because each step contracts by at least $0.71$, rounding errors in the term recurrence damp out geometrically. Every computed term stays within $4u_S$ of its exact value at the approximate argument, and the $N$-term sum accumulates rounding error at most $4N u_S$. The series tail beyond $N=4S$ is at most $2(1.6\,\mathrm e/N)^N\ll u_S$, and all four functions are $1.01$-Lipschitz.
+
+For $e^{-x}$ in~(iv), if $\tilde x\ge(b+5)\widetilde{\ln 2}$, then $x\ge(b+4)\ln 2$ and $e^{-x}\le 2^{-b-4}$, so returning~$0$ incurs error at most $2^{-b-4}$. Otherwise $x<(b+6)\ln 2$. We set $q_0=\lfloor\tilde x/\widetilde{\ln 2}\rfloor\le b+5$ and $\tilde r=\tilde x-q_0\widetilde{\ln 2}\in[0,\widetilde{\ln 2})$, evaluate the $N$-term Taylor series of $e^{-\tilde r}$, and shift right by $q_0$ bits, incurring range-reduction error at most $23N(b+6)u_S$. For $\sinc(s)$ when $|s|>\tfrac12$, we divide $(-1)^e\sin(\pi\delta)$ from~(ii) by $\tilde\pi s$, where $|\tilde\pi s|>1.5$. Summing argument, recurrence, and tail bounds certifies every primitive in~(ii)--(iv) and every unfolded sample $g_a(s)$ within $50N(b+P+8)u_S\le 2^{-b-4}$, including when the $e^{-x}$ cutoff triggers.
 
 \emph{4. Error-function series.}
-Because $\erf$ is odd, assume $z\ge 0$. If $\tilde z^2\ge(b+5)\widetilde{\ln 2}$, then $z^2\ge(b+4)\ln 2$,
-$z\ge 1/\sqrt\pi$, and $1-\erf(z)=\erfc(z)\le e^{-z^2}/(\sqrt\pi z)\le 2^{-b-4}$, so returning $1$ has error at most
-$2^{-b-4}$. Otherwise $w_z=\tilde z^2$ (formed exactly on $2S$ fractional bits) satisfies $w_z<(b+6)\ln 2+u_S$, so
-$e^{w_z}<2^{b+7}$ and $\mathrm e\,w_z/N\le\mathrm e/8$ (since $N=4S>8(b+6)\ln 2+8$). Evaluate
-$\frac{2}{\widetilde{\sqrt\pi}}\sum_{n=0}^{N-1}(-1)^n T_n/(2n+1)$ with $T_0=\tilde z$ and $T_n=T_{n-1}w_z/n$ (forming
-$T_{n-1}w_z$ on $3S$ fractional bits before rounding to $u_S$). A rounding error made at step $n_0$ is multiplied at
-step $n>n_0$ by $\prod_{n_0<j\le n}(w_z/j)\le w_z^{n-n_0}/(n-n_0)!\le e^{w_z}$, so the total recurrence and division
-error is below $2N^2 e^{w_z}u_S$; the tail beyond $N$ is below $2\tilde z(\mathrm e/8)^N$, and
-$|\erf(\tilde z)-\erf(z)|\le\frac{2}{\sqrt\pi}|\tilde z-z|$. Summing these contributions bounds the total error in
-$\erf(z)$, and hence in $c_0$ and $c_1$, by $2N^2 2^{b+8}u_S\le 2^{-b-4}$ (since $S=2b+8\lceil\lg b\rceil+64$ and
-$b\ge 20$).
+Because $\erf$ is odd, take $z\ge 0$. If $\tilde z^2\ge(b+5)\widetilde{\ln 2}$, then $z^2\ge(b+4)\ln 2$ and $z\ge 1/\sqrt\pi$, so $1-\erf(z)=\erfc(z)\le e^{-z^2}/(\sqrt\pi z)\le 2^{-b-4}$ and returning~$1$ has error at most $2^{-b-4}$. Otherwise $w_z=\tilde z^2$, formed exactly on $2S$ fractional bits, satisfies $w_z<(b+6)\ln 2+u_S$. Then $e^{w_z}<2^{b+7}$, and $N=4S>8(b+6)\ln 2+8$ gives $\mathrm e\,w_z/N\le\mathrm e/8$.
+
+We evaluate $\frac{2}{\widetilde{\sqrt\pi}}\sum_{n=0}^{N-1}(-1)^n T_n/(2n+1)$ with $T_0=\tilde z$ and $T_n=T_{n-1}w_z/n$, forming $T_{n-1}w_z$ on $3S$ fractional bits before rounding to $u_S$. Any rounding error introduced at step $n_0$ is scaled at step $n>n_0$ by $\prod_{n_0<j\le n}(w_z/j)\le w_z^{n-n_0}/(n-n_0)!\le e^{w_z}$, keeping the total recurrence and division error below $2N^2 e^{w_z}u_S$. The series tail beyond~$N$ is below $2\tilde z(\mathrm e/8)^N$, while $|\erf(\tilde z)-\erf(z)|\le\frac{2}{\sqrt\pi}|\tilde z-z|$. Since $S=2b+8\lceil\lg b\rceil+64$ and $b\ge 20$, summing these terms bounds the error in $\erf(z)$, and hence in $c_0$ and $c_1$, by $2N^2 2^{b+8}u_S\le 2^{-b-4}$.
 
 \emph{5. Assembly of $q$-grid entries.}
-Which of $c_0,c_1$ equals $c_{\max}$ is decided without numerical error ($c_0>c_1$ if and only if $u<t_a/2$, by
-Lemma~\ref{lem:bridge-B}(iv)), and $c_{\max}>0.49999999$ by Lemma~\ref{lem:bridge-B}(iii). Hence one guarded division
-each gives $c_{\max}^{-1}$ and $\rho=\min(c_0,c_1)/c_{\max}$ within $4.01\cdot 2^{-b-4}+u_S<2^{-b-1}<2^{-b}$, completing
-part~(a). Setting $b=q+1$ and applying $\Quant_q$ (followed by $\max(0,\cdot)$ for $\hat\rho$, which cannot increase the
-error since $\rho\ge 0$) gives $|\hat\mu-c_{\max}^{-1}|<2^{-q-2}+2^{-q-1}<v$ and $|\hat\rho-\rho|<v$.
+By Lemma~\ref{lem:bridge-B}(iv), $c_0>c_1$ holds if and only if $u<t_a/2$, so $c_{\max}$ is selected without numerical error. Lemma~\ref{lem:bridge-B}(iii) also gives $c_{\max}>0.49999999$. One guarded division each therefore yields $c_{\max}^{-1}$ and $\rho=\min(c_0,c_1)/c_{\max}$ within $4.01\cdot 2^{-b-4}+u_S<2^{-b-1}<2^{-b}$, proving part~(a). Taking $b=q+1$ and applying $\Quant_q$, followed by $\max(0,\cdot)$ on $\hat\rho$ which cannot increase error since $\rho\ge 0$, gives $|\hat\mu-c_{\max}^{-1}|<2^{-q-2}+2^{-q-1}<v$ and $|\hat\rho-\rho|<v$.
 
-For a truncated folded tap $\sum_{s\in e+t_a\Z,\,|s|\le P}g_a(s+\delta)$, there are at most $2P+1$ terms. Evaluating
-each unfolded sample with $b=q+g$ where $g=\lceil\lg(2P+2)\rceil+12$, summing the residue class exactly at scale $2^{-S}$,
-and applying a single complex nearest rounding $\Quant_q$ certifies the stored tap within
-$(2P+1)2^{-q-g-4}+\frac{\sqrt2}{2}v<0.71\,v<v$ of the truncated folded tap; adding the spatial tail bound
-$0.06\cdot 2^{-P}=0.24\,v$ from the proof of Lemma~\ref{lem:bridge-C}(i) places it within $0.95\,v<v$ of the full folded
-tap $H^{(a)}_\delta(e)$.
+Each truncated folded tap $\sum_{s\in e+t_a\Z,\,|s|\le P}g_a(s+\delta)$ sums at most $2P+1$ terms. We evaluate each unfolded sample at precision $b=q+g$ with $g=\lceil\lg(2P+2)\rceil+12$, sum the residue class exactly at scale $2^{-S}$, and apply one complex nearest rounding $\Quant_q$. That bounds the error relative to the truncated sum by $(2P+1)2^{-q-g-4}+\frac{\sqrt2}{2}v<0.71\,v<v$. Adding the spatial tail $0.06\cdot 2^{-P}=0.24\,v$ from Lemma~\ref{lem:bridge-C}(i) certifies the stored tap within $0.95\,v<v$ of the full folded tap $H^{(a)}_\delta(e)$.
 
-For a unit phase $e=e^{\pi i\vartheta}$, fourth roots of unity ($2\vartheta\in\Z$) are returned exactly; otherwise
-evaluating~(ii) at $b=q+5$ gives $e_0$ with $|e_0-e|<2^{-q-9}<v/16$, and setting $\hat e=Q_q((1-v/8)e_0)$ satisfies
-$|(1-v/8)e_0|\le(1-v/8)(1+v/16)<1$, so $\hat e\in\mathbb{D}_q$ and
-$|\hat e-e|<(\sqrt2+\tfrac{3}{16}+v)v<2v$ by~\eqref{eq:rounding}. Multiplying any disk operand $z$ ($|z|\le 1$) by a
-stored phase $\hat e\in\mathbb{D}_q$ and truncating via $Q_q$ preserves the closed unit disk and introduces error below
-$(2+\sqrt2)v<4v$; iterating across $d$ one-axis factors therefore produces a tensor chirp in $\mathbb{D}_q$ within
-$2v+4(d-1)v\le 4dv$ of the exact chirp, completing part~(b).
+For a unit phase $e=e^{\pi i\vartheta}$, fourth roots of unity with $2\vartheta\in\Z$ are exact. Otherwise evaluating~(ii) at $b=q+5$ produces $e_0$ with $|e_0-e|<2^{-q-9}<v/16$. Setting $\hat e=Q_q((1-v/8)e_0)$ satisfies $|(1-v/8)e_0|\le(1-v/8)(1+v/16)<1$, so $\hat e\in\mathbb{D}_q$ and $|\hat e-e|<(\sqrt2+\tfrac{3}{16}+v)v<2v$ by~\eqref{eq:rounding}. Multiplying any disk value $|z|\le 1$ by $\hat e\in\mathbb{D}_q$ and applying $Q_q$ stays in the closed unit disk and adds error below $(2+\sqrt2)v<4v$. Iterating across $d$ single-axis factors yields a tensor chirp in $\mathbb{D}_q$ within $2v+4(d-1)v\le 4dv$ of the exact chirp, proving part~(b).
 
 \emph{6. Bit complexity.}
-Each series evaluation uses $N=O(b)$ arithmetic operations on integers of $O(b)$ bits (the $\erf$ numerators remain below
-$2^{b+8}\sqrt{b}\cdot 2^S$), taking $O(b^3)$ bit operations even under schoolbook arithmetic, while the exact rational
-reductions on $O(k+\lg P)$-bit numerators and denominators take $O((k+\lg P)^2)$ bit operations. Each primitive or
-sample in~(a) therefore costs $O((b+k)^3)$ bit operations on a fixed number of tapes, and each folded tap in~(b) (with
-$b=q+O(\lg P)=P+O(\lg P)$) costs $O(P(P+k)^3)$ bit operations, using at most $3S+O(k)$ fractional bits for exact
-temporary products prior to rounding.
+Each series uses $N=O(b)$ operations on $O(b)$-bit integers, since $\erf$ numerators remain below $2^{b+8}\sqrt{b}\cdot 2^S$. Even under schoolbook arithmetic this takes $O(b^3)$ bit operations, while exact rational reductions on $O(k+\lg P)$-bit fractions take $O((k+\lg P)^2)$ bit operations. Each primitive or sample in~(a) therefore costs $O((b+k)^3)$ bit operations on a fixed number of tapes. In part~(b), each folded tap uses $b=q+O(\lg P)=P+O(\lg P)$ and therefore costs $O(P(P+k)^3)$ bit operations, using at most $3S+O(k)$ fractional bits for exact products before rounding.
 \end{proof}

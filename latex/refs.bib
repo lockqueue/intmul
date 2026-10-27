@@ -13,7 +13,7 @@
 @unpublished{MS,
   shorthand = {MS},
   author    = {Piaoyang Cui and Yiming Liu and David P. Woodruff},
-  title     = {Integer multiplication in ${O}(n\log n)$ time on a single two-dimensional grid, with a machine-checked
+  title     = {Integer multiplication in ${O}(n\log n)$ time on a single two-dimensional grid, with a formally verified
                proof},
   note      = {Companion manuscript. Available at \url{https://github.com/lockqueue/intmul}},
   year      = {2026}
@@ -203,7 +203,7 @@
   title        = {Integer multiplication below $n\log n$ on multitape {T}uring machines: a {L}ean~4
                   formalization},
   howpublished = {Lean~4 formalization accompanying this paper (comment-stripped \texttt{.lean} sources byte-identical
-                  to commit \texttt{3480d37}; source snapshot \texttt{00b8a4d2b263} (first 12 hex digits of the
+                  to commit \texttt{3480d37}; source snapshot \texttt{b706618497aa} (first 12 hex digits of the
                   {SHA-256} of \texttt{MANIFEST.sha256}); Lean~4.33.1, Mathlib \texttt{0df444a3}), statement file
                   \texttt{SubNLogN/Challenge.lean}},
   note         = {Available at \url{https://github.com/lockqueue/intmul}},
@@ -214,23 +214,10 @@
   shorthand    = {Code26},
   author       = {Piaoyang Cui and Yiming Liu and David P. Woodruff},
   title        = {Exact-arithmetic {P}ython reference implementation accompanying ``{A} simpler algorithm for integer
-                  multiplication below $n\log n$, with a machine-checked proof''},
+                  multiplication below $n\log n$, with a formally verified proof''},
   howpublished = {Exact-arithmetic Python~3.13 reference implementation of Algorithm~1 (Appendix~E); directory
-                  \texttt{python/} of the repository, content snapshot \texttt{1348960a99cd} (first 12 hex digits of
+                  \texttt{python/} of the repository, content snapshot \texttt{a4d39ed31d0e} (first 12 hex digits of
                   the {SHA-256} of \texttt{MANIFEST.sha256})},
-  note         = {Available at \url{https://github.com/lockqueue/intmul}},
-  year         = {2026}
-}
-
-@misc{CGMP26,
-  shorthand    = {CGMP26},
-  author       = {Piaoyang Cui and Yiming Liu and David P. Woodruff},
-  title        = {\texttt{intmul-cgmp}: {C}/{GMP} implementation and benchmark of the two-dimensional fractional-shift
-                  synthetic-{FFT} ${O}(n\log n)$ integer multiplier},
-  howpublished = {Standalone {C}/{GMP}/{MPFR} implementation (\texttt{intmul\_fastdft.c}), benchmark runner, and raw
-                  logs (\texttt{bench/\allowbreak BENCHMARK.md}, \texttt{bench/\allowbreak logs/}) implementing the
-                  two-dimensional multiplier of~\cite{MS}; directory \texttt{companion/impl/} of the repository,
-                  content snapshot \texttt{51ce9e412e5e}},
   note         = {Available at \url{https://github.com/lockqueue/intmul}},
   year         = {2026}
 }

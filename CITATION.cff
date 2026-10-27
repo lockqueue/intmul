@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use these papers, machine-checked Lean 4 developments, or software artifacts, please cite the papers below."
-title: "A simpler algorithm for integer multiplication below n log n, with a machine-checked proof: papers, Lean 4 formalizations, Python reference implementation, and companion C/GMP implementation"
+message: "If you use these papers, formally verified Lean 4 developments, or software artifacts, please cite the papers below."
+title: "A simpler algorithm for integer multiplication below n log n, with a formally verified proof: papers, Lean 4 developments, Python reference implementation, and companion C/GMP implementation"
 type: software
 license: Apache-2.0
 repository-code: "https://github.com/lockqueue/intmul"
@@ -24,7 +24,7 @@ keywords:
   - MPFR
 preferred-citation:
   type: unpublished
-  title: "A simpler algorithm for integer multiplication below n log n, with a machine-checked proof"
+  title: "A simpler algorithm for integer multiplication below n log n, with a formally verified proof"
   authors:
     - family-names: Cui
       given-names: Piaoyang
@@ -35,7 +35,7 @@ preferred-citation:
   year: 2026
 references:
   - type: unpublished
-    title: "Integer multiplication in O(n log n) time on a single two-dimensional grid, with a machine-checked proof"
+    title: "Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof"
     authors:
       - family-names: Cui
         given-names: Piaoyang

@@ -75,7 +75,7 @@ lrwxrwxrwx 1 root root     16 Mar 27  2026 /usr/lib/x86_64-linux-gnu/libmpfr.so.
 -rw-r--r-- 1 root root 790896 Mar 27  2026 /usr/lib/x86_64-linux-gnu/libmpfr.so.6.2.2
 === source ===
 measured:  4d0040f4a8c1da7010ae33aee9b74112f893821c3e6aca8821322a139ed44de2  ./intmul_fastdft.c (1704 lines)
-published: ff1600721b583ab2597645c4e20c7147a65f46d82c6a1fd8dfaeca63822de8c0  ./intmul_fastdft.c (1710 lines)
+published: f571c8454c1fa93862d195f0b62cf79c3532d5e71eec5df1d804205c08d610ae  ./intmul_fastdft.c (1710 lines)
 (the published file in this directory (companion/impl/ of the repository) differs from the measured file only in the header comment, the removal of an unused internal build `#ifdef` include branch, and the `#if defined(_OPENMP) && !defined(INTMUL_NO_OPENMP)` single-thread fallback guard; apart from those two `#ifdef`/`#if` guard blocks, the comment-stripped C source is byte-identical, and under `-fopenmp` all executable code is byte-identical)
 === build command ===
 gcc -O2 -march=native -fopenmp -DNDEBUG intmul_fastdft.c -o intmul_fastdft -l:libmpfr.so.6 -l:libgmp.so.10 -lm

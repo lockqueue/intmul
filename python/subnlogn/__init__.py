@@ -1,5 +1,5 @@
 """subnlogn: exact-arithmetic reference implementation of the sub-n log n integer multiplication algorithm of
-"A simpler algorithm for integer multiplication below n log n, with a machine-checked proof" (see README.md).
+"A simpler algorithm for integer multiplication below n log n, with a formally verified proof" (see README.md).
 
 Entry point: ``from subnlogn.multiply import multiply``; ``multiply(a, b, schedule=..., products=...)``.
 Modules:

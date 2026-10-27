@@ -1,7 +1,7 @@
 [project]
 name = "subnlogn"
 version = "1.0.0"
-description = "Exact-arithmetic Python reference implementation accompanying 'A simpler algorithm for integer multiplication below n log n, with a machine-checked proof'"
+description = "Exact-arithmetic Python reference implementation accompanying 'A simpler algorithm for integer multiplication below n log n, with a formally verified proof'"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 dependencies = ["mpmath==1.3.0"]

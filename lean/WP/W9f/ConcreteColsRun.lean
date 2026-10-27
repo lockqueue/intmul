@@ -11,7 +11,7 @@ It runs under `WP.W9f.RunR.runTabledR` with the identity register map `normColsC
 The run is one POST node: `t1 = 2`, `r = 2`, `pSub = 2` (`H = 8`). Column `u2 = 0` is fwd and
 `u2 = 1` is Nyquist; `WP.W9f.ConcreteRun` runs a bwd column (the driver does not depend on the
 regime). The column divisors are positive, the tables are real
-(`.2 = 0`), and the entries and `alt` are nonzero. The `W9_columns` premises are not machine-checked
+(`.2 = 0`), and the entries and `alt` are nonzero. The `W9_columns` premises are not formally verified
 here. The run checks the contract's final stacks exactly:
 * `W0 = matSyms (w9ZBarrett pSub t1 r c0T c1T alt Y)`, the contract value;
 * `TR := restT`, `TL := (postBody …).reverse ++ TL`, `RQ := rq`;
