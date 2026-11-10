@@ -240,11 +240,13 @@ minimum of the five gaps
   g_{\rm pre}=1-\eps(1+c),\quad g_{\rm lay}=\eps(1-\lambda'),\quad g_{\rm last}=\eps,\quad
   g_{\rm axis}=(1-\eps)(1-\tau),\quad g_{\rm short}=1-\eps.
 \end{equation}
-Any strict positive slack $s=g_{\min}-\kappa>0$ absorbs fixed powers of $\lg P$: for every integer $j\ge0$ and $P\ge2$,
+Any strict positive slack $s=g_{\min}-\kappa>0$ absorbs fixed powers of $\lg P$: for all integers $j\ge0$ and $P\ge2$,
 \[
   (\lg(2P))^j\le4^j(\ln P)^j\le j!\,(4/s)^j\,P^{s},
 \]
-by the $j$-th term of the exponential series for $e^{s\ln P}$.
+by the $j$-th term of the exponential series for $e^{s\ln P}$. The first inequality holds at $P=2$ since
+$\lg 4=2<4\ln 2$, and for $P\ge3$ since $\lg(2P)=\lceil 1+\log_2 P\rceil<2+(\ln P)/\ln 2<4\ln P$, as $\ln P>1$ and
+$\ln 2>1/2$.
 
 \paragraph{Linear vs.\ quadratic bottleneck.}
 On the Walsh route, the binding gap is the butterfly-layer gap $g_{\rm lay}=\eps(1-\lambda')$. Since the layer

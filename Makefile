@@ -1,4 +1,4 @@
-# Top-level Makefile for IntMul_release_2026-10-25 (papers, Lean 4 formalizations, Python reference, and C/GMP package).
+# Top-level Makefile for IntMul_release_2026-10-25 (short, full and companion papers, Lean 4 formalizations, Python reference, and C/GMP package).
 # Default target prints usage (`make all` is intentionally NOT the implicit default).
 
 .DEFAULT_GOAL := help
@@ -23,9 +23,9 @@ export LEAN_IMPORT_WORKERS
 # Prevent Python verification scripts from writing __pycache__/*.pyc into the tree.
 export PYTHONDONTWRITEBYTECODE := 1
 
-# Set UPDATE_ROOT_PDFS=1 to copy freshly compiled PDFs over top-level IntMul_main_paper.pdf and
-# companion/IntMul_companion_paper.pdf (left 0 by default so `make pdf` + `make test` preserves
-# the exact archive hashes recorded in MANIFEST.sha256 across TeX Live versions).
+# Set UPDATE_ROOT_PDFS=1 to copy freshly compiled PDFs over top-level IntMul_short_paper.pdf,
+# IntMul_main_paper.pdf and companion/IntMul_companion_paper.pdf (left 0 by default so `make pdf` + `make test`
+# preserves the exact archive hashes recorded in MANIFEST.sha256 across TeX Live versions).
 UPDATE_ROOT_PDFS ?= 0
 
 .PHONY: help pdf impl pyref-venv pytest pytest-slow pyref-reports lean lean-cache manifests static-checks test all clean
@@ -34,10 +34,10 @@ help:
 	@echo "Available targets (default: help):"
 	@echo "  make test           Run all quick checks (~2-3 min): SHA-256 manifests,"
 	@echo "                      semantic-freeze & escape-hatch scans (lean/ + companion/lean/),"
-	@echo "                      parameter/number checks, C/GMP build + selftest, and both PDF builds"
-	@echo "  make pdf            Compile latex/ (main paper) and companion/latex/ ([MS])"
-	@echo "                      (pass UPDATE_ROOT_PDFS=1 to overwrite root IntMul_main_paper.pdf"
-	@echo "                       and companion/IntMul_companion_paper.pdf)"
+	@echo "                      parameter/number checks, C/GMP build + selftest, and all three PDF builds"
+	@echo "  make pdf            Compile short_paper/ (short paper), latex/ (full paper) and companion/latex/ ([MS])"
+	@echo "                      (pass UPDATE_ROOT_PDFS=1 to overwrite root IntMul_short_paper.pdf,"
+	@echo "                       IntMul_main_paper.pdf and companion/IntMul_companion_paper.pdf)"
 	@echo "  make impl           Build companion/impl/intmul_fastdft and run selftest"
 	@echo "  make pyref-venv     Create Python 3.13 virtualenv in $(PYREF_DIR)/.venv and install"
 	@echo "                      pinned dependencies (falls back to 'uv' if ensurepip is absent)"
@@ -55,7 +55,15 @@ help:
 	@echo "  make clean          Remove LaTeX, C, and pytest intermediates (keeps .lake and $(PYREF_DIR)/.venv)"
 
 pdf:
-	@echo "=== [pdf] Building main paper in latex/ ==="
+	@echo "=== [pdf] Building short paper in short_paper/ ==="
+	$(MAKE) -C short_paper clean
+	$(MAKE) -C short_paper
+	@test -s short_paper/main.pdf
+	@if [ "$(UPDATE_ROOT_PDFS)" = "1" ] || [ ! -s IntMul_short_paper.pdf ]; then \
+		cp short_paper/main.pdf IntMul_short_paper.pdf; \
+	fi
+	@test -s IntMul_short_paper.pdf
+	@echo "=== [pdf] Building full paper in latex/ ==="
 	$(MAKE) -C latex clean
 	$(MAKE) -C latex
 	@test -s latex/main.pdf
@@ -168,6 +176,7 @@ all:
 	$(MAKE) test
 
 clean:
+	@if [ -f short_paper/Makefile ]; then $(MAKE) -C short_paper clean; fi
 	@if [ -f latex/Makefile ]; then $(MAKE) -C latex clean; fi
 	@if [ -f companion/latex/Makefile ]; then $(MAKE) -C companion/latex clean; fi
 	@if [ -f companion/impl/Makefile ]; then $(MAKE) -C companion/impl clean; fi

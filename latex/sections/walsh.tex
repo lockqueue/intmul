@@ -231,7 +231,7 @@ This subsection partitions the record-address bits into slices and factors every
 stages of slice-batched controlled flips.
 
 To feed arbitrary positional maps into the simultaneous butterfly layer, we divide the $m_0$ record-address bits into
-$K$-bit chunks and group those chunks into groups of at most $d$ chunks. Picking the same bit offset $\rho$ across every
+$K$-bit chunks and group those chunks into consecutive groups of $d$ chunks, the last group possibly shorter. Picking the same bit offset $\rho$ across every
 chunk in a group defines a slice, while fewer than $K$ leftover positions remain at the end of the address. The next
 definition fixes this slice geometry and the move convention for positional maps.
 
@@ -240,7 +240,7 @@ A \emph{positional map} on $m_0$ record-address positions is a permutation $\pi$
 convention: the bit at position $j$ is placed at position $\pi(j)$. It induces an array operator that permutes whole
 records while leaving each record's coefficient list unchanged; $f\circ g$ applies $g$ first. Put
 $J=\lfloor m_0/K\rfloor$, partition the first $JK$ positions into consecutive $K$-bit chunks, and group those chunks
-into consecutive groups of at most $d$ chunks. For a group starting at position $j_0$ with $D$ chunks ($1\le D\le d$)
+into $\lceil J/d\rceil$ consecutive groups of $d$ chunks each, the last group possibly shorter. For a group starting at position $j_0$ with $D$ chunks ($1\le D\le d$)
 and an offset $0\le\rho<K$, the corresponding \emph{slice} consists of the positions $j_0+jK+(K-1-\rho)$ for
 $0\le j<D$, with complete rectangular layer shape $[2^{j_0}]\times[2^K]^D\times[2^{m_0-j_0-DK}]$. The fewer than $K$
 remaining address positions are \emph{leftover} positions.
@@ -250,6 +250,7 @@ The number of slices is
 \begin{equation}\label{eq:walsh-slices}
   N_{\rm slice}=K\lceil J/d\rceil\le \frac{m_0}{d}+K .
 \end{equation}
+The inequality holds since $\lceil J/d\rceil\le J/d+1$ and $JK\le m_0$.
 
 Any permutation of bit positions factors into two involutions made of disjoint two-position swaps, and each swap factors
 into three XOR-based controlled flips. The next lemma records this six-stage decomposition so that within each stage all

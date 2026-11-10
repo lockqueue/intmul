@@ -248,7 +248,7 @@ def check_tex_constants_and_declarations(src_dir: str) -> list[str]:
         (r"0df444a3", "Port target Mathlib 0df444a3"),
         (r"1041232178\b", "Lean numLabels: 1041232178"),
         (r"finTM2(?:\\allowbreak\s*)*MaxStmt(?:\\allowbreak\s*)*ElemOps(?:\\allowbreak\s*|\\\s+|\s+)+tmIntMul\s*=\s*16", "Lean finTM2MaxStmtElemOps = 16"),
-        (r"\bf4ecb4f468c1\b", "Lean snapshot id f4ecb4f468c1"),
+        (r"\bd7d142b0db9b\b", "Lean snapshot id d7d142b0db9b"),
         (r"9\.92\b", "10^7-bit e2e time 9.92 s"),
         (r"92\.5(?:1)?\b", "10^8-bit e2e time 92.51 / 92.5 s"),
         (r"805\.(?:37|4)\b", "5*10^8-bit e2e time 805.37 / 805.4 s"),
@@ -266,7 +266,7 @@ def check_tex_constants_and_declarations(src_dir: str) -> list[str]:
     bib_path = os.path.join(src_dir, "refs.bib")
     if os.path.exists(bib_path):
         bib_clean = re.sub(r"\\allowbreak\s*", "", strip_tex_comments(open(bib_path, encoding="utf-8").read()))
-        expected_cgmp_id = "e4852f57b537"
+        expected_cgmp_id = "8d300053117b"
         found_ids = re.findall(r"content snapshot \\texttt\{([0-9a-f]{12})\}", bib_clean)
         if expected_cgmp_id not in found_ids:
             errors.append(f"Expected CGMP26 content snapshot id {expected_cgmp_id} in refs.bib, got {found_ids}")

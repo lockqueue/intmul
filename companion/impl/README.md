@@ -117,10 +117,10 @@ length-$r$ DFTs in three steps:
     `fastdft` calls, and unsigned Kronecker slot decoding with pre-extracted
     per-slot bias corrections (`corr_slots`).
 * **`algo=1` — Improved Windowed Sinc–Gaussian Kernel (~1.8–1.9× faster e2e, ~2.4–3.6× lower RAM)**:
-  * **Window & symbol**: $g(t) = \operatorname{sinc}(t)\, e^{-\pi t^2 / \alpha^2}$
+  * **Window & symbol**: $g(t) = \mathrm{sinc}(t)\, e^{-\pi t^2 / \alpha^2}$
     with doubled $\alpha = 2\sqrt{p_{\text{work}} \ln 2 / \pi}$ and erf-smoothed
     box symbol
-    $\hat{g}(y) = \tfrac{1}{2}\big[\operatorname{erf}(\sqrt{\pi}\alpha(y+\tfrac{1}{2})) - \operatorname{erf}(\sqrt{\pi}\alpha(y-\tfrac{1}{2}))\big]$.
+    $\hat{g}(y) = \tfrac{1}{2}\big[\mathrm{erf}(\sqrt{\pi}\alpha(y+\tfrac{1}{2})) - \mathrm{erf}(\sqrt{\pi}\alpha(y-\tfrac{1}{2}))\big]$.
   * **Precision schedule**: Eliminates exponential Nyquist attenuation
     ($\hat{g}(\pm 1/2) \approx 1/2$), enabling a purely **additive** schedule
     $p_{\text{child}} = p + 2K + 12$ and tightened root precision

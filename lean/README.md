@@ -1,15 +1,15 @@
-# Lean 4 development: integer multiplication below n log n (snapshot `b706618497aa`, from commit `3480d37`)
+# Lean 4 development: integer multiplication below n log n (snapshot `b706618497aa`)
 
-This archive contains the Lean 4 formalization described in Section 8 ("Formal verification in Lean 4") of the paper
+This archive contains the Lean 4 formalization described in Section 8 ("Formal verification in Lean 4") of the full paper
 *A simpler algorithm for integer multiplication below n log n, with a formally verified proof* (2026).
 
 It is a comment- and documentation-updated snapshot (`b706618497aa`, the first 12 hex digits of the SHA-256 of
-`MANIFEST.sha256`) derived from commit `3480d37`. Every library `.lean` file in this archive (`2,011` library files
-total: `1,062` files / `299,120` lines in `SubNLogN/**`, and `949` files / `184,759` lines across `IntMul`, `IntMulTM`,
-`WP`, `Contracts`, `LevelSync`, `IntMul.lean`, and `AxiomCheck.lean`) has **byte-identical comment-stripped source** to
-commit `3480d37` (checked by the authors with the comparison mode of `tools/check_semantic_freeze.py`; running
-`python3 -B tools/check_semantic_freeze.py` in standalone mode inside this archive re-verifies all `2,011` library
-`.lean` files against the recorded digests `MANIFEST_stripped.sha256` and `SPEC_LOCK.sha256`).
+`MANIFEST.sha256`) of the authors' development tree. The comment-stripped source of every library `.lean` file in this
+archive (`2,011` library files total: `1,062` files / `299,120` lines in `SubNLogN/**`, and `949` files / `184,759` lines
+across `IntMul`, `IntMulTM`, `WP`, `Contracts`, `LevelSync`, `IntMul.lean`, and `AxiomCheck.lean`) is recorded in
+`MANIFEST_stripped.sha256`; running `python3 -B tools/check_semantic_freeze.py` in standalone mode inside this archive
+re-verifies all `2,011` library `.lean` files against the recorded digests `MANIFEST_stripped.sha256` and
+`SPEC_LOCK.sha256`.
 
 License: Apache License 2.0 (see `LICENSE`).
 
@@ -20,17 +20,15 @@ License: Apache License 2.0 (see `LICENSE`).
   $\kappa = 2^{-46}$).
 - The statement `IntMulSubNLogN`, the `Turing.TM2ComputableInTime` multi-stack Turing machine model, and the
   input/output encodings (`PairSym`, `encodeNatPair`, `encNatPair`) live in the self-contained 80-line file
-  `SubNLogN/Challenge.lean` (`SHA-256: 7aa50930921c494e50803b037c4cc6ed9be880c3f795e4b171e16ab59cf61fb5`, untouched from
-  commit `3480d37`).
+  `SubNLogN/Challenge.lean` (`SHA-256: 7aa50930921c494e50803b037c4cc6ed9be880c3f795e4b171e16ab59cf61fb5`).
 - Additional exported corollaries (`intMul_TM2_sub_nlogn_46`, `intMul_TM2_sub_nlogn_47`, `intMul_TM2_sub_nlogn_56`, and
   `intMul_TM2_littleO_nlogn`, where `_47` and `_56` follow from `_46` by exponent monotonicity `intMulSubNLogN_mono` while
   `SubNLogN/S5/Schedule.lean` checks the corresponding parameter-row slacks) and pure-`ℕ`/`ℤ` component checks (`S1`–`S5`,
   accompanying the full proofs in `SubNLogN/{Math,Machine,Assembly}` indexed in Table 7 of Section 8) are stated in
   `SubNLogN/Spec.lean` and assembled in `SubNLogN/Headline.lean`.
 - `SPEC_LOCK.sha256` records **both** the full-file SHA-256 (`sha256sum -c SPEC_LOCK.sha256`) and the comment-stripped
-  semantic SHA-256 (checked against commit `3480d37` by the comparison mode of `tools/check_semantic_freeze.py`, and
-  re-verified against `SPEC_LOCK.sha256` in standalone mode by `python3 -B tools/check_semantic_freeze.py`) of
-  `SubNLogN/Spec.lean` and the untouched `SubNLogN/Challenge.lean`.
+  semantic SHA-256 (re-verified against `SPEC_LOCK.sha256` in standalone mode by
+  `python3 -B tools/check_semantic_freeze.py`) of `SubNLogN/Spec.lean` and `SubNLogN/Challenge.lean`.
 
 ## Independent `O(n log n)` inner-multiplier formalization and numbering guide
 
@@ -106,8 +104,7 @@ limit via `mmap`ed `.olean` files, cap worker fan-out with `LEAN_NUM_THREADS=16 
   - `decide +kernel`: `41` occurrences in `5` files under `SubNLogN/Math/Networks` (kernel reduction; not `native_decide`; adds no axiom).
 - `tools/check_semantic_freeze.py`: in standalone mode (`python3 -B tools/check_semantic_freeze.py`), re-verifies all
   `2,011` library `.lean` files (`replay/` excluded as non-library) against `MANIFEST_stripped.sha256`, balanced comment
-  delimiters, `SPEC_LOCK.sha256`, and the exact SHA-256 of `SubNLogN/Challenge.lean` (the authors checked byte-identity
-  of comment-stripped `.lean` sources against commit `3480d37` using its comparison mode).
+  delimiters, `SPEC_LOCK.sha256`, and the exact SHA-256 of `SubNLogN/Challenge.lean`.
 - `MANIFEST.sha256` (`sha256sum -c MANIFEST.sha256`) records the SHA-256 of every `.lean` source file, build
   configuration file, `LICENSE`, `SPEC_LOCK.sha256`, `VERIFICATION_escape_scan.md`, `tools/*` script, and `replay/*`
   file (`2,076` entries total); its own SHA-256 begins with `b706618497aa`.

@@ -23,7 +23,7 @@ raw log in [`logs/`](logs/) (nothing is estimated or extrapolated).
     *Integer multiplication in O(n log n) time on a single two-dimensional grid, with a formally verified proof*
     (2026; companion manuscript).
   * **Primary benchmarked variant (`algo=1`, `sinc`)**: real windowed
-    sinc–Gaussian kernel $g(t) = \operatorname{sinc}(t)\, e^{-\pi t^2/\alpha^2}$
+    sinc–Gaussian kernel $g(t) = \mathrm{sinc}(t)\, e^{-\pi t^2/\alpha^2}$
     with $\alpha = 2\sqrt{p_{\text{work}}\ln 2/\pi}$, additive precision
     schedule ($p_{\text{work}} = p + K + 6$, $p_{\text{child}} = p + 2K + 12$,
     root precision $p_0 = 2b + 2K_0 + 6$), two-call complex input packing

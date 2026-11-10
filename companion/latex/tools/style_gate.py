@@ -307,7 +307,7 @@ def count_words(sentence: str) -> int:
 
 
 def check_readme_prose(readme_text: str) -> tuple[int, int]:
-    """Return (paren_em_pairs, sinc_endash_hits) in README.md."""
+    """Return (paren_em_pairs, sinc_endash_hits) in README.md when present."""
     sinc_hits = len(SINC_ENDASH_PAT.findall(readme_text))
     no_code = re.sub(r"```[\s\S]*?```", "\n\n", readme_text)
     prose_lines = []
@@ -401,13 +401,19 @@ def main() -> int:
 
     multi_semi = [(rel, s, s.count(";")) for rel, s in all_sentences if s.count(";") >= 2]
 
+    sinc_label = (
+        "sinc_endash_gaussian (.tex+bib+README)"
+        if os.path.exists(readme_path)
+        else "sinc_endash_gaussian (.tex+bib)"
+    )
+
     checks = [
         ("em_dash_total (--- across .tex)", em_total, "<= 8", em_total <= 8),
         ("em_dash_front (abstract+intro+overview)", em_front, "<= 2", em_front <= 2),
         ("em_dash_abstract (abstract.tex)", em_abstract, "== 0", em_abstract == 0),
         ("parenthetical_em_pairs (---...---)", paren_pairs, "== 0", paren_pairs == 0),
         ("forbidden_em_dash_contexts", len(forbidden_issues), "== 0", len(forbidden_issues) == 0),
-        ("sinc_endash_gaussian (.tex+bib+README)", sinc_hits, "== 0", sinc_hits == 0),
+        (sinc_label, sinc_hits, "== 0", sinc_hits == 0),
         ("front_sentences_gt_60_words (intro+overview)", len(front_gt60), "== 0", len(front_gt60) == 0),
         ("front_avg_sentence_words (intro+overview)", f"{front_avg:.2f}", "<= 30.0", front_avg <= 30.0),
         ("sentences_with_>=2_semicolons (all .tex)", len(multi_semi), "<= 5", len(multi_semi) <= 5),
